@@ -24,7 +24,7 @@
       align-items:start;
     }
 
-    /* NEW: canvas wrapper so we can letterbox on phone without stretching */
+    /* canvas wrapper so we can letterbox on phone without stretching */
     .gameWrap{
       display:flex;
       align-items:center;
@@ -51,13 +51,13 @@
       padding:12px;
     }
 
-    /* KEY FIX (DESKTOP/TABLET): Right panel stays in view + scrolls internally */
+    /* Right panel stays in view + scrolls internally (desktop/tablet) */
     .panelSticky{
       position: sticky;
       top: 14px;
       max-height: calc(100vh - 28px);
       overflow: auto;
-      padding-right: 10px; /* slight room for scrollbar */
+      padding-right: 10px;
     }
 
     .title{
@@ -90,18 +90,6 @@
     }
     .log .line{ margin: 0 0 8px 0; }
     .log .line:last-child{ margin-bottom:0; }
-
-    /* NEW: right-side activity feed below buttons */
-    .logMini{
-      height: 220px;
-      overflow:auto;
-      background:#0b1220;
-      border:1px solid #1f2a37;
-      border-radius:12px;
-      padding:10px;
-      font-size:12px;
-      line-height:1.45;
-    }
 
     .kv{ display:flex; justify-content:space-between; gap:10px; margin:6px 0; }
     .kv span:first-child{ color:#9fb1c6; }
@@ -234,7 +222,7 @@
     .btn-music{ background: linear-gradient(180deg,#c27bff,#7a35ff); color:#120018; grid-column: 1 / span 2; }
     .btn-info { background: linear-gradient(180deg,#f3f4f6,#cbd5e1); color:#0b0f14; }
 
-    /* Flashing Roll for monster event (OK — this doesn't reveal which stick is cursed) */
+    /* Flashing Roll for monster event (doesn't reveal cursed sticks) */
     @keyframes flashRoll {
       0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.0); transform: translateY(0); }
       100% { box-shadow: 0 0 0 3px rgba(255,255,255,0.75); transform: translateY(-1px); }
@@ -293,6 +281,59 @@
     .silver { color:#cbd5e1; }
     .bronze { color:#ffb347; }
 
+    /* Phone-only battle feed */
+    .battleFeedWrap{
+      margin-top:10px;
+      border:1px solid #1f2a37;
+      border-radius:12px;
+      background:#0b1220;
+      padding:10px;
+    }
+    .battleFeedHeader{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .battleFeedHeader b{ letter-spacing:.4px; }
+    .battleLog{
+      max-height: 220px;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius:10px;
+      border:1px solid #1f2a37;
+      padding:10px;
+      background:#070c16;
+      font-size:12px;
+      line-height:1.45;
+    }
+
+    /* Scroll hint (phone) */
+    .scrollHint{
+      display:none;
+      margin-top:8px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px dashed #2b3a4c;
+      background:#0b1220;
+      color:#9fb1c6;
+      font-size:12px;
+      line-height:1.25;
+      text-align:center;
+      user-select:none;
+    }
+    .scrollHint .arrow{
+      display:inline-block;
+      font-weight:1000;
+      margin-left:6px;
+      animation: bob 1.1s ease-in-out infinite;
+    }
+    @keyframes bob{
+      0%,100%{ transform: translateY(0); opacity:.75; }
+      50%{ transform: translateY(2px); opacity:1; }
+    }
+
     /* Overlays */
     #infoOverlay,#nameOverlay,#gameOverOverlay{
       display:none;
@@ -313,7 +354,7 @@
       max-height: calc(var(--vh, 1vh) * 92);
       display:flex;
       flex-direction:column;
-      overflow:hidden; /* internal scroll goes on modalText */
+      overflow:hidden;
     }
     .modalTitle{ font-weight:1000; letter-spacing:.8px; font-size:18px; }
     .modalText{
@@ -406,15 +447,14 @@
       .panelSticky{ position: static; max-height: none; overflow: visible; padding-right:12px; }
     }
 
-    /* PHONE: fixed, reliable viewport sizing + always-visible controls */
+    /* PHONE: reliable viewport sizing + scrollable controls area */
     @media (max-width:720px){
-      /* hide Activity panel (left) */
+      /* hide left Activity panel */
       .wrap > .panel:first-child{ display:none; }
 
-      /* Use JS-calculated --vh to avoid Safari address-bar bugs */
       body{
         height: calc(var(--vh, 1vh) * 100);
-        overflow:hidden;
+        overflow:hidden; /* page itself doesn't scroll */
       }
 
       .wrap{
@@ -424,7 +464,7 @@
         padding:10px;
         gap:10px;
         grid-template-columns: 1fr;
-        grid-template-rows: 1.35fr 1fr; /* more space to play area */
+        grid-template-rows: 1.35fr 1fr;
         align-items:stretch;
       }
 
@@ -433,7 +473,6 @@
         min-height:0;
       }
 
-      /* Keep canvas square without stretching; fill height first */
       canvas{
         width:auto;
         height:100%;
@@ -441,17 +480,16 @@
         max-height:100%;
       }
 
-      /* Controls panel: grid so the important buttons never get clipped */
+      /* Right panel becomes a fixed header + a single scroll area */
       .panel-right{
         height:100%;
         min-height:0;
         overflow:hidden;
-        display:grid;
-        grid-template-rows: auto auto auto auto 1fr;
-        gap:0;
+        display:flex;
+        flex-direction:column;
       }
 
-      /* tighten the header + hide the long tagline (put details in Info) */
+      /* tighten tagline */
       .panel-right .subtitle:first-of-type{ display:none; }
 
       .controlsTop{
@@ -463,35 +501,34 @@
       .diceFace{ font-size:44px; }
       .diceLabel{ font-size:11px; margin-top:6px; }
 
-      /* keep the little action explanation short */
       .controlsTop .subtitle{
         font-size:11px;
         line-height:1.25;
         margin-top:0;
-        max-height: 3.7em;
-        overflow:hidden;
       }
 
-      .dpadWrap{ margin-top:8px; }
-      .btns{ gap:8px; margin-top:8px; }
-
-      /* only the stats/leaderboard/activity scroll (not the controls) */
-      .rightBody{
+      /* THIS is what scrolls on phone (includes buttons + stats + battle feed) */
+      .controlsScroll{
         overflow:auto;
         -webkit-overflow-scrolling: touch;
-        padding-right:6px;
         min-height:0;
+        padding-right:6px;
       }
 
-      /* tighter activity feed height on phone */
-      .logMini{ height: 180px; }
+      /* show battle feed on phone only */
+      .battleFeedWrap{ display:block; }
+    }
+
+    /* Hide battle feed on desktop/tablet */
+    @media (min-width:721px){
+      .battleFeedWrap{ display:none; }
     }
   </style>
 </head>
 
 <body>
   <div class="wrap">
-    <!-- LEFT (desktop activity panel) -->
+    <!-- LEFT (desktop only) -->
     <div class="panel">
       <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Obsidian</span></div>
       <div class="subtitle">Latest on top. Color = importance.</div>
@@ -507,67 +544,61 @@
     <!-- RIGHT -->
     <div class="panel panelSticky panel-right">
       <div class="title">
-        <div>STICKS <span class="badge">v2.18</span></div>
+        <div>STICKS <span class="badge">v2.19</span></div>
         <button class="btn-info" id="btnInfo" style="padding:8px 10px;">Info</button>
       </div>
       <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
 
       <div class="hr"></div>
 
-      <!-- TOP PLAY CONTROLS -->
-      <div class="controlsTop">
-        <div class="diceBox" id="diceBox">
-          <div class="diceGlow"></div>
-          <div class="diceFace" id="diceFace">—</div>
-          <div class="diceLabel" id="diceLabel">Press Roll</div>
-        </div>
-        <div class="subtitle">
-          <b>Actions</b> = your energy.<br/>
-          Spend Actions to <span class="badge">Move</span> or <span class="badge">Pick/Drop</span>.<br/>
-          <span style="color:#9fb1c6">Spend Actions before rolling again.</span>
-        </div>
-      </div>
-
-      <div id="monsterEvent" class="monsterEvent" style="display:none;">
-        <div class="monsterEventIcon">👹</div>
-        <div>
-          <div class="monsterEventTitle">Stick Monster Appears!</div>
-          <div id="monsterEventText">
-            Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.
+      <!-- Everything below scrolls on PHONE (and stays normal on desktop) -->
+      <div class="controlsScroll" id="controlsScroll">
+        <!-- TOP PLAY CONTROLS -->
+        <div class="controlsTop">
+          <div class="diceBox" id="diceBox">
+            <div class="diceGlow"></div>
+            <div class="diceFace" id="diceFace">—</div>
+            <div class="diceLabel" id="diceLabel">Press Roll</div>
+          </div>
+          <div class="subtitle">
+            <b>Actions</b> = your energy.<br/>
+            Spend Actions to <span class="badge">Move</span> or <span class="badge">Pick/Drop</span>.<br/>
+            <span style="color:#9fb1c6">Spend Actions before rolling again.</span>
           </div>
         </div>
-      </div>
 
-      <div class="dpadWrap" aria-label="D-pad">
-        <div class="dpad">
-          <button class="empty"></button>
-          <button id="btnUp">▲</button>
-          <button class="empty"></button>
-          <button id="btnLeft">◀</button>
-          <button id="btnDown">▼</button>
-          <button id="btnRight">▶</button>
+        <div class="scrollHint" id="scrollHint">
+          Swipe up for controls, stats, and battle feed <span class="arrow">▼</span>
         </div>
-      </div>
 
-      <div class="btns">
-        <button id="btnRoll" class="btn-roll">🎲 Roll</button>
-        <button id="btnUse" class="btn-use">Pick/Drop</button>
-        <button id="btnNew" class="btn-new">New Game</button>
-        <button id="btnClear" class="btn-clear">Clear Stats</button>
-        <button id="btnMusic" class="btn-music">Music: OFF</button>
-      </div>
-
-      <!-- BELOW-THE-FOLD (scrolls on phone only) -->
-      <div class="rightBody">
-        <div class="hr"></div>
-
-        <!-- NEW: Activity feed BELOW buttons (for phone users / results visibility) -->
-        <div class="title" style="margin-top:2px;">
-          <div>Battle Feed</div>
-          <span class="badge">Latest</span>
+        <div id="monsterEvent" class="monsterEvent" style="display:none;">
+          <div class="monsterEventIcon">👹</div>
+          <div>
+            <div class="monsterEventTitle">Stick Monster Appears!</div>
+            <div id="monsterEventText">
+              Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.
+            </div>
+          </div>
         </div>
-        <div class="subtitle">This mirrors Activity (desktop left). Monster wins, deposits, level-ups, etc.</div>
-        <div class="logMini" id="log2"></div>
+
+        <div class="dpadWrap" aria-label="D-pad">
+          <div class="dpad">
+            <button class="empty"></button>
+            <button id="btnUp">▲</button>
+            <button class="empty"></button>
+            <button id="btnLeft">◀</button>
+            <button id="btnDown">▼</button>
+            <button id="btnRight">▶</button>
+          </div>
+        </div>
+
+        <div class="btns">
+          <button id="btnRoll" class="btn-roll">🎲 Roll</button>
+          <button id="btnUse" class="btn-use">Pick/Drop</button>
+          <button id="btnNew" class="btn-new">New Game</button>
+          <button id="btnClear" class="btn-clear">Clear Stats</button>
+          <button id="btnMusic" class="btn-music">Music: OFF</button>
+        </div>
 
         <div class="hr"></div>
 
@@ -585,6 +616,20 @@
         </div>
 
         <div class="leaderboard" id="leaderboard"></div>
+
+        <!-- PHONE-ONLY: Battle Feed (mirrors Activity) -->
+        <div class="battleFeedWrap" id="battleFeedWrap">
+          <div class="battleFeedHeader">
+            <b>Battle Feed</b>
+            <span class="badge">Latest</span>
+          </div>
+          <div style="color:#9fb1c6; font-size:12px; margin-bottom:8px;">
+            Monster wins, deposits, level-ups, and warnings show up here.
+          </div>
+          <div class="battleLog" id="battleLog"></div>
+        </div>
+
+        <div style="height:10px;"></div>
       </div>
     </div>
   </div>
@@ -657,7 +702,7 @@
 
 <script>
 (() => {
-  /* ---------- MOBILE SAFARI VH FIX (prevents clipping / missing buttons) ---------- */
+  /* ---------- MOBILE SAFARI VH FIX (prevents clipping) ---------- */
   function setVhVar(){
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -671,6 +716,7 @@
 
   const LS_PLAYER_NAME = "sticks_playerName_v3";
   const LS_LEADERBOARD = "sticks_leaderboard_v1";
+  const SS_SCROLLED = "sticks_scrolled_controls_v1";
 
   const THEMES = [
     { name:"Obsidian",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
@@ -749,9 +795,11 @@
 
   const ui = {
     log: document.getElementById("log"),
-    log2: document.getElementById("log2"),
-
+    battleLog: document.getElementById("battleLog"),
     themeMini: document.getElementById("uiThemeMini"),
+    controlsScroll: document.getElementById("controlsScroll"),
+    scrollHint: document.getElementById("scrollHint"),
+
     player: document.getElementById("uiPlayer"),
     lives: document.getElementById("uiLives"),
     level: document.getElementById("uiLevel"),
@@ -811,24 +859,24 @@
     monster: { color:"#ff1f3a", icon:"👹 " },
   };
 
-  function trimLog(el){
+  function prependToLog(el, line){
     if (!el) return;
+    el.prepend(line);
     while (el.children.length > LOG_MAX_LINES) el.removeChild(el.lastChild);
   }
 
   function logEvent(kind, msg){
     const st = LOG_STYLE[kind] || LOG_STYLE.neutral;
 
-    // Write to BOTH feeds (desktop-left + right-under-buttons)
-    [ui.log, ui.log2].forEach((target) => {
-      if (!target) return;
-      const line = document.createElement("div");
-      line.className = "line";
-      line.style.color = st.color;
-      line.textContent = (st.icon || "") + msg;
-      target.prepend(line);
-      trimLog(target);
-    });
+    const line1 = document.createElement("div");
+    line1.className = "line";
+    line1.style.color = st.color;
+    line1.textContent = (st.icon || "") + msg;
+
+    const line2 = line1.cloneNode(true);
+
+    prependToLog(ui.log, line1);
+    prependToLog(ui.battleLog, line2);
   }
 
   function loadLeaderboard(){
@@ -886,6 +934,32 @@
     }[m]));
   }
 
+  /* ---------- PHONE SCROLL HINT ---------- */
+  function isPhone(){
+    return window.matchMedia && window.matchMedia("(max-width:720px)").matches;
+  }
+
+  function updateScrollHint(){
+    if (!ui.scrollHint || !ui.controlsScroll) return;
+    if (!isPhone()){ ui.scrollHint.style.display = "none"; return; }
+    if (sessionStorage.getItem(SS_SCROLLED) === "1"){ ui.scrollHint.style.display = "none"; return; }
+    const canScroll = ui.controlsScroll.scrollHeight > (ui.controlsScroll.clientHeight + 6);
+    const atTop = ui.controlsScroll.scrollTop <= 2;
+    ui.scrollHint.style.display = (canScroll && atTop) ? "block" : "none";
+  }
+
+  ui.controlsScroll?.addEventListener("scroll", () => {
+    if (!isPhone()) return;
+    if (ui.controlsScroll.scrollTop > 20){
+      sessionStorage.setItem(SS_SCROLLED, "1");
+      updateScrollHint();
+    }
+  }, { passive:true });
+
+  window.addEventListener("resize", () => {
+    setTimeout(updateScrollHint, 60);
+  }, { passive:true });
+
   /* ---------- AUDIO: iOS requires unlock via user gesture ---------- */
   let audioCtx = null;
   let musicOn = false;
@@ -902,7 +976,6 @@
     try{
       ensureAudio();
       if (audioCtx.state === "suspended") await audioCtx.resume();
-      // tiny silent tick to fully unlock on some iOS versions
       const o = audioCtx.createOscillator();
       const g = audioCtx.createGain();
       g.gain.value = 0.00001;
@@ -913,7 +986,6 @@
     }catch(_){}
   }
 
-  // unlock on first tap anywhere
   const unlockOnce = async () => {
     if (audioUnlocked) return;
     await unlockAudio();
@@ -1044,13 +1116,13 @@
   }
 
   function zeroChance(level){
-    return Math.min(0.18, 0.00 + (level-1)*0.015);
+    return Math.min(ZERO_CHANCE_CAP, ZERO_CHANCE_L1 + (level-1)*ZERO_CHANCE_INC);
   }
   function curseChance(level){
-    return Math.min(0.16, 0.08 + (level-1)*0.015);
+    return Math.min(CURSE_CHANCE_CAP, CURSE_CHANCE_L1 + (level-1)*CURSE_CHANCE_INC);
   }
   function bonusChance(level){
-    return Math.min(0.22, 0.10 + (level-1)*0.01);
+    return Math.min(BONUS_CHANCE_CAP, BONUS_CHANCE_L1 + (level-1)*BONUS_CHANCE_INC);
   }
 
   function setHud(msg){
@@ -1061,7 +1133,7 @@
   function applyThemeForLevel(){
     game.themeIndex = (game.level - 1) % THEMES.length;
     const t = THEMES[game.themeIndex];
-    ui.themeMini.textContent = t.name;
+    if (ui.themeMini) ui.themeMini.textContent = t.name;
     document.documentElement.style.setProperty("--lvlBg", t.bg);
     document.documentElement.style.setProperty("--lvlBorder", t.border);
     document.documentElement.style.setProperty("--lvlAccentGlow", t.accentGlow);
@@ -1187,9 +1259,11 @@
     spawnLifeTile();
 
     if (ui.log) ui.log.innerHTML = "";
-    if (ui.log2) ui.log2.innerHTML = "";
+    if (ui.battleLog) ui.battleLog.innerHTML = "";
     logEvent("neutral","Welcome to STICKS.");
     logEvent("neutral","Roll to begin.");
+
+    setTimeout(updateScrollHint, 60);
   }
 
   function commitScoreToLeaderboard(){
@@ -1291,6 +1365,7 @@
       }
 
       updateUI();
+      setTimeout(updateScrollHint, 30);
     }, 260);
   }
 
@@ -1413,6 +1488,7 @@
       ui.btnRoll.classList.remove("flashRoll");
       game.inputLocked = false;
       updateUI();
+      setTimeout(updateScrollHint, 30);
     }, 260);
   }
 
@@ -1474,6 +1550,7 @@
       const s = game.sticks[idx];
 
       if (s.cursed){
+        // player never sees cursed sticks in the field
         game.pendingMonster = { index: idx };
         game.inputLocked = true;
         logEvent("monster","Monster Stick! Press ROLL (0–5) to fight.");
@@ -1485,6 +1562,7 @@
         ui.btnRoll.classList.add("flashRoll");
         sfxMonster();
         updateUI();
+        setTimeout(updateScrollHint, 30);
         return;
       }
 
@@ -1505,6 +1583,7 @@
       }
 
       updateUI();
+      setTimeout(updateScrollHint, 30);
       return;
     }
 
@@ -1692,6 +1771,7 @@
     ctx.lineTo(7, 9);
     ctx.stroke();
 
+    /* subtle highlight on all sticks (NOT cursed-specific) */
     ctx.globalAlpha = 0.35;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1;
@@ -1869,7 +1949,7 @@
     else if (e.key === " "){ e.preventDefault(); pickOrDrop(); }
   }
 
-  /* ---- Button handlers (unlock audio on phone) ---- */
+  /* ---- Button handlers ---- */
   ui.btnRoll.addEventListener("click", async () => {
     await unlockAudio();
     if (game.pendingMonster){ resolveMonsterRoll(); return; }
@@ -1894,11 +1974,13 @@
       ui.btnMusic.textContent = "Music: ON";
       startMusic();
       chord([262,330,392],0.18,0.05);
+      logEvent("neutral","Music ON.");
     } else {
       musicOn = false;
       ui.btnMusic.textContent = "Music: OFF";
       stopMusic();
       beep(196,0.10,"triangle",0.05);
+      logEvent("neutral","Music OFF.");
     }
   });
 
@@ -1910,7 +1992,6 @@
   ui.btnInfo.addEventListener("click", async () => { await unlockAudio(); ui.infoOverlay.style.display = "flex"; game.inputLocked = true; });
   ui.btnInfoClose.addEventListener("click", async () => { await unlockAudio(); ui.infoOverlay.style.display = "none"; game.inputLocked = false; });
 
-  // Close Info if you tap the dark backdrop
   ui.infoOverlay.addEventListener("click", (e) => {
     if (e.target === ui.infoOverlay){
       ui.infoOverlay.style.display = "none";
@@ -1956,6 +2037,8 @@
     requestAnimationFrame(loop);
 
     showNameModal();
+
+    setTimeout(updateScrollHint, 120);
   }
 
   boot();
@@ -1963,3 +2046,5 @@
 </script>
 </body>
 </html>
+
+
