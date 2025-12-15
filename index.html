@@ -14,9 +14,20 @@
       color:#e6edf3;
     }
 
+    /* NEW: scaling shell so layout can shrink to fit screen */
+    #scaleShell{
+      width:100vw;
+      height:100vh;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      overflow:auto;
+    }
+
     .wrap{
       max-width: 1320px; margin:0 auto; padding:14px;
       display:grid; grid-template-columns: 260px 1fr 420px; gap:14px; align-items:start;
+      transform-origin: top center;      /* so scale is anchored at top */
     }
 
     canvas{
@@ -227,94 +238,96 @@
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <!-- LEFT -->
-    <div class="panel">
-      <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Obsidian</span></div>
-      <div class="subtitle">Latest on top. Color = importance.</div>
-      <div class="hr"></div>
-      <div class="log" id="log"></div>
-    </div>
-
-    <!-- MIDDLE -->
-    <canvas id="game"></canvas>
-
-    <!-- RIGHT -->
-    <div class="panel">
-      <div class="title">
-        <div>STICKS <span class="badge">v2.10</span></div>
-        <div style="display:flex; gap:8px;">
-          <button class="btn-info" id="btnInfo" style="padding:10px 12px;">Info</button>
-        </div>
-      </div>
-      <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
-
-      <div class="hr"></div>
-
-      <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
-      <div class="kv"><span>Lives</span><span id="uiLives" class="big">3</span></div>
-
-      <div class="kv"><span>Level</span><span id="uiLevel" class="big">1</span></div>
-      <div class="kv"><span>Score</span><span id="uiScore" class="big">0</span></div>
-      <div class="kv"><span>Actions</span><span id="uiActions" class="big">0</span></div>
-      <div class="kv"><span>Mode</span><span id="uiMode" class="big">NORMAL</span></div>
-      <div class="kv"><span>Die</span><span id="uiDie" class="big">0–5</span></div>
-      <div class="kv"><span>Carrying</span><span id="uiCarry" class="big">0/3</span></div>
-      <div class="kv"><span>Sticks left</span><span id="uiLeft" class="big">0</span></div>
-
-      <div class="hr"></div>
-
-      <div class="diceRow">
-        <div class="diceBox" id="diceBox">
-          <div class="diceGlow"></div>
-          <div class="diceFace" id="diceFace">—</div>
-          <div class="diceLabel" id="diceLabel">Press Roll</div>
-        </div>
-        <div class="subtitle">
-          <b>Actions</b> = your energy for the turn.<br/>
-          Spend Actions to <span class="badge">Move</span> or <span class="badge">Pick/Drop</span>.<br/>
-          <span style="color:#9fb1c6">You must spend Actions before rolling again.</span>
-        </div>
+  <div id="scaleShell">
+    <div class="wrap">
+      <!-- LEFT -->
+      <div class="panel">
+        <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Obsidian</span></div>
+        <div class="subtitle">Latest on top. Color = importance.</div>
+        <div class="hr"></div>
+        <div class="log" id="log"></div>
       </div>
 
-      <!-- Monster encounter chat box -->
-      <div id="monsterEvent" class="monsterEvent" style="display:none;">
-        <div class="monsterEventIcon">👹</div>
-        <div>
-          <div class="monsterEventTitle">Stick Monster Appears!</div>
-          <div id="monsterEventText">
-            Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.
+      <!-- MIDDLE -->
+      <canvas id="game"></canvas>
+
+      <!-- RIGHT -->
+      <div class="panel">
+        <div class="title">
+          <div>STICKS <span class="badge">v2.11</span></div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn-info" id="btnInfo" style="padding:10px 12px;">Info</button>
           </div>
         </div>
-      </div>
+        <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
 
-      <div class="dpadWrap" aria-label="D-pad">
-        <div class="dpad">
-          <button class="empty"></button>
-          <button id="btnUp">▲</button>
-          <button class="empty"></button>
-          <button id="btnLeft">◀</button>
-          <button id="btnDown">▼</button>
-          <button id="btnRight">▶</button>
+        <div class="hr"></div>
+
+        <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
+        <div class="kv"><span>Lives</span><span id="uiLives" class="big">3</span></div>
+
+        <div class="kv"><span>Level</span><span id="uiLevel" class="big">1</span></div>
+        <div class="kv"><span>Score</span><span id="uiScore" class="big">0</span></div>
+        <div class="kv"><span>Actions</span><span id="uiActions" class="big">0</span></div>
+        <div class="kv"><span>Mode</span><span id="uiMode" class="big">NORMAL</span></div>
+        <div class="kv"><span>Die</span><span id="uiDie" class="big">0–5</span></div>
+        <div class="kv"><span>Carrying</span><span id="uiCarry" class="big">0/3</span></div>
+        <div class="kv"><span>Sticks left</span><span id="uiLeft" class="big">0</span></div>
+
+        <div class="hr"></div>
+
+        <div class="diceRow">
+          <div class="diceBox" id="diceBox">
+            <div class="diceGlow"></div>
+            <div class="diceFace" id="diceFace">—</div>
+            <div class="diceLabel" id="diceLabel">Press Roll</div>
+          </div>
+          <div class="subtitle">
+            <b>Actions</b> = your energy for the turn.<br/>
+            Spend Actions to <span class="badge">Move</span> or <span class="badge">Pick/Drop</span>.<br/>
+            <span style="color:#9fb1c6">You must spend Actions before rolling again.</span>
+          </div>
         </div>
-      </div>
 
-      <div class="btns">
-        <button id="btnRoll" class="btn-roll">🎲 Roll</button>
-        <button id="btnUse" class="btn-use">Pick/Drop</button>
-        <button id="btnNew" class="btn-new">New Game</button>
-        <button id="btnClear" class="btn-clear">Clear Stats</button>
-        <button id="btnMusic" class="btn-music">Music: OFF</button>
-      </div>
+        <!-- Monster encounter chat box -->
+        <div id="monsterEvent" class="monsterEvent" style="display:none;">
+          <div class="monsterEventIcon">👹</div>
+          <div>
+            <div class="monsterEventTitle">Stick Monster Appears!</div>
+            <div id="monsterEventText">
+              Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.
+            </div>
+          </div>
+        </div>
 
-      <div class="hr"></div>
+        <div class="dpadWrap" aria-label="D-pad">
+          <div class="dpad">
+            <button class="empty"></button>
+            <button id="btnUp">▲</button>
+            <button class="empty"></button>
+            <button id="btnLeft">◀</button>
+            <button id="btnDown">▼</button>
+            <button id="btnRight">▶</button>
+          </div>
+        </div>
 
-      <div class="title" style="font-size:13px;">
-        <div>Top Scores (Local)</div>
-        <span class="badge" id="uiTopHint">Top 3</span>
+        <div class="btns">
+          <button id="btnRoll" class="btn-roll">🎲 Roll</button>
+          <button id="btnUse" class="btn-use">Pick/Drop</button>
+          <button id="btnNew" class="btn-new">New Game</button>
+          <button id="btnClear" class="btn-clear">Clear Stats</button>
+          <button id="btnMusic" class="btn-music">Music: OFF</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="title" style="font-size:13px;">
+          <div>Top Scores (Local)</div>
+          <span class="badge" id="uiTopHint">Top 3</span>
+        </div>
+        <div class="subtitle">Saved on this device only.</div>
+        <div class="leaderboard" id="leaderboard"></div>
       </div>
-      <div class="subtitle">Saved on this device only.</div>
-      <div class="leaderboard" id="leaderboard"></div>
     </div>
   </div>
 
@@ -334,6 +347,11 @@
         <div style="margin:8px 0;"><span class="badge">Bonus</span>:
           secret sticks trigger BONUS. In Bonus you roll <b>double dice (2–12)</b> (1–6 + 1–6). Deposits are 2×.
           Roll <b>12</b> to earn <b>one extra Bonus roll</b> (after Actions hit 0).
+        </div>
+        <!-- NEW: explain hidden extra-life tile -->
+        <div style="margin:8px 0;"><span class="badge">Extra Life</span>:
+          each level hides <b>one secret tile</b>. If you’re carrying a stick and drop it on that square,
+          the tile pulses and you gain <b>+1 life</b> (the stick is used up).
         </div>
         <div style="margin:8px 0;"><span class="badge">Stick Monster</span>:
           some sticks are cursed. When you try to pick one up, a Stick Monster appears.
@@ -579,7 +597,6 @@
       const wrap = document.createElement("div");
       wrap.className = "leaderRow";
       const medalClass = medals[idx] || "";
-      const label = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
       wrap.innerHTML = `
         <div>
           <div class="leaderName ${medalClass}">${escapeHtml(e.name || "PLAYER1")}</div>
@@ -709,7 +726,7 @@
     lifeTileY: -1,
     lifeTileUsed: false,
 
-    pendingMonster: null,   // { index }
+    pendingMonster: null,
 
     hudMsg: "",
     hudTimer: 0,
@@ -918,7 +935,7 @@
 
   function canRoll(){
     if (game.inputLocked && !game.pendingMonster) return false;
-    if (game.pendingMonster) return true; // monster roll ignores actions
+    if (game.pendingMonster) return true;
     if (game.actions > 0) return false;
     return true;
   }
@@ -1689,6 +1706,22 @@
 
   document.addEventListener("keydown", keyHandler);
 
+  /* NEW: auto-scale the layout to fit smaller screens */
+  function applyScale(){
+    const shell = document.getElementById("scaleShell");
+    const wrap = document.querySelector(".wrap");
+    if (!shell || !wrap) return;
+
+    const baseW = 1320;
+    const baseH = 720;
+
+    const availW = window.innerWidth - 20;
+    const availH = window.innerHeight - 20;
+
+    const scale = Math.min(1, Math.min(availW / baseW, availH / baseH));
+    wrap.style.transform = `scale(${scale})`;
+  }
+
   function boot(){
     renderLeaderboard(loadLeaderboard());
 
@@ -1702,6 +1735,9 @@
     requestAnimationFrame(loop);
 
     showNameModal();
+
+    applyScale();
+    window.addEventListener("resize", applyScale);
   }
 
   boot();
