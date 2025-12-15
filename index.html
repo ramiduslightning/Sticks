@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
   <title>STICKS</title>
   <style>
     :root{ color-scheme: dark; }
@@ -33,6 +33,7 @@
       background: var(--lvlBg, #070a0e);
       box-shadow: 0 0 0 2px rgba(0,0,0,.15), 0 18px 50px rgba(0,0,0,.35);
       display:block;
+      touch-action:none;
     }
 
     .panel{
@@ -201,6 +202,7 @@
       box-shadow: 0 6px 18px rgba(0,0,0,.25);
       transition: transform .05s ease, filter .15s ease, box-shadow .15s ease;
       touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
     button:active{ transform: translateY(1px); }
     button:hover{ filter: brightness(1.08); }
@@ -213,7 +215,7 @@
     .btn-music{ background: linear-gradient(180deg,#c27bff,#7a35ff); color:#120018; grid-column: 1 / span 2; }
     .btn-info { background: linear-gradient(180deg,#f3f4f6,#cbd5e1); color:#0b0f14; }
 
-    /* Flashing Roll for monster event (UI only, NOT stick highlight) */
+    /* Flashing Roll for monster event (ROLL button only; monster stick itself is never highlighted) */
     @keyframes flashRoll {
       0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.0); transform: translateY(0); }
       100% { box-shadow: 0 0 0 3px rgba(255,255,255,0.75); transform: translateY(-1px); }
@@ -362,69 +364,59 @@
       .panelSticky{ position: static; max-height: none; overflow: visible; padding-right:12px; }
     }
 
-    /*
-      PHONE FIX:
-      - No page scrolling needed.
-      - Top = canvas play area
-      - Bottom = controls (D-pad + Roll/Pick always visible)
-      - Hide bulky stats/leaderboard/activity on phone.
-    */
+    /* PHONE: prioritize play area + keep controls visible; also avoid iOS 100vh issues */
     @media (max-width:720px){
-      /* biggest space win */
       .wrap > .panel:first-child{ display:none; }
 
-      /* use dynamic viewport units so iOS URL bar/keyboard doesn't "freeze" layout */
-      body{
-        height: 100dvh;
-        overflow: hidden;
-      }
+      body{ height:100dvh; overflow:hidden; }
 
       .wrap{
-        height: 100dvh;
+        height:100dvh;
         max-width:none;
         margin:0;
         padding:10px;
         gap:10px;
         grid-template-columns: 1fr;
-        grid-template-rows: 1fr auto;
+        grid-template-rows: minmax(0, 62dvh) minmax(0, 1fr);
         align-items:stretch;
         padding-bottom: calc(10px + env(safe-area-inset-bottom));
       }
 
-      /* canvas = top play area */
+      /* keep game square without stretching */
       canvas{
-        height: 100%;
+        width:100%;
+        height:auto;
+        aspect-ratio: 1 / 1;
         max-height: 100%;
-        min-height: 0;
+        align-self:stretch;
+        justify-self:stretch;
       }
 
-      /* controls panel = bottom; scroll disabled because we make it fit */
+      /* controls area: capped so it can't steal the screen */
       .panel-right{
-        padding:10px;
+        max-height: calc(38dvh - env(safe-area-inset-bottom));
+        overflow:hidden;
+        padding-right: 12px;
       }
 
-      /* hide long text + below-the-fold stuff on phone */
-      .phoneHide{ display:none !important; }
+      /* compress controls so buttons always fit */
+      .title .badge{ font-size:11px; }
+      .subtitle{ font-size:11px; margin-top:6px; }
 
-      /* tighter header */
-      .title{ gap:8px; }
-      .btn-info{ padding:8px 10px !important; }
+      .controlsTop{ grid-template-columns: 88px 1fr; gap:10px; }
+      .diceBox{ width:88px; height:88px; border-radius:14px; }
+      .diceFace{ font-size:40px; }
+      .diceLabel{ display:none; } /* save vertical space on phone */
 
-      /* make the “actions help” text disappear on phone (space win) */
-      .controlsTop{
-        grid-template-columns: 96px 1fr;
-        gap:10px;
-        align-items:center;
-      }
-      .diceBox{ width:96px; height:96px; border-radius:14px; }
-      .diceFace{ font-size:42px; }
-      .diceLabel{ font-size:11px; margin-top:6px; }
+      .dpadWrap{ margin-top:8px; }
+      .dpad{ width:168px; gap:6px; }
+      .dpad button{ padding:9px 0; border-radius:12px; }
 
-      /* dpad + buttons ALWAYS visible */
-      .dpad{ width:190px; gap:6px; }
-      .dpad button{ padding:10px 0; border-radius:12px; }
-      .btns{ margin-top:8px; gap:8px; }
-      button{ padding:12px 10px; }
+      .btns{ gap:8px; margin-top:8px; }
+      button{ padding:10px 10px; font-size:14px; }
+
+      /* below-the-fold stays hidden on phone */
+      .rightBody{ display:none; }
     }
   </style>
 </head>
@@ -445,12 +437,12 @@
     <!-- RIGHT (desktop sticky + phone bottom-controls) -->
     <div class="panel panelSticky panel-right">
       <div class="title">
-        <div>STICKS <span class="badge">v2.15</span></div>
+        <div>STICKS <span class="badge">v2.16</span></div>
         <button class="btn-info" id="btnInfo" style="padding:8px 10px;">Info</button>
       </div>
-      <div class="subtitle phoneHide">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
+      <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
 
-      <div class="hr phoneHide"></div>
+      <div class="hr"></div>
 
       <!-- TOP PLAY CONTROLS -->
       <div class="controlsTop">
@@ -459,7 +451,7 @@
           <div class="diceFace" id="diceFace">—</div>
           <div class="diceLabel" id="diceLabel">Press Roll</div>
         </div>
-        <div class="subtitle phoneHide">
+        <div class="subtitle">
           <b>Actions</b> = your energy for the turn.<br/>
           Spend Actions to <span class="badge">Move</span> or <span class="badge">Pick/Drop</span>.<br/>
           <span style="color:#9fb1c6">You must spend Actions before rolling again.</span>
@@ -495,8 +487,8 @@
         <button id="btnMusic" class="btn-music">Music: OFF</button>
       </div>
 
-      <!-- BELOW-THE-FOLD STUFF (hidden on phone) -->
-      <div class="rightBody phoneHide">
+      <!-- BELOW-THE-FOLD STUFF (desktop only; hidden on phone via CSS) -->
+      <div class="rightBody">
         <div class="hr"></div>
 
         <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
@@ -611,7 +603,10 @@
   const TILE = 24, GRID_W = 24, GRID_H = 24;
   const CANVAS_W = GRID_W * TILE, CANVAS_H = GRID_H * TILE;
 
+  const BASE_STICKS_L1 = 6;
+  const STICKS_PER_LEVEL = 3;
   const BONUS_MULTIPLIER = 2;
+  const MAX_LIVES = 5;
 
   const ZERO_CHANCE_L1  = 0.00;
   const ZERO_CHANCE_INC = 0.015;
@@ -665,7 +660,7 @@
   ];
 
   const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { alpha:false });
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
 
@@ -769,7 +764,6 @@
 
   function renderLeaderboard(lb){
     const rows = (lb && lb.length) ? lb : loadLeaderboard();
-    if (!ui.leaderboard) return;
     ui.leaderboard.innerHTML = "";
     if (!rows.length){
       ui.leaderboard.innerHTML = `<div style="color:#9fb1c6;">No scores yet. Play a game.</div>`;
@@ -797,7 +791,12 @@
     }[m]));
   }
 
+  // =====================
+  // AUDIO (PHONE FIX)
+  // =====================
   let audioCtx = null;
+  let audioUnlocked = false;
+
   let musicOn = false;
   let musicTimer = null;
   let musicStep = 0;
@@ -806,10 +805,33 @@
     if (!audioCtx){
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
+    // iOS/Safari: may start suspended even after creation
+    if (audioCtx.state === "suspended"){
+      audioCtx.resume().catch(()=>{});
+    }
   }
-  function beep(freq=440, dur=0.08, type="sine", gain=0.08){
+
+  function unlockAudio(){
     try{
       ensureAudio();
+      if (audioUnlocked) return;
+      // create a tiny silent blip to fully unlock on iOS
+      const t0 = audioCtx.currentTime;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      o.frequency.setValueAtTime(440, t0);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(t0);
+      o.stop(t0 + 0.02);
+      audioUnlocked = true;
+    }catch(_){}
+  }
+
+  function beep(freq=440, dur=0.08, type="sine", gain=0.08){
+    try{
+      unlockAudio();
+      if (!audioCtx) return;
       const t0 = audioCtx.currentTime;
       const o = audioCtx.createOscillator();
       const g = audioCtx.createGain();
@@ -829,7 +851,7 @@
   }
 
   function startMusic(){
-    ensureAudio();
+    unlockAudio();
     if (musicTimer) return;
     musicStep = 0;
     musicTimer = setInterval(() => {
@@ -871,6 +893,16 @@
   function sfxLevelUp(){ chord([440,660,880],0.20,0.06); chord([520,780,1040],0.22,0.06); }
   function sfxExtraRoll(){ chord([880,990],0.14,0.06); }
 
+  // Unlock audio on any real user gesture (required on phone)
+  function attachAudioUnlock(){
+    const unlockOnce = () => {
+      unlockAudio();
+      // do NOT remove; iOS can re-suspend after tab switch; keep it cheap
+    };
+    document.addEventListener("pointerdown", unlockOnce, { passive:true });
+    document.addEventListener("touchstart", unlockOnce, { passive:true });
+  }
+
   const player = { name: "PLAYER1" };
 
   function sanitizeName(s){
@@ -885,7 +917,7 @@
     const n = (sanitizeName(name) || "PLAYER1").toUpperCase();
     player.name = n;
     localStorage.setItem(LS_PLAYER_NAME, n);
-    if (ui.player) ui.player.textContent = n;
+    ui.player.textContent = n;
   }
 
   const game = {
@@ -930,13 +962,13 @@
   }
 
   function zeroChance(level){
-    return Math.min(ZERO_CHANCE_CAP, ZERO_CHANCE_L1 + (level-1)*ZERO_CHANCE_INC);
+    return Math.min(0.18, 0.00 + (level-1)*0.015);
   }
   function curseChance(level){
-    return Math.min(CURSE_CHANCE_CAP, CURSE_CHANCE_L1 + (level-1)*CURSE_CHANCE_INC);
+    return Math.min(0.16, 0.08 + (level-1)*0.015);
   }
   function bonusChance(level){
-    return Math.min(BONUS_CHANCE_CAP, BONUS_CHANCE_L1 + (level-1)*BONUS_CHANCE_INC);
+    return Math.min(0.22, 0.10 + (level-1)*0.01);
   }
 
   function setHud(msg){
@@ -947,7 +979,7 @@
   function applyThemeForLevel(){
     game.themeIndex = (game.level - 1) % THEMES.length;
     const t = THEMES[game.themeIndex];
-    if (ui.themeMini) ui.themeMini.textContent = t.name;
+    ui.themeMini.textContent = t.name;
     document.documentElement.style.setProperty("--lvlBg", t.bg);
     document.documentElement.style.setProperty("--lvlBorder", t.border);
     document.documentElement.style.setProperty("--lvlAccentGlow", t.accentGlow);
@@ -1196,13 +1228,13 @@
     if (game.carry.length > 0){
       const dropped = game.carry.splice(0, game.carry.length);
       dropped.forEach(st => {
-        const p = scatterPositionAround(game.playerX, game.playerY, ZERO_SCATTER_RADIUS);
+        const p = scatterPositionAround(game.playerX, game.playerY, 3);
         game.sticks.push({ x:p.x, y:p.y, color: st.color, cursed:false, bonus:false });
       });
       logEvent("bad",`Zero! Dropped ${dropped.length} stick(s).`);
       setHud(`Zero! Dropped ${dropped.length}!`);
     } else {
-      const p = scatterPositionAround(game.holeX, game.holeY, ZERO_SCATTER_RADIUS);
+      const p = scatterPositionAround(game.holeX, game.holeY, 3);
       const color = STICK_COLORS[randInt(0, STICK_COLORS.length-1)];
       game.sticks.push({ x:p.x, y:p.y, color, cursed:false, bonus:false });
       logEvent("bad","Zero! Hole spits out a stick.");
@@ -1322,7 +1354,7 @@
       let pts = 0;
       for (const st of game.carry){
         let v = st.value || 1;
-        if (game.bonusActive) v *= BONUS_MULTIPLIER;
+        if (game.bonusActive) v *= 2;
         pts += v;
       }
       game.score += pts;
@@ -1359,6 +1391,7 @@
       const s = game.sticks[idx];
 
       if (s.cursed){
+        // IMPORTANT: monster stick is NOT highlighted or visually marked. It remains a mystery.
         game.pendingMonster = { index: idx };
         game.inputLocked = true;
         logEvent("monster","Monster Stick! Press ROLL (0–5) to fight.");
@@ -1457,18 +1490,18 @@
   }
 
   function updateUI(){
-    if (ui.player) ui.player.textContent = player.name;
-    if (ui.lives) ui.lives.textContent = String(game.lives);
-    if (ui.level) ui.level.textContent = String(game.level);
-    if (ui.score) ui.score.textContent = String(game.score);
-    if (ui.actions) ui.actions.textContent = String(game.actions);
+    ui.player.textContent = player.name;
+    ui.lives.textContent = String(game.lives);
+    ui.level.textContent = String(game.level);
+    ui.score.textContent = String(game.score);
+    ui.actions.textContent = String(game.actions);
 
     const cap = carryCap();
-    if (ui.carry) ui.carry.textContent = `${game.carry.length}/${cap}`;
-    if (ui.left) ui.left.textContent = String(game.sticks.length);
+    ui.carry.textContent = `${game.carry.length}/${cap}`;
+    ui.left.textContent = String(game.sticks.length);
 
-    if (ui.mode) ui.mode.textContent = game.bonusActive ? (game.bonusExtraRollReady ? "BONUS+" : "BONUS") : "NORMAL";
-    if (ui.die) ui.die.textContent = game.bonusActive ? "2–12" : "0–5";
+    ui.mode.textContent = game.bonusActive ? (game.bonusExtraRollReady ? "BONUS+" : "BONUS") : "NORMAL";
+    ui.die.textContent = game.bonusActive ? "2–12" : "0–5";
 
     updateRollButtonState();
   }
@@ -1562,12 +1595,6 @@
     ctx.globalAlpha = 1;
   }
 
-  /*
-    IMPORTANT VISUAL RULE:
-    - NO stick gets a special “aura” or glow.
-    - Cursed/monster sticks are NEVER visually different.
-    - Bonus sticks are ALSO not visually different.
-  */
   function drawStick(s){
     const x = s.x*TILE;
     const y = s.y*TILE;
@@ -1591,6 +1618,16 @@
     ctx.lineTo(5, 7);
     ctx.stroke();
     ctx.globalAlpha = 1;
+
+    // Only BONUS sticks get a subtle aura. Monster sticks remain visually identical.
+    if (s.bonus){
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = "#ffd166";
+      ctx.beginPath();
+      ctx.arc(0,0,10,0,Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
 
     ctx.restore();
   }
@@ -1751,15 +1788,20 @@
     else if (e.key === " "){ e.preventDefault(); pickOrDrop(); }
   }
 
+  // ==========
+  // BUTTONS
+  // ==========
   ui.btnRoll.addEventListener("click", () => {
+    unlockAudio();
     if (game.pendingMonster){ resolveMonsterRoll(); return; }
     doRoll();
   });
 
-  ui.btnUse.addEventListener("click", pickOrDrop);
-  ui.btnNew.addEventListener("click", () => showNameModal());
+  ui.btnUse.addEventListener("click", () => { unlockAudio(); pickOrDrop(); });
+  ui.btnNew.addEventListener("click", () => { unlockAudio(); showNameModal(); });
 
   ui.btnClear.addEventListener("click", () => {
+    unlockAudio();
     localStorage.removeItem(LS_LEADERBOARD);
     renderLeaderboard([]);
     logEvent("neutral","Stats cleared.");
@@ -1767,6 +1809,7 @@
   });
 
   ui.btnMusic.addEventListener("click", () => {
+    unlockAudio();
     if (!musicOn){
       musicOn = true;
       ui.btnMusic.textContent = "Music: ON";
@@ -1780,23 +1823,25 @@
     }
   });
 
-  ui.btnUp.addEventListener("click", () => move(0,-1));
-  ui.btnDown.addEventListener("click", () => move(0,1));
-  ui.btnLeft.addEventListener("click", () => move(-1,0));
-  ui.btnRight.addEventListener("click", () => move(1,0));
+  ui.btnUp.addEventListener("click", () => { unlockAudio(); move(0,-1); });
+  ui.btnDown.addEventListener("click", () => { unlockAudio(); move(0,1); });
+  ui.btnLeft.addEventListener("click", () => { unlockAudio(); move(-1,0); });
+  ui.btnRight.addEventListener("click", () => { unlockAudio(); move(1,0); });
 
-  ui.btnInfo.addEventListener("click", () => { ui.infoOverlay.style.display = "flex"; game.inputLocked = true; });
-  ui.btnInfoClose.addEventListener("click", () => { ui.infoOverlay.style.display = "none"; game.inputLocked = false; });
+  ui.btnInfo.addEventListener("click", () => { unlockAudio(); ui.infoOverlay.style.display = "flex"; game.inputLocked = true; });
+  ui.btnInfoClose.addEventListener("click", () => { unlockAudio(); ui.infoOverlay.style.display = "none"; game.inputLocked = false; });
 
-  ui.nameStartBtn.addEventListener("click", startFromNameInput);
+  ui.nameStartBtn.addEventListener("click", () => { unlockAudio(); startFromNameInput(); });
 
   ui.nameUseP1Btn.addEventListener("click", () => {
+    unlockAudio();
     setAndStoreName("PLAYER1");
     closeNameModal();
     newGame(true);
   });
 
   ui.nameUseSavedBtn?.addEventListener("click", () => {
+    unlockAudio();
     const saved = getSavedName() || "PLAYER1";
     setAndStoreName(saved);
     closeNameModal();
@@ -1804,6 +1849,7 @@
   });
 
   ui.btnRestart.addEventListener("click", () => {
+    unlockAudio();
     closeGameOver();
     showNameModal();
   });
@@ -1811,11 +1857,12 @@
   document.addEventListener("keydown", keyHandler);
 
   function boot(){
+    attachAudioUnlock();
     renderLeaderboard(loadLeaderboard());
 
     const saved = getSavedName();
     if (saved) player.name = saved;
-    if (ui.player) ui.player.textContent = player.name;
+    ui.player.textContent = player.name;
 
     resetCoreState();
     applyThemeForLevel();
