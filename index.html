@@ -91,6 +91,18 @@
     .log .line{ margin: 0 0 8px 0; }
     .log .line:last-child{ margin-bottom:0; }
 
+    /* NEW: right-side activity feed below buttons */
+    .logMini{
+      height: 220px;
+      overflow:auto;
+      background:#0b1220;
+      border:1px solid #1f2a37;
+      border-radius:12px;
+      padding:10px;
+      font-size:12px;
+      line-height:1.45;
+    }
+
     .kv{ display:flex; justify-content:space-between; gap:10px; margin:6px 0; }
     .kv span:first-child{ color:#9fb1c6; }
     .big{ font-size:18px; font-weight:1000; }
@@ -396,7 +408,7 @@
 
     /* PHONE: fixed, reliable viewport sizing + always-visible controls */
     @media (max-width:720px){
-      /* hide Activity panel */
+      /* hide Activity panel (left) */
       .wrap > .panel:first-child{ display:none; }
 
       /* Use JS-calculated --vh to avoid Safari address-bar bugs */
@@ -463,20 +475,23 @@
       .dpadWrap{ margin-top:8px; }
       .btns{ gap:8px; margin-top:8px; }
 
-      /* only the stats/leaderboard scroll (not the controls) */
+      /* only the stats/leaderboard/activity scroll (not the controls) */
       .rightBody{
         overflow:auto;
         -webkit-overflow-scrolling: touch;
         padding-right:6px;
         min-height:0;
       }
+
+      /* tighter activity feed height on phone */
+      .logMini{ height: 180px; }
     }
   </style>
 </head>
 
 <body>
   <div class="wrap">
-    <!-- LEFT -->
+    <!-- LEFT (desktop activity panel) -->
     <div class="panel">
       <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Obsidian</span></div>
       <div class="subtitle">Latest on top. Color = importance.</div>
@@ -492,7 +507,7 @@
     <!-- RIGHT -->
     <div class="panel panelSticky panel-right">
       <div class="title">
-        <div>STICKS <span class="badge">v2.17</span></div>
+        <div>STICKS <span class="badge">v2.18</span></div>
         <button class="btn-info" id="btnInfo" style="padding:8px 10px;">Info</button>
       </div>
       <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
@@ -544,6 +559,16 @@
 
       <!-- BELOW-THE-FOLD (scrolls on phone only) -->
       <div class="rightBody">
+        <div class="hr"></div>
+
+        <!-- NEW: Activity feed BELOW buttons (for phone users / results visibility) -->
+        <div class="title" style="margin-top:2px;">
+          <div>Battle Feed</div>
+          <span class="badge">Latest</span>
+        </div>
+        <div class="subtitle">This mirrors Activity (desktop left). Monster wins, deposits, level-ups, etc.</div>
+        <div class="logMini" id="log2"></div>
+
         <div class="hr"></div>
 
         <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
@@ -724,6 +749,8 @@
 
   const ui = {
     log: document.getElementById("log"),
+    log2: document.getElementById("log2"),
+
     themeMini: document.getElementById("uiThemeMini"),
     player: document.getElementById("uiPlayer"),
     lives: document.getElementById("uiLives"),
@@ -784,14 +811,24 @@
     monster: { color:"#ff1f3a", icon:"👹 " },
   };
 
+  function trimLog(el){
+    if (!el) return;
+    while (el.children.length > LOG_MAX_LINES) el.removeChild(el.lastChild);
+  }
+
   function logEvent(kind, msg){
     const st = LOG_STYLE[kind] || LOG_STYLE.neutral;
-    const line = document.createElement("div");
-    line.className = "line";
-    line.style.color = st.color;
-    line.textContent = (st.icon || "") + msg;
-    ui.log.prepend(line);
-    while (ui.log.children.length > LOG_MAX_LINES) ui.log.removeChild(ui.log.lastChild);
+
+    // Write to BOTH feeds (desktop-left + right-under-buttons)
+    [ui.log, ui.log2].forEach((target) => {
+      if (!target) return;
+      const line = document.createElement("div");
+      line.className = "line";
+      line.style.color = st.color;
+      line.textContent = (st.icon || "") + msg;
+      target.prepend(line);
+      trimLog(target);
+    });
   }
 
   function loadLeaderboard(){
@@ -1007,13 +1044,13 @@
   }
 
   function zeroChance(level){
-    return Math.min(ZERO_CHANCE_CAP, ZERO_CHANCE_L1 + (level-1)*ZERO_CHANCE_INC);
+    return Math.min(0.18, 0.00 + (level-1)*0.015);
   }
   function curseChance(level){
-    return Math.min(CURSE_CHANCE_CAP, CURSE_CHANCE_L1 + (level-1)*CURSE_CHANCE_INC);
+    return Math.min(0.16, 0.08 + (level-1)*0.015);
   }
   function bonusChance(level){
-    return Math.min(BONUS_CHANCE_CAP, BONUS_CHANCE_L1 + (level-1)*BONUS_CHANCE_INC);
+    return Math.min(0.22, 0.10 + (level-1)*0.01);
   }
 
   function setHud(msg){
@@ -1149,7 +1186,8 @@
     spawnSticksForLevel(game.level);
     spawnLifeTile();
 
-    ui.log.innerHTML = "";
+    if (ui.log) ui.log.innerHTML = "";
+    if (ui.log2) ui.log2.innerHTML = "";
     logEvent("neutral","Welcome to STICKS.");
     logEvent("neutral","Roll to begin.");
   }
@@ -1436,7 +1474,6 @@
       const s = game.sticks[idx];
 
       if (s.cursed){
-        // IMPORTANT: player never sees which stick is cursed in the field (no highlighting)
         game.pendingMonster = { index: idx };
         game.inputLocked = true;
         logEvent("monster","Monster Stick! Press ROLL (0–5) to fight.");
@@ -1664,7 +1701,6 @@
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Bonus glow is fine. Cursed sticks are NEVER visually highlighted.
     if (s.bonus){
       ctx.globalAlpha = 0.12;
       ctx.fillStyle = "#ffd166";
