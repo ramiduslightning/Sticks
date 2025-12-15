@@ -14,25 +14,19 @@
       color:#e6edf3;
     }
 
-    /* scaling shell */
-    #scaleShell{
-      width:100vw;
-      height:100vh;
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
-      overflow:auto;
-    }
-
     .wrap{
-      max-width: 1320px; margin:0 auto; padding:14px;
-      display:grid; grid-template-columns: 260px 1fr 420px; gap:14px; align-items:start;
-      transform-origin: top center;
-      will-change: transform;
+      max-width: 1320px;
+      margin:0 auto;
+      padding:14px;
+      display:grid;
+      grid-template-columns: 260px 1fr 420px;
+      gap:14px;
+      align-items:start;
     }
 
     canvas{
-      width:100%; height:auto;
+      width:100%;
+      height:auto;
       border:2px solid var(--lvlBorder, #1f2a37);
       border-radius:12px;
       image-rendering: pixelated;
@@ -47,19 +41,42 @@
       padding:12px;
     }
 
+    /* KEY FIX: Right panel stays in view + scrolls internally */
+    .panelSticky{
+      position: sticky;
+      top: 14px;
+      max-height: calc(100vh - 28px);
+      overflow: auto;
+      padding-right: 10px; /* slight room for scrollbar */
+    }
+
     .title{
-      font-weight:1000; letter-spacing:.6px;
-      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      font-weight:1000;
+      letter-spacing:.6px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
     }
+
     .subtitle{
-      color:#9fb1c6; font-size:12px; line-height:1.35; margin-top:6px;
+      color:#9fb1c6;
+      font-size:12px;
+      line-height:1.35;
+      margin-top:6px;
     }
+
     .hr{ height:1px; background:#1f2a37; margin:10px 0; }
 
     .log{
-      height: 600px; overflow:auto;
-      background:#0b1220; border:1px solid #1f2a37; border-radius:12px;
-      padding:10px; font-size:12px; line-height:1.45;
+      height: 600px;
+      overflow:auto;
+      background:#0b1220;
+      border:1px solid #1f2a37;
+      border-radius:12px;
+      padding:10px;
+      font-size:12px;
+      line-height:1.45;
     }
     .log .line{ margin: 0 0 8px 0; }
     .log .line:last-child{ margin-bottom:0; }
@@ -69,24 +86,116 @@
     .big{ font-size:18px; font-weight:1000; }
 
     .badge{
-      display:inline-block; padding:3px 8px; border-radius:999px;
-      border:1px solid #2b3a4c; background:#0b1220;
-      font-weight:1000; font-size:12px; user-select:none;
+      display:inline-block;
+      padding:3px 8px;
+      border-radius:999px;
+      border:1px solid #2b3a4c;
+      background:#0b1220;
+      font-weight:1000;
+      font-size:12px;
+      user-select:none;
     }
 
     .playerArcade{
-      font-size:22px; font-weight:1000; letter-spacing:1.2px; text-transform:uppercase;
-      padding:8px 10px; border-radius:12px; border:1px solid #2b3a4c;
+      font-size:22px;
+      font-weight:1000;
+      letter-spacing:1.2px;
+      text-transform:uppercase;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid #2b3a4c;
       background: linear-gradient(180deg,#0b1220,#070c16);
       text-shadow: 0 0 18px rgba(120,180,255,0.18);
       user-select:none;
     }
 
-    .btns{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px; }
+    /* Controls block: Dice + help text */
+    .controlsTop{
+      display:grid;
+      grid-template-columns: 132px 1fr;
+      gap:12px;
+      align-items:center;
+    }
+
+    .diceBox{
+      width:132px;
+      height:132px;
+      border-radius:16px;
+      border:2px solid #2b3a4c;
+      background: radial-gradient(120px 120px at 40% 35%, #1a2a3c 0%, #0b1220 70%);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      position:relative;
+      overflow:hidden;
+    }
+
+    .diceGlow{
+      position:absolute;
+      inset:-40px;
+      background: conic-gradient(from 180deg,
+        rgba(0,0,0,0),
+        rgba(0,0,0,0),
+        var(--lvlAccentGlow, rgba(58,167,255,.32)),
+        rgba(0,0,0,0)
+      );
+      opacity:0;
+      filter: blur(10px);
+      transform: rotate(0deg);
+      pointer-events:none;
+    }
+    .rolling .diceGlow{ opacity:1; animation: spin .32s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .diceFace{
+      font-size:52px;
+      font-weight:1000;
+      line-height:1;
+      text-shadow: 0 0 16px var(--lvlAccentShadow, rgba(58,167,255,.25));
+      user-select:none;
+    }
+    .diceLabel{
+      margin-top:8px;
+      font-size:12px;
+      color:#9fb1c6;
+      text-align:center;
+      line-height:1.25;
+      user-select:none;
+    }
+
+    /* D-PAD */
+    .dpadWrap{ margin-top:10px; display:flex; justify-content:center; align-items:center; }
+    .dpad{ width:200px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; }
+    .dpad button{
+      padding:10px 0;
+      border-radius:12px;
+      background: linear-gradient(180deg,#f3f4f6,#cbd5e1);
+      color:#0b0f14;
+      box-shadow:none;
+      border:0;
+      font-weight:1000;
+      cursor:pointer;
+      user-select:none;
+    }
+    .dpad .empty{ visibility:hidden; }
+
+    /* Main action buttons — always near top now */
+    .btns{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:8px;
+      margin-top:10px;
+    }
 
     button{
-      cursor:pointer; border:0; padding:11px 10px; border-radius:12px;
-      font-weight:1000; letter-spacing:.2px; user-select:none;
+      cursor:pointer;
+      border:0;
+      padding:11px 10px;
+      border-radius:12px;
+      font-weight:1000;
+      letter-spacing:.2px;
+      user-select:none;
       box-shadow: 0 6px 18px rgba(0,0,0,.25);
       transition: transform .05s ease, filter .15s ease, box-shadow .15s ease;
     }
@@ -101,69 +210,12 @@
     .btn-music{ background: linear-gradient(180deg,#c27bff,#7a35ff); color:#120018; grid-column: 1 / span 2; }
     .btn-info { background: linear-gradient(180deg,#f3f4f6,#cbd5e1); color:#0b0f14; }
 
-    /* NEW: zoom controls */
-    .zoomBar{
-      display:flex;
-      gap:8px;
-      align-items:center;
-    }
-    .btn-zoom{
-      padding:10px 10px;
-      background: linear-gradient(180deg,#0b1220,#070c16);
-      color:#e6edf3;
-      border:1px solid #2b3a4c;
-      box-shadow:none;
-      min-width:42px;
-    }
-    .zoomPill{
-      padding:9px 10px;
-      border-radius:999px;
-      border:1px solid #2b3a4c;
-      background:#0b1220;
-      color:#e6edf3;
-      font-weight:1000;
-      font-size:12px;
-      min-width:72px;
-      text-align:center;
-      user-select:none;
-    }
-
     /* Flashing Roll for monster event */
     @keyframes flashRoll {
       0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.0); transform: translateY(0); }
       100% { box-shadow: 0 0 0 3px rgba(255,255,255,0.75); transform: translateY(-1px); }
     }
-    .flashRoll{
-      animation: flashRoll 0.55s ease-in-out infinite alternate;
-    }
-
-    .diceRow{ display:grid; grid-template-columns: 132px 1fr; gap:12px; align-items:center; margin-top:10px; }
-    .diceBox{
-      width:132px; height:132px; border-radius:16px; border:2px solid #2b3a4c;
-      background: radial-gradient(120px 120px at 40% 35%, #1a2a3c 0%, #0b1220 70%);
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      position:relative; overflow:hidden;
-    }
-
-    .diceGlow{
-      position:absolute; inset:-40px;
-      background: conic-gradient(from 180deg,
-        rgba(0,0,0,0),
-        rgba(0,0,0,0),
-        var(--lvlAccentGlow, rgba(58,167,255,.32)),
-        rgba(0,0,0,0)
-      );
-      opacity:0; filter: blur(10px); transform: rotate(0deg); pointer-events:none;
-    }
-    .rolling .diceGlow{ opacity:1; animation: spin .32s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .diceFace{
-      font-size:52px; font-weight:1000; line-height:1;
-      text-shadow: 0 0 16px var(--lvlAccentShadow, rgba(58,167,255,.25));
-      user-select:none;
-    }
-    .diceLabel{ margin-top:8px; font-size:12px; color:#9fb1c6; text-align:center; line-height:1.25; user-select:none; }
+    .flashRoll{ animation: flashRoll 0.55s ease-in-out infinite alternate; }
 
     /* Monster event box */
     .monsterEvent{
@@ -178,76 +230,37 @@
       font-size:12px;
       line-height:1.35;
     }
-    .monsterEventIcon{
-      font-size:20px;
-      margin-top:2px;
-    }
-    .monsterEventTitle{
-      font-weight:1000;
-      color:#ffb347;
-      margin-bottom:3px;
-    }
+    .monsterEventIcon{ font-size:20px; margin-top:2px; }
+    .monsterEventTitle{ font-weight:1000; color:#ffb347; margin-bottom:3px; }
 
-    /* D-PAD */
-    .dpadWrap{ margin-top:10px; display:flex; justify-content:center; align-items:center; }
-    .dpad{ width:170px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; }
-    .dpad button{
-      padding:10px 0; border-radius:12px;
-      background: linear-gradient(180deg,#f3f4f6,#cbd5e1);
-      color:#0b0f14; box-shadow:none;
+    /* Stats block compact so it doesn’t push buttons down */
+    .statsGrid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:6px 10px;
+      margin-top:10px;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid #1f2a37;
+      background:#0b1220;
     }
-    .dpad .empty{ visibility:hidden; }
-
-    /* Overlays */
-    #infoOverlay,#nameOverlay,#gameOverOverlay{
-      display:none; position:fixed; inset:0; background:rgba(0,0,0,.72);
-      z-index:9999; align-items:center; justify-content:center;
-    }
-    .modalBox{
-      width:min(780px,94vw);
-      background:#0f1720; border:2px solid #1f2a37; border-radius:16px; padding:16px;
-    }
-    .modalTitle{ font-weight:1000; letter-spacing:.8px; font-size:18px; }
-    .modalText{ color:#cdd9e5; font-size:13px; line-height:1.45; margin-top:8px; }
-    .modalActions{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap; }
-    .modalClose{
-      padding:10px 14px; border-radius:12px; border:1px solid #2b3a4c;
-      background:#0b1220; color:#e6edf3; font-weight:1000;
-    }
-
-    #nameOverlay input{
-      flex:1; padding:12px 12px; border-radius:12px;
-      border:1px solid #2b3a4c; background:#0b1220; color:#e6edf3;
-      font-weight:1000; outline:none; font-size:16px; letter-spacing:.6px; text-transform: uppercase;
-    }
-    .saveBtn{
-      padding:12px 14px; border-radius:12px; border:1px solid #39ff95;
-      background: linear-gradient(180deg,#39ff95,#08c46b);
-      color:#061018; font-weight:1000;
-    }
-    .altBtn{
-      padding:12px 14px; border-radius:12px; border:1px solid #2b3a4c;
-      background: linear-gradient(180deg,#f3f4f6,#cbd5e1);
-      color:#0b0f14; font-weight:1000;
-    }
-    .warnBtn{
-      padding:12px 14px; border-radius:12px; border:1px solid #ff5a6a;
-      background: linear-gradient(180deg,#ff5a6a,#ff1f3a);
-      color:#200007; font-weight:1000;
-    }
-    .hintRow{
-      margin-top:10px; padding:10px; border-radius:12px; border:1px solid #2b3a4c;
-      background:#0b1220; color:#9fb1c6; font-size:12px; line-height:1.35;
-    }
+    .statsGrid .kv{ margin:0; }
+    .statsGrid .big{ font-size:16px; }
 
     .leaderboard{
-      background:#0b1220; border:1px solid #1f2a37; border-radius:12px;
+      margin-top:10px;
+      background:#0b1220;
+      border:1px solid #1f2a37;
+      border-radius:12px;
       padding:10px;
       font-size:12px;
     }
     .leaderRow{
-      display:flex; justify-content:space-between; gap:10px;
-      padding:6px 6px; border-radius:10px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      padding:6px 6px;
+      border-radius:10px;
     }
     .leaderRow:nth-child(odd){ background: rgba(255,255,255,0.03); }
     .leaderName{ font-weight:1000; letter-spacing:.3px; }
@@ -256,48 +269,171 @@
     .silver { color:#cbd5e1; }
     .bronze { color:#ffb347; }
 
+    /* Overlays */
+    #infoOverlay,#nameOverlay,#gameOverOverlay{
+      display:none;
+      position:fixed;
+      inset:0;
+      background:rgba(0,0,0,.72);
+      z-index:9999;
+      align-items:center;
+      justify-content:center;
+    }
+    .modalBox{
+      width:min(780px,94vw);
+      background:#0f1720;
+      border:2px solid #1f2a37;
+      border-radius:16px;
+      padding:16px;
+    }
+    .modalTitle{ font-weight:1000; letter-spacing:.8px; font-size:18px; }
+    .modalText{ color:#cdd9e5; font-size:13px; line-height:1.45; margin-top:8px; }
+    .modalActions{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap; }
+    .modalClose{
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid #2b3a4c;
+      background:#0b1220;
+      color:#e6edf3;
+      font-weight:1000;
+      box-shadow:none;
+    }
+
+    #nameOverlay input{
+      flex:1;
+      padding:12px 12px;
+      border-radius:12px;
+      border:1px solid #2b3a4c;
+      background:#0b1220;
+      color:#e6edf3;
+      font-weight:1000;
+      outline:none;
+      font-size:16px;
+      letter-spacing:.6px;
+      text-transform: uppercase;
+    }
+    .saveBtn{
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid #39ff95;
+      background: linear-gradient(180deg,#39ff95,#08c46b);
+      color:#061018;
+      font-weight:1000;
+      box-shadow:none;
+    }
+    .altBtn{
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid #2b3a4c;
+      background: linear-gradient(180deg,#f3f4f6,#cbd5e1);
+      color:#0b0f14;
+      font-weight:1000;
+      box-shadow:none;
+    }
+    .warnBtn{
+      padding:12px 14px;
+      border-radius:12px;
+      border:1px solid #ff5a6a;
+      background: linear-gradient(180deg,#ff5a6a,#ff1f3a);
+      color:#200007;
+      font-weight:1000;
+      box-shadow:none;
+    }
+    .hintRow{
+      margin-top:10px;
+      padding:10px;
+      border-radius:12px;
+      border:1px solid #2b3a4c;
+      background:#0b1220;
+      color:#9fb1c6;
+      font-size:12px;
+      line-height:1.35;
+    }
+
     @media (max-width:1200px){
       .wrap{ grid-template-columns:1fr; }
       .log{ height:220px; }
-      .diceRow{ grid-template-columns:1fr; }
+      .controlsTop{ grid-template-columns:1fr; }
       .diceBox{ width:100%; height:120px; }
-      .dpad{ width:100%; max-width:220px; }
+      .dpad{ width:100%; max-width:240px; }
+      .panelSticky{ position: static; max-height: none; overflow: visible; padding-right:12px; }
     }
   </style>
 </head>
+
 <body>
-  <div id="scaleShell">
-    <div class="wrap">
-      <!-- LEFT -->
-      <div class="panel">
-        <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Obsidian</span></div>
-        <div class="subtitle">Latest on top. Color = importance.</div>
-        <div class="hr"></div>
-        <div class="log" id="log"></div>
+  <div class="wrap">
+    <!-- LEFT -->
+    <div class="panel">
+      <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Obsidian</span></div>
+      <div class="subtitle">Latest on top. Color = importance.</div>
+      <div class="hr"></div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <!-- MIDDLE -->
+    <canvas id="game"></canvas>
+
+    <!-- RIGHT (sticky + scrollable; buttons stay near top) -->
+    <div class="panel panelSticky">
+      <div class="title">
+        <div>STICKS <span class="badge">v2.13</span></div>
+        <button class="btn-info" id="btnInfo" style="padding:8px 10px;">Info</button>
+      </div>
+      <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
+
+      <div class="hr"></div>
+
+      <!-- TOP PLAY CONTROLS (this is what you showed in the screenshot) -->
+      <div class="controlsTop">
+        <div class="diceBox" id="diceBox">
+          <div class="diceGlow"></div>
+          <div class="diceFace" id="diceFace">—</div>
+          <div class="diceLabel" id="diceLabel">Press Roll</div>
+        </div>
+        <div class="subtitle">
+          <b>Actions</b> = your energy for the turn.<br/>
+          Spend Actions to <span class="badge">Move</span> or <span class="badge">Pick/Drop</span>.<br/>
+          <span style="color:#9fb1c6">You must spend Actions before rolling again.</span>
+        </div>
       </div>
 
-      <!-- MIDDLE -->
-      <canvas id="game"></canvas>
-
-      <!-- RIGHT -->
-      <div class="panel">
-        <div class="title">
-          <div>STICKS <span class="badge">v2.12</span></div>
-
-          <div class="zoomBar" aria-label="Zoom controls">
-            <button class="btn-zoom" id="btnZoomOut" title="Zoom Out">–</button>
-            <div class="zoomPill" id="uiZoom">100%</div>
-            <button class="btn-zoom" id="btnZoomIn" title="Zoom In">+</button>
-            <button class="btn-info" id="btnInfo" style="padding:10px 12px;">Info</button>
+      <div id="monsterEvent" class="monsterEvent" style="display:none;">
+        <div class="monsterEventIcon">👹</div>
+        <div>
+          <div class="monsterEventTitle">Stick Monster Appears!</div>
+          <div id="monsterEventText">
+            Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.
           </div>
         </div>
-        <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
+      </div>
 
-        <div class="hr"></div>
+      <div class="dpadWrap" aria-label="D-pad">
+        <div class="dpad">
+          <button class="empty"></button>
+          <button id="btnUp">▲</button>
+          <button class="empty"></button>
+          <button id="btnLeft">◀</button>
+          <button id="btnDown">▼</button>
+          <button id="btnRight">▶</button>
+        </div>
+      </div>
 
-        <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
+      <div class="btns">
+        <button id="btnRoll" class="btn-roll">🎲 Roll</button>
+        <button id="btnUse" class="btn-use">Pick/Drop</button>
+        <button id="btnNew" class="btn-new">New Game</button>
+        <button id="btnClear" class="btn-clear">Clear Stats</button>
+        <button id="btnMusic" class="btn-music">Music: OFF</button>
+      </div>
+
+      <!-- BELOW-THE-FOLD STUFF (won’t hide the buttons now) -->
+      <div class="hr"></div>
+
+      <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
+
+      <div class="statsGrid">
         <div class="kv"><span>Lives</span><span id="uiLives" class="big">3</span></div>
-
         <div class="kv"><span>Level</span><span id="uiLevel" class="big">1</span></div>
         <div class="kv"><span>Score</span><span id="uiScore" class="big">0</span></div>
         <div class="kv"><span>Actions</span><span id="uiActions" class="big">0</span></div>
@@ -305,61 +441,9 @@
         <div class="kv"><span>Die</span><span id="uiDie" class="big">0–5</span></div>
         <div class="kv"><span>Carrying</span><span id="uiCarry" class="big">0/3</span></div>
         <div class="kv"><span>Sticks left</span><span id="uiLeft" class="big">0</span></div>
-
-        <div class="hr"></div>
-
-        <div class="diceRow">
-          <div class="diceBox" id="diceBox">
-            <div class="diceGlow"></div>
-            <div class="diceFace" id="diceFace">—</div>
-            <div class="diceLabel" id="diceLabel">Press Roll</div>
-          </div>
-          <div class="subtitle">
-            <b>Actions</b> = your energy for the turn.<br/>
-            Spend Actions to <span class="badge">Move</span> or <span class="badge">Pick/Drop</span>.<br/>
-            <span style="color:#9fb1c6">You must spend Actions before rolling again.</span>
-          </div>
-        </div>
-
-        <!-- Monster encounter chat box -->
-        <div id="monsterEvent" class="monsterEvent" style="display:none;">
-          <div class="monsterEventIcon">👹</div>
-          <div>
-            <div class="monsterEventTitle">Stick Monster Appears!</div>
-            <div id="monsterEventText">
-              Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.
-            </div>
-          </div>
-        </div>
-
-        <div class="dpadWrap" aria-label="D-pad">
-          <div class="dpad">
-            <button class="empty"></button>
-            <button id="btnUp">▲</button>
-            <button class="empty"></button>
-            <button id="btnLeft">◀</button>
-            <button id="btnDown">▼</button>
-            <button id="btnRight">▶</button>
-          </div>
-        </div>
-
-        <div class="btns">
-          <button id="btnRoll" class="btn-roll">🎲 Roll</button>
-          <button id="btnUse" class="btn-use">Pick/Drop</button>
-          <button id="btnNew" class="btn-new">New Game</button>
-          <button id="btnClear" class="btn-clear">Clear Stats</button>
-          <button id="btnMusic" class="btn-music">Music: OFF</button>
-        </div>
-
-        <div class="hr"></div>
-
-        <div class="title" style="font-size:13px;">
-          <div>Top Scores (Local)</div>
-          <span class="badge" id="uiTopHint">Top 3</span>
-        </div>
-        <div class="subtitle">Saved on this device only.</div>
-        <div class="leaderboard" id="leaderboard"></div>
       </div>
+
+      <div class="leaderboard" id="leaderboard"></div>
     </div>
   </div>
 
@@ -381,15 +465,14 @@
           Roll <b>12</b> to earn <b>one extra Bonus roll</b> (after Actions hit 0).
         </div>
         <div style="margin:8px 0;"><span class="badge">Extra Life</span>:
-          each level hides <b>one secret tile</b>. It only reveals itself when you <b>stand on it while carrying a stick</b> (the tile glows).
-          Drop a stick there to gain <b>+1 life</b> (the stick is used up).
+          each level hides <b>one secret tile</b>. The tile only hints/pulses when you are <b>standing on it</b> while <b>carrying a stick</b>.
+          If you <b>drop</b> a stick on that square, you gain <b>+1 life</b> (the stick is used up).
         </div>
         <div style="margin:8px 0;"><span class="badge">Stick Monster</span>:
           some sticks are cursed. When you try to pick one up, a Stick Monster appears.
           Press <b>ROLL</b>: roll <b>2–5</b> to keep a 2× stick, roll <b>0–1</b> and you lose 1 life.
         </div>
         <div style="margin:8px 0; color:#9fb1c6;">Controls: Arrow Keys or D-Pad • Space = Pick/Drop</div>
-        <div style="margin:8px 0; color:#9fb1c6;">Zoom: use the – / + buttons in the header (saved on this device).</div>
       </div>
       <div class="modalActions">
         <button class="modalClose" id="btnInfoClose">Close</button>
@@ -437,9 +520,6 @@
 
   const LS_PLAYER_NAME = "sticks_playerName_v3";
   const LS_LEADERBOARD = "sticks_leaderboard_v1";
-
-  /* NEW: saved UI zoom */
-  const LS_UI_ZOOM = "sticks_uiZoom_v1"; // stores a number like 1.00, 1.10, 0.90
 
   const THEMES = [
     { name:"Obsidian",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
@@ -569,11 +649,6 @@
 
     monsterEvent: document.getElementById("monsterEvent"),
     monsterEventText: document.getElementById("monsterEventText"),
-
-    /* NEW zoom UI */
-    btnZoomOut: document.getElementById("btnZoomOut"),
-    btnZoomIn: document.getElementById("btnZoomIn"),
-    uiZoom: document.getElementById("uiZoom"),
   };
 
   const LOG_STYLE = {
@@ -783,17 +858,17 @@
   }
 
   function sticksToSpawnForLevel(level){
-    return BASE_STICKS_L1 + (level-1)*STICKS_PER_LEVEL;
+    return 6 + (level-1)*3;
   }
 
   function zeroChance(level){
-    return Math.min(ZERO_CHANCE_CAP, ZERO_CHANCE_L1 + (level-1)*ZERO_CHANCE_INC);
+    return Math.min(0.18, 0.00 + (level-1)*0.015);
   }
   function curseChance(level){
-    return Math.min(CURSE_CHANCE_CAP, CURSE_CHANCE_L1 + (level-1)*CURSE_CHANCE_INC);
+    return Math.min(0.16, 0.08 + (level-1)*0.015);
   }
   function bonusChance(level){
-    return Math.min(BONUS_CHANCE_CAP, BONUS_CHANCE_L1 + (level-1)*BONUS_CHANCE_INC);
+    return Math.min(0.22, 0.10 + (level-1)*0.01);
   }
 
   function setHud(msg){
@@ -852,7 +927,6 @@
       const bonus = !cursed && (Math.random() < bc);
       game.sticks.push({ x:p.x, y:p.y, color, cursed, bonus });
     }
-
     if (game.sticks.length > 0 && !game.sticks.some(s => s.cursed)){
       const idx = randInt(0, game.sticks.length - 1);
       game.sticks[idx].cursed = true;
@@ -1054,13 +1128,13 @@
     if (game.carry.length > 0){
       const dropped = game.carry.splice(0, game.carry.length);
       dropped.forEach(st => {
-        const p = scatterPositionAround(game.playerX, game.playerY, ZERO_SCATTER_RADIUS);
+        const p = scatterPositionAround(game.playerX, game.playerY, 3);
         game.sticks.push({ x:p.x, y:p.y, color: st.color, cursed:false, bonus:false });
       });
       logEvent("bad",`Zero! Dropped ${dropped.length} stick(s).`);
       setHud(`Zero! Dropped ${dropped.length}!`);
     } else {
-      const p = scatterPositionAround(game.holeX, game.holeY, ZERO_SCATTER_RADIUS);
+      const p = scatterPositionAround(game.holeX, game.holeY, 3);
       const color = STICK_COLORS[randInt(0, STICK_COLORS.length-1)];
       game.sticks.push({ x:p.x, y:p.y, color, cursed:false, bonus:false });
       logEvent("bad","Zero! Hole spits out a stick.");
@@ -1100,13 +1174,7 @@
       return false;
     }
     game.actions--;
-    if (game.actions === 0){
-      if (game.bonusExtraRollReady){
-        logEvent("bonus","Extra Bonus roll ready!");
-        setHud("Extra Bonus roll ready!");
-      }
-      exitBonusIfDone();
-    }
+    if (game.actions === 0) exitBonusIfDone();
     updateUI();
     return true;
   }
@@ -1186,7 +1254,7 @@
       let pts = 0;
       for (const st of game.carry){
         let v = st.value || 1;
-        if (game.bonusActive) v *= BONUS_MULTIPLIER;
+        if (game.bonusActive) v *= 2;
         pts += v;
       }
       game.score += pts;
@@ -1243,10 +1311,6 @@
       sfxPickup();
 
       if (s.bonus) enterBonus();
-      else if (game.carry.length >= 2){
-        beep(820,0.05,"triangle",0.05);
-        beep(980,0.06,"triangle",0.04);
-      }
 
       const cap = carryCap();
       if (game.carry.length === cap){
@@ -1270,7 +1334,7 @@
         game.carry.pop();
         game.lifeTileUsed = true;
 
-        if (game.lives < MAX_LIVES){
+        if (game.lives < 5){
           game.lives++;
           logEvent("bonus","Secret life tile! +1 life.");
           setHud("+1 LIFE");
@@ -1408,8 +1472,6 @@
     ctx.globalAlpha = 1;
   }
 
-  /* extra-life hint:
-     shows ONLY when you're standing on the secret tile AND carrying at least 1 stick */
   function drawLifeHint(theme){
     if (game.lifeTileUsed) return;
     if (game.carry.length <= 0) return;
@@ -1422,17 +1484,12 @@
     const osc = (Math.sin(t*4) + 1) / 2;
 
     ctx.save();
-    ctx.globalAlpha = 0.16 + osc*0.30;
-    ctx.strokeStyle = theme.accent;
+    ctx.globalAlpha = 0.15 + osc*0.25;
+    ctx.strokeStyle = THEMES[game.themeIndex].accent;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.rect(x+3, y+3, TILE-6, TILE-6);
     ctx.stroke();
-
-    ctx.globalAlpha = 0.08 + osc*0.10;
-    ctx.fillStyle = theme.accent;
-    ctx.fillRect(x+4, y+4, TILE-8, TILE-8);
-
     ctx.restore();
     ctx.globalAlpha = 1;
   }
@@ -1533,54 +1590,6 @@
       ctx.fill();
     }
 
-    const actions = Math.min(game.actions, 12);
-    if (actions > 0) {
-      const ringR = 20;
-      const maxPips = 12;
-
-      ctx.globalAlpha = 0.22;
-      ctx.strokeStyle = "#2b3a4c";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 2, ringR, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-
-      for (let i = 0; i < actions; i++) {
-        const ang = (-Math.PI / 2) + (i * (2 * Math.PI / maxPips));
-        const px = Math.cos(ang) * ringR;
-        const py = 2 + Math.sin(ang) * ringR;
-
-        ctx.fillStyle = THEMES[game.themeIndex].accent;
-        ctx.beginPath();
-        ctx.arc(px, py, 2.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      const txt = String(game.actions);
-      const bx = 14;
-      const by = -18;
-      const w = 16 + txt.length * 8;
-      const h = 18;
-
-      ctx.save();
-      ctx.globalAlpha = 0.92;
-      ctx.fillStyle = "rgba(11,18,32,0.90)";
-      ctx.strokeStyle = "#2b3a4c";
-      ctx.lineWidth = 2;
-
-      roundRect(ctx, bx - w/2, by - h/2, w, h, 7);
-      ctx.fill();
-      ctx.stroke();
-
-      ctx.fillStyle = THEMES[game.themeIndex].accent;
-      ctx.font = "bold 12px ui-monospace, monospace";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(txt, bx, by);
-      ctx.restore();
-    }
-
     if (game.bonusActive){
       ctx.globalAlpha = 0.18;
       ctx.strokeStyle = "#ffd166";
@@ -1678,25 +1687,8 @@
   }
 
   ui.btnRoll.addEventListener("click", () => {
-    if (game.pendingMonster){
-      resolveMonsterRoll();
-      return;
-    }
-
-    const wasExtraReady = game.bonusExtraRollReady;
-    const wasBonus = game.bonusActive;
-
+    if (game.pendingMonster){ resolveMonsterRoll(); return; }
     doRoll();
-
-    if (wasExtraReady && wasBonus){
-      setTimeout(() => {
-        if (game.bonusActive && game.actions > 0){
-          game.bonusExtraRollReady = false;
-          logEvent("bonus","Extra Bonus roll used.");
-          updateUI();
-        }
-      }, 280);
-    }
   });
 
   ui.btnUse.addEventListener("click", pickOrDrop);
@@ -1753,67 +1745,6 @@
 
   document.addEventListener("keydown", keyHandler);
 
-  /* ===========================
-     NEW: Manual Zoom + Auto Fit
-     =========================== */
-
-  function loadUserZoom(){
-    const raw = localStorage.getItem(LS_UI_ZOOM);
-    const n = raw ? Number(raw) : 1;
-    if (!isFinite(n) || n <= 0) return 1;
-    return clamp(n, 0.70, 1.35);
-  }
-  function saveUserZoom(z){
-    localStorage.setItem(LS_UI_ZOOM, String(z));
-  }
-
-  let userZoom = loadUserZoom();
-
-  function updateZoomLabel(){
-    ui.uiZoom.textContent = `${Math.round(userZoom * 100)}%`;
-  }
-
-  /* Auto-fit is still 1.0 max (we don't auto-scale UP),
-     but now we multiply by userZoom so players can zoom in/out. */
-  function applyScale(){
-    const shell = document.getElementById("scaleShell");
-    const wrap = document.querySelector(".wrap");
-    if (!shell || !wrap) return;
-
-    const baseW = 1320;
-    const baseH = 720;
-
-    const availW = window.innerWidth - 20;
-    const availH = window.innerHeight - 20;
-
-    const autoFit = Math.min(1, Math.min(availW / baseW, availH / baseH));
-    const finalScale = clamp(autoFit * userZoom, 0.60, 1.60);
-
-    wrap.style.transform = `scale(${finalScale})`;
-  }
-
-  function bumpZoom(dir){
-    // 5% steps feels like browser zoom, but controlled
-    const step = 0.05;
-    userZoom = clamp(userZoom + (dir * step), 0.70, 1.35);
-    saveUserZoom(userZoom);
-    updateZoomLabel();
-    applyScale();
-    beep(dir > 0 ? 660 : 440, 0.06, "triangle", 0.04);
-  }
-
-  ui.btnZoomOut.addEventListener("click", () => bumpZoom(-1));
-  ui.btnZoomIn.addEventListener("click", () => bumpZoom( 1));
-
-  /* Optional: click the % pill to reset to 100% */
-  ui.uiZoom.addEventListener("click", () => {
-    userZoom = 1;
-    saveUserZoom(userZoom);
-    updateZoomLabel();
-    applyScale();
-    chord([392,523],0.12,0.05);
-  });
-
   function boot(){
     renderLeaderboard(loadLeaderboard());
 
@@ -1827,10 +1758,6 @@
     requestAnimationFrame(loop);
 
     showNameModal();
-
-    updateZoomLabel();
-    applyScale();
-    window.addEventListener("resize", applyScale);
   }
 
   boot();
