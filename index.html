@@ -14,7 +14,7 @@
       color:#e6edf3;
     }
 
-    /* NEW: scaling shell so layout can shrink to fit screen */
+    /* scaling shell */
     #scaleShell{
       width:100vw;
       height:100vh;
@@ -27,7 +27,8 @@
     .wrap{
       max-width: 1320px; margin:0 auto; padding:14px;
       display:grid; grid-template-columns: 260px 1fr 420px; gap:14px; align-items:start;
-      transform-origin: top center;      /* so scale is anchored at top */
+      transform-origin: top center;
+      will-change: transform;
     }
 
     canvas{
@@ -99,6 +100,33 @@
     .btn-clear{ background: linear-gradient(180deg,#ff5a6a,#ff1f3a); color:#200007; }
     .btn-music{ background: linear-gradient(180deg,#c27bff,#7a35ff); color:#120018; grid-column: 1 / span 2; }
     .btn-info { background: linear-gradient(180deg,#f3f4f6,#cbd5e1); color:#0b0f14; }
+
+    /* NEW: zoom controls */
+    .zoomBar{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    .btn-zoom{
+      padding:10px 10px;
+      background: linear-gradient(180deg,#0b1220,#070c16);
+      color:#e6edf3;
+      border:1px solid #2b3a4c;
+      box-shadow:none;
+      min-width:42px;
+    }
+    .zoomPill{
+      padding:9px 10px;
+      border-radius:999px;
+      border:1px solid #2b3a4c;
+      background:#0b1220;
+      color:#e6edf3;
+      font-weight:1000;
+      font-size:12px;
+      min-width:72px;
+      text-align:center;
+      user-select:none;
+    }
 
     /* Flashing Roll for monster event */
     @keyframes flashRoll {
@@ -254,8 +282,12 @@
       <!-- RIGHT -->
       <div class="panel">
         <div class="title">
-          <div>STICKS <span class="badge">v2.11</span></div>
-          <div style="display:flex; gap:8px;">
+          <div>STICKS <span class="badge">v2.12</span></div>
+
+          <div class="zoomBar" aria-label="Zoom controls">
+            <button class="btn-zoom" id="btnZoomOut" title="Zoom Out">–</button>
+            <div class="zoomPill" id="uiZoom">100%</div>
+            <button class="btn-zoom" id="btnZoomIn" title="Zoom In">+</button>
             <button class="btn-info" id="btnInfo" style="padding:10px 12px;">Info</button>
           </div>
         </div>
@@ -348,16 +380,16 @@
           secret sticks trigger BONUS. In Bonus you roll <b>double dice (2–12)</b> (1–6 + 1–6). Deposits are 2×.
           Roll <b>12</b> to earn <b>one extra Bonus roll</b> (after Actions hit 0).
         </div>
-        <!-- NEW: explain hidden extra-life tile -->
         <div style="margin:8px 0;"><span class="badge">Extra Life</span>:
-          each level hides <b>one secret tile</b>. If you’re carrying a stick and drop it on that square,
-          the tile pulses and you gain <b>+1 life</b> (the stick is used up).
+          each level hides <b>one secret tile</b>. It only reveals itself when you <b>stand on it while carrying a stick</b> (the tile glows).
+          Drop a stick there to gain <b>+1 life</b> (the stick is used up).
         </div>
         <div style="margin:8px 0;"><span class="badge">Stick Monster</span>:
           some sticks are cursed. When you try to pick one up, a Stick Monster appears.
           Press <b>ROLL</b>: roll <b>2–5</b> to keep a 2× stick, roll <b>0–1</b> and you lose 1 life.
         </div>
         <div style="margin:8px 0; color:#9fb1c6;">Controls: Arrow Keys or D-Pad • Space = Pick/Drop</div>
+        <div style="margin:8px 0; color:#9fb1c6;">Zoom: use the – / + buttons in the header (saved on this device).</div>
       </div>
       <div class="modalActions">
         <button class="modalClose" id="btnInfoClose">Close</button>
@@ -405,6 +437,9 @@
 
   const LS_PLAYER_NAME = "sticks_playerName_v3";
   const LS_LEADERBOARD = "sticks_leaderboard_v1";
+
+  /* NEW: saved UI zoom */
+  const LS_UI_ZOOM = "sticks_uiZoom_v1"; // stores a number like 1.00, 1.10, 0.90
 
   const THEMES = [
     { name:"Obsidian",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
@@ -534,6 +569,11 @@
 
     monsterEvent: document.getElementById("monsterEvent"),
     monsterEventText: document.getElementById("monsterEventText"),
+
+    /* NEW zoom UI */
+    btnZoomOut: document.getElementById("btnZoomOut"),
+    btnZoomIn: document.getElementById("btnZoomIn"),
+    uiZoom: document.getElementById("uiZoom"),
   };
 
   const LOG_STYLE = {
@@ -1227,7 +1267,7 @@
       }
 
       if (isLifeTile(game.playerX, game.playerY)){
-        const st = game.carry.pop();
+        game.carry.pop();
         game.lifeTileUsed = true;
 
         if (game.lives < MAX_LIVES){
@@ -1368,6 +1408,8 @@
     ctx.globalAlpha = 1;
   }
 
+  /* extra-life hint:
+     shows ONLY when you're standing on the secret tile AND carrying at least 1 stick */
   function drawLifeHint(theme){
     if (game.lifeTileUsed) return;
     if (game.carry.length <= 0) return;
@@ -1380,12 +1422,17 @@
     const osc = (Math.sin(t*4) + 1) / 2;
 
     ctx.save();
-    ctx.globalAlpha = 0.15 + osc*0.25;
-    ctx.strokeStyle = THEMES[game.themeIndex].accent;
+    ctx.globalAlpha = 0.16 + osc*0.30;
+    ctx.strokeStyle = theme.accent;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.rect(x+3, y+3, TILE-6, TILE-6);
     ctx.stroke();
+
+    ctx.globalAlpha = 0.08 + osc*0.10;
+    ctx.fillStyle = theme.accent;
+    ctx.fillRect(x+4, y+4, TILE-8, TILE-8);
+
     ctx.restore();
     ctx.globalAlpha = 1;
   }
@@ -1706,7 +1753,28 @@
 
   document.addEventListener("keydown", keyHandler);
 
-  /* NEW: auto-scale the layout to fit smaller screens */
+  /* ===========================
+     NEW: Manual Zoom + Auto Fit
+     =========================== */
+
+  function loadUserZoom(){
+    const raw = localStorage.getItem(LS_UI_ZOOM);
+    const n = raw ? Number(raw) : 1;
+    if (!isFinite(n) || n <= 0) return 1;
+    return clamp(n, 0.70, 1.35);
+  }
+  function saveUserZoom(z){
+    localStorage.setItem(LS_UI_ZOOM, String(z));
+  }
+
+  let userZoom = loadUserZoom();
+
+  function updateZoomLabel(){
+    ui.uiZoom.textContent = `${Math.round(userZoom * 100)}%`;
+  }
+
+  /* Auto-fit is still 1.0 max (we don't auto-scale UP),
+     but now we multiply by userZoom so players can zoom in/out. */
   function applyScale(){
     const shell = document.getElementById("scaleShell");
     const wrap = document.querySelector(".wrap");
@@ -1718,9 +1786,33 @@
     const availW = window.innerWidth - 20;
     const availH = window.innerHeight - 20;
 
-    const scale = Math.min(1, Math.min(availW / baseW, availH / baseH));
-    wrap.style.transform = `scale(${scale})`;
+    const autoFit = Math.min(1, Math.min(availW / baseW, availH / baseH));
+    const finalScale = clamp(autoFit * userZoom, 0.60, 1.60);
+
+    wrap.style.transform = `scale(${finalScale})`;
   }
+
+  function bumpZoom(dir){
+    // 5% steps feels like browser zoom, but controlled
+    const step = 0.05;
+    userZoom = clamp(userZoom + (dir * step), 0.70, 1.35);
+    saveUserZoom(userZoom);
+    updateZoomLabel();
+    applyScale();
+    beep(dir > 0 ? 660 : 440, 0.06, "triangle", 0.04);
+  }
+
+  ui.btnZoomOut.addEventListener("click", () => bumpZoom(-1));
+  ui.btnZoomIn.addEventListener("click", () => bumpZoom( 1));
+
+  /* Optional: click the % pill to reset to 100% */
+  ui.uiZoom.addEventListener("click", () => {
+    userZoom = 1;
+    saveUserZoom(userZoom);
+    updateZoomLabel();
+    applyScale();
+    chord([392,523],0.12,0.05);
+  });
 
   function boot(){
     renderLeaderboard(loadLeaderboard());
@@ -1736,6 +1828,7 @@
 
     showNameModal();
 
+    updateZoomLabel();
     applyScale();
     window.addEventListener("resize", applyScale);
   }
