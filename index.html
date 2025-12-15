@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -25,6 +24,14 @@
       align-items:start;
     }
 
+    /* NEW: canvas wrapper so we can letterbox on phone without stretching */
+    .gameWrap{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:12px;
+    }
+
     canvas{
       width:100%;
       height:auto;
@@ -34,7 +41,7 @@
       background: var(--lvlBg, #070a0e);
       box-shadow: 0 0 0 2px rgba(0,0,0,.15), 0 18px 50px rgba(0,0,0,.35);
       display:block;
-      touch-action:none;
+      aspect-ratio: 1 / 1; /* keeps it square when CSS resizing happens */
     }
 
     .panel{
@@ -44,13 +51,13 @@
       padding:12px;
     }
 
-    /* desktop right panel sticky */
+    /* KEY FIX (DESKTOP/TABLET): Right panel stays in view + scrolls internally */
     .panelSticky{
       position: sticky;
       top: 14px;
       max-height: calc(100vh - 28px);
       overflow: auto;
-      padding-right: 10px;
+      padding-right: 10px; /* slight room for scrollbar */
     }
 
     .title{
@@ -203,7 +210,6 @@
       box-shadow: 0 6px 18px rgba(0,0,0,.25);
       transition: transform .05s ease, filter .15s ease, box-shadow .15s ease;
       touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
     }
     button:active{ transform: translateY(1px); }
     button:hover{ filter: brightness(1.08); }
@@ -216,12 +222,14 @@
     .btn-music{ background: linear-gradient(180deg,#c27bff,#7a35ff); color:#120018; grid-column: 1 / span 2; }
     .btn-info { background: linear-gradient(180deg,#f3f4f6,#cbd5e1); color:#0b0f14; }
 
+    /* Flashing Roll for monster event (OK — this doesn't reveal which stick is cursed) */
     @keyframes flashRoll {
       0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.0); transform: translateY(0); }
       100% { box-shadow: 0 0 0 3px rgba(255,255,255,0.75); transform: translateY(-1px); }
     }
     .flashRoll{ animation: flashRoll 0.55s ease-in-out infinite alternate; }
 
+    /* Monster event box */
     .monsterEvent{
       margin-top:10px;
       padding:8px 10px;
@@ -237,6 +245,7 @@
     .monsterEventIcon{ font-size:20px; margin-top:2px; }
     .monsterEventTitle{ font-weight:1000; color:#ffb347; margin-bottom:3px; }
 
+    /* Stats block compact */
     .statsGrid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -281,36 +290,40 @@
       z-index:9999;
       align-items:center;
       justify-content:center;
-      padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
-
     .modalBox{
       width:min(780px,94vw);
       background:#0f1720;
       border:2px solid #1f2a37;
       border-radius:16px;
       padding:16px;
-      /* FIX: make modals scrollable on phone too */
-      max-height: min(86vh, 86dvh);
-      overflow:auto;
+      max-height: calc(var(--vh, 1vh) * 92);
+      display:flex;
+      flex-direction:column;
+      overflow:hidden; /* internal scroll goes on modalText */
     }
-
     .modalTitle{ font-weight:1000; letter-spacing:.8px; font-size:18px; }
-    .modalText{ color:#cdd9e5; font-size:13px; line-height:1.45; margin-top:8px; }
-
+    .modalText{
+      color:#cdd9e5;
+      font-size:13px;
+      line-height:1.45;
+      margin-top:8px;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      padding-right: 6px;
+    }
     .modalActions{
       display:flex;
       gap:10px;
       justify-content:flex-end;
       margin-top:14px;
       flex-wrap:wrap;
-      /* FIX: keep Close always reachable */
       position: sticky;
       bottom: 0;
+      background: linear-gradient(180deg, rgba(15,23,32,0.0), rgba(15,23,32,0.88) 30%, rgba(15,23,32,1));
       padding-top: 10px;
-      background: linear-gradient(180deg, rgba(15,23,32,0), rgba(15,23,32,1) 40%);
     }
-
     .modalClose{
       padding:10px 14px;
       border-radius:12px;
@@ -381,64 +394,82 @@
       .panelSticky{ position: static; max-height: none; overflow: visible; padding-right:12px; }
     }
 
-    /* =========================
-       PHONE LAYOUT (FIXED)
-       ========================= */
+    /* PHONE: fixed, reliable viewport sizing + always-visible controls */
     @media (max-width:720px){
-      /* hide the left Activity panel on phone */
+      /* hide Activity panel */
       .wrap > .panel:first-child{ display:none; }
 
-      /* use a flex column so canvas gets priority and controls never vanish */
+      /* Use JS-calculated --vh to avoid Safari address-bar bugs */
       body{
-        height: 100dvh;
-        overflow: hidden;
+        height: calc(var(--vh, 1vh) * 100);
+        overflow:hidden;
       }
 
       .wrap{
-        height: 100dvh;
+        height: calc(var(--vh, 1vh) * 100);
         max-width:none;
         margin:0;
         padding:10px;
         gap:10px;
-        display:flex;
-        flex-direction:column;
-        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+        grid-template-columns: 1fr;
+        grid-template-rows: 1.35fr 1fr; /* more space to play area */
+        align-items:stretch;
       }
 
-      /* GAME AREA: takes most of the screen */
+      .gameWrap{
+        height:100%;
+        min-height:0;
+      }
+
+      /* Keep canvas square without stretching; fill height first */
       canvas{
-        flex: 1 1 auto;
-        min-height: 0;
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1 / 1;     /* keeps it square */
-        max-height: 70dvh;       /* prevents it from being tiny */
+        width:auto;
+        height:100%;
+        max-width:100%;
+        max-height:100%;
       }
 
-      /* CONTROLS AREA: fixed visible block; scroll inside if needed */
+      /* Controls panel: grid so the important buttons never get clipped */
       .panel-right{
-        flex: 0 0 auto;
-        max-height: 34dvh;
-        overflow: auto;          /* IMPORTANT: not hidden, so buttons cannot disappear */
-        -webkit-overflow-scrolling: touch;
-        padding-right: 12px;
+        height:100%;
+        min-height:0;
+        overflow:hidden;
+        display:grid;
+        grid-template-rows: auto auto auto auto 1fr;
+        gap:0;
       }
 
-      /* Keep ONLY the needed stuff on phone, but DO NOT hide controls */
-      .rightBody{ display:none; }
+      /* tighten the header + hide the long tagline (put details in Info) */
+      .panel-right .subtitle:first-of-type{ display:none; }
 
-      /* tighten spacing a bit */
-      .controlsTop{ grid-template-columns: 96px 1fr; gap:10px; }
+      .controlsTop{
+        grid-template-columns: 96px 1fr;
+        gap:10px;
+        margin-top:6px;
+      }
       .diceBox{ width:96px; height:96px; border-radius:14px; }
-      .diceFace{ font-size:42px; }
-      .diceLabel{ display:none; }
+      .diceFace{ font-size:44px; }
+      .diceLabel{ font-size:11px; margin-top:6px; }
 
-      .dpad{ width:180px; gap:6px; }
-      .dpad button{ padding:9px 0; }
+      /* keep the little action explanation short */
+      .controlsTop .subtitle{
+        font-size:11px;
+        line-height:1.25;
+        margin-top:0;
+        max-height: 3.7em;
+        overflow:hidden;
+      }
 
-      button{ padding:10px 10px; font-size:14px; }
-      .btns{ margin-top:8px; gap:8px; }
       .dpadWrap{ margin-top:8px; }
+      .btns{ gap:8px; margin-top:8px; }
+
+      /* only the stats/leaderboard scroll (not the controls) */
+      .rightBody{
+        overflow:auto;
+        -webkit-overflow-scrolling: touch;
+        padding-right:6px;
+        min-height:0;
+      }
     }
   </style>
 </head>
@@ -454,7 +485,9 @@
     </div>
 
     <!-- MIDDLE -->
-    <canvas id="game"></canvas>
+    <div class="gameWrap">
+      <canvas id="game"></canvas>
+    </div>
 
     <!-- RIGHT -->
     <div class="panel panelSticky panel-right">
@@ -466,6 +499,7 @@
 
       <div class="hr"></div>
 
+      <!-- TOP PLAY CONTROLS -->
       <div class="controlsTop">
         <div class="diceBox" id="diceBox">
           <div class="diceGlow"></div>
@@ -473,9 +507,9 @@
           <div class="diceLabel" id="diceLabel">Press Roll</div>
         </div>
         <div class="subtitle">
-          <b>Actions</b> = your energy for the turn.<br/>
+          <b>Actions</b> = your energy.<br/>
           Spend Actions to <span class="badge">Move</span> or <span class="badge">Pick/Drop</span>.<br/>
-          <span style="color:#9fb1c6">You must spend Actions before rolling again.</span>
+          <span style="color:#9fb1c6">Spend Actions before rolling again.</span>
         </div>
       </div>
 
@@ -508,6 +542,7 @@
         <button id="btnMusic" class="btn-music">Music: OFF</button>
       </div>
 
+      <!-- BELOW-THE-FOLD (scrolls on phone only) -->
       <div class="rightBody">
         <div class="hr"></div>
 
@@ -597,6 +632,15 @@
 
 <script>
 (() => {
+  /* ---------- MOBILE SAFARI VH FIX (prevents clipping / missing buttons) ---------- */
+  function setVhVar(){
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+  }
+  setVhVar();
+  window.addEventListener('resize', setVhVar, { passive:true });
+  window.addEventListener('orientationchange', setVhVar, { passive:true });
+
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const randInt = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
 
@@ -622,6 +666,20 @@
 
   const TILE = 24, GRID_W = 24, GRID_H = 24;
   const CANVAS_W = GRID_W * TILE, CANVAS_H = GRID_H * TILE;
+
+  const ZERO_CHANCE_L1  = 0.00;
+  const ZERO_CHANCE_INC = 0.015;
+  const ZERO_CHANCE_CAP = 0.18;
+
+  const CURSE_CHANCE_L1  = 0.08;
+  const CURSE_CHANCE_INC = 0.015;
+  const CURSE_CHANCE_CAP = 0.16;
+
+  const BONUS_CHANCE_L1  = 0.10;
+  const BONUS_CHANCE_INC = 0.01;
+  const BONUS_CHANCE_CAP = 0.22;
+
+  const LOG_MAX_LINES = 12;
 
   const MUSIC_STEP_MS = 190;
   const MUSIC_PATTERN = [
@@ -660,7 +718,7 @@
   ];
 
   const canvas = document.getElementById("game");
-  const ctx = canvas.getContext("2d", { alpha:false });
+  const ctx = canvas.getContext("2d");
   canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
 
@@ -733,7 +791,7 @@
     line.style.color = st.color;
     line.textContent = (st.icon || "") + msg;
     ui.log.prepend(line);
-    while (ui.log.children.length > 12) ui.log.removeChild(ui.log.lastChild);
+    while (ui.log.children.length > LOG_MAX_LINES) ui.log.removeChild(ui.log.lastChild);
   }
 
   function loadLeaderboard(){
@@ -743,14 +801,25 @@
       return Array.isArray(arr) ? arr : [];
     }catch(_){ return []; }
   }
+
   function saveLeaderboard(arr){
     localStorage.setItem(LS_LEADERBOARD, JSON.stringify(arr));
   }
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, m => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-    }[m]));
+
+  function upsertLeaderboardEntry(name, score, level){
+    const n = (name || "PLAYER1").toUpperCase();
+    const lb = loadLeaderboard();
+    const filtered = lb.filter(e => (e?.name || "").toUpperCase() !== n);
+    filtered.push({ name:n, score: Number(score)||0, level: Number(level)||1 });
+    filtered.sort((x,y) => {
+      if (y.score !== x.score) return y.score - x.score;
+      return y.level - x.level;
+    });
+    const top3 = filtered.slice(0,3);
+    saveLeaderboard(top3);
+    renderLeaderboard(top3);
   }
+
   function renderLeaderboard(lb){
     const rows = (lb && lb.length) ? lb : loadLeaderboard();
     ui.leaderboard.innerHTML = "";
@@ -773,51 +842,51 @@
       ui.leaderboard.appendChild(wrap);
     });
   }
-  function upsertLeaderboardEntry(name, score, level){
-    const n = (name || "PLAYER1").toUpperCase();
-    const lb = loadLeaderboard();
-    const filtered = lb.filter(e => (e?.name || "").toUpperCase() !== n);
-    filtered.push({ name:n, score: Number(score)||0, level: Number(level)||1 });
-    filtered.sort((x,y) => (y.score!==x.score) ? (y.score-x.score) : (y.level-x.level));
-    const top3 = filtered.slice(0,3);
-    saveLeaderboard(top3);
-    renderLeaderboard(top3);
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[m]));
   }
 
-  // ========= AUDIO (mobile unlock) =========
+  /* ---------- AUDIO: iOS requires unlock via user gesture ---------- */
   let audioCtx = null;
-  let audioUnlocked = false;
   let musicOn = false;
   let musicTimer = null;
   let musicStep = 0;
+  let audioUnlocked = false;
 
   function ensureAudio(){
     if (!audioCtx){
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    if (audioCtx.state === "suspended"){
-      audioCtx.resume().catch(()=>{});
-    }
   }
-  function unlockAudio(){
+  async function unlockAudio(){
     try{
       ensureAudio();
-      // keep re-unlocking safe on iOS tab switches
-      const t0 = audioCtx.currentTime;
+      if (audioCtx.state === "suspended") await audioCtx.resume();
+      // tiny silent tick to fully unlock on some iOS versions
       const o = audioCtx.createOscillator();
       const g = audioCtx.createGain();
-      g.gain.setValueAtTime(0.0001, t0);
-      o.frequency.setValueAtTime(440, t0);
+      g.gain.value = 0.00001;
       o.connect(g); g.connect(audioCtx.destination);
-      o.start(t0);
-      o.stop(t0 + 0.02);
+      o.start();
+      o.stop(audioCtx.currentTime + 0.01);
       audioUnlocked = true;
     }catch(_){}
   }
+
+  // unlock on first tap anywhere
+  const unlockOnce = async () => {
+    if (audioUnlocked) return;
+    await unlockAudio();
+  };
+  document.addEventListener("touchstart", unlockOnce, { passive:true });
+  document.addEventListener("pointerdown", unlockOnce, { passive:true });
+
   function beep(freq=440, dur=0.08, type="sine", gain=0.08){
     try{
-      unlockAudio();
-      if (!audioCtx) return;
+      ensureAudio();
       const t0 = audioCtx.currentTime;
       const o = audioCtx.createOscillator();
       const g = audioCtx.createGain();
@@ -835,23 +904,33 @@
   function chord(freqs=[440,550], dur=0.12, gain=0.05){
     freqs.forEach((f)=>beep(f, dur, "triangle", gain));
   }
+
   function startMusic(){
-    unlockAudio();
+    ensureAudio();
     if (musicTimer) return;
     musicStep = 0;
     musicTimer = setInterval(() => {
       const step = MUSIC_PATTERN[musicStep % MUSIC_PATTERN.length];
       musicStep++;
       if (!step) return;
+
       const hasChord = Array.isArray(step.chord) && step.chord.length;
       const hasLead  = step.lead && !hasChord;
       const hasBass  = step.bass;
+
       if (!hasChord && !hasLead && !hasBass) return;
+
       const dur  = step.dur  ?? 0.16;
       const gain = step.gain ?? 0.045;
-      if (hasChord) chord(step.chord, dur, gain);
-      else if (hasLead) beep(step.lead, dur, "triangle", gain);
-      if (hasBass) beep(step.bass, dur * 1.15, "sine", gain * 0.75);
+
+      if (hasChord){
+        chord(step.chord, dur, gain);
+      } else if (hasLead){
+        beep(step.lead, dur, "triangle", gain);
+      }
+      if (hasBass){
+        beep(step.bass, dur * 1.15, "sine", gain * 0.75);
+      }
     }, MUSIC_STEP_MS);
   }
   function stopMusic(){
@@ -869,11 +948,11 @@
   function sfxLevelUp(){ chord([440,660,880],0.20,0.06); chord([520,780,1040],0.22,0.06); }
   function sfxExtraRoll(){ chord([880,990],0.14,0.06); }
 
-  document.addEventListener("pointerdown", unlockAudio, { passive:true });
-  document.addEventListener("touchstart", unlockAudio, { passive:true });
-
   const player = { name: "PLAYER1" };
-  function sanitizeName(s){ return (s||"").trim().replace(/\s+/g," ").slice(0,16); }
+
+  function sanitizeName(s){
+    return (s || "").trim().replace(/\s+/g," ").slice(0,16);
+  }
   function getSavedName(){
     const saved = localStorage.getItem(LS_PLAYER_NAME);
     const name = saved ? sanitizeName(saved).toUpperCase() : "";
@@ -883,7 +962,7 @@
     const n = (sanitizeName(name) || "PLAYER1").toUpperCase();
     player.name = n;
     localStorage.setItem(LS_PLAYER_NAME, n);
-    if (ui.player) ui.player.textContent = n;
+    ui.player.textContent = n;
   }
 
   const game = {
@@ -892,23 +971,29 @@
     lives: 3,
     score: 0,
     actions: 0,
+
     bonusActive: false,
     bonusExtraRollReady: false,
+
     playerX: 2,
     playerY: 2,
     carry: [],
     sticks: [],
     holeX: 12,
     holeY: 12,
+
     lifeTileX: -1,
     lifeTileY: -1,
     lifeTileUsed: false,
+
     pendingMonster: null,
+
     hudMsg: "",
     hudTimer: 0,
     holePulse: 0,
     holeFlash: 0,
     sparks: [],
+
     inputLocked: false
   };
 
@@ -916,27 +1001,43 @@
     const base = Math.min(6, 3 + Math.floor((game.level - 1) / 3));
     return game.bonusActive ? (base + 2) : base;
   }
-  function sticksToSpawnForLevel(level){ return 6 + (level-1)*3; }
-  function zeroChance(level){ return Math.min(0.18, 0.00 + (level-1)*0.015); }
-  function curseChance(level){ return Math.min(0.16, 0.08 + (level-1)*0.015); }
-  function bonusChance(level){ return Math.min(0.22, 0.10 + (level-1)*0.01); }
 
-  function setHud(msg){ game.hudMsg = msg; game.hudTimer = 60; }
+  function sticksToSpawnForLevel(level){
+    return 6 + (level-1)*3;
+  }
+
+  function zeroChance(level){
+    return Math.min(ZERO_CHANCE_CAP, ZERO_CHANCE_L1 + (level-1)*ZERO_CHANCE_INC);
+  }
+  function curseChance(level){
+    return Math.min(CURSE_CHANCE_CAP, CURSE_CHANCE_L1 + (level-1)*CURSE_CHANCE_INC);
+  }
+  function bonusChance(level){
+    return Math.min(BONUS_CHANCE_CAP, BONUS_CHANCE_L1 + (level-1)*BONUS_CHANCE_INC);
+  }
+
+  function setHud(msg){
+    game.hudMsg = msg;
+    game.hudTimer = 60;
+  }
 
   function applyThemeForLevel(){
     game.themeIndex = (game.level - 1) % THEMES.length;
     const t = THEMES[game.themeIndex];
-    if (ui.themeMini) ui.themeMini.textContent = t.name;
+    ui.themeMini.textContent = t.name;
     document.documentElement.style.setProperty("--lvlBg", t.bg);
     document.documentElement.style.setProperty("--lvlBorder", t.border);
     document.documentElement.style.setProperty("--lvlAccentGlow", t.accentGlow);
     document.documentElement.style.setProperty("--lvlAccentShadow", t.accentShadow);
   }
 
-  function isOccupiedByStick(x,y){ return game.sticks.some(s => s.x===x && s.y===y); }
+  function isOccupiedByStick(x,y){
+    return game.sticks.some(s => s.x===x && s.y===y);
+  }
   function isHole(x,y){ return x===game.holeX && y===game.holeY; }
-  function isLifeTile(x,y){ return !game.lifeTileUsed && x===game.lifeTileX && y===game.lifeTileY; }
-
+  function isLifeTile(x,y){
+    return !game.lifeTileUsed && x===game.lifeTileX && y===game.lifeTileY;
+  }
   function randomEmptyTile(){
     for (let i=0;i<2000;i++){
       const x = randInt(0, GRID_W-1);
@@ -989,16 +1090,19 @@
     game.inputLocked = true;
     ui.nameOverlay.style.display = "flex";
     ui.nameInput.value = "";
+    ui.nameInput.placeholder = "ENTER NAME";
+
     const saved = getSavedName();
     if (saved && saved !== "PLAYER1"){
       ui.savedNameHint.style.display = "block";
       ui.savedNameHint.textContent = `Saved on this device: ${saved}`;
       ui.nameUseSavedBtn.style.display = "inline-block";
       ui.nameUseSavedBtn.textContent = `Use ${saved}`;
-    } else {
+    }else{
       ui.savedNameHint.style.display = "none";
       ui.nameUseSavedBtn.style.display = "none";
     }
+
     setTimeout(()=>ui.nameInput.focus(), 50);
   }
   function closeNameModal(){
@@ -1007,7 +1111,8 @@
   }
   function startFromNameInput(){
     const entered = sanitizeName(ui.nameInput.value);
-    setAndStoreName(entered || "PLAYER1");
+    if (!entered) setAndStoreName("PLAYER1");
+    else setAndStoreName(entered);
     closeNameModal();
     newGame(true);
   }
@@ -1017,8 +1122,10 @@
     game.lives = 3;
     game.score = 0;
     game.actions = 0;
+
     game.bonusActive = false;
     game.bonusExtraRollReady = false;
+
     game.carry = [];
     game.sticks = [];
     game.sparks = [];
@@ -1026,17 +1133,22 @@
     game.holeFlash = 0;
     game.hudMsg = "";
     game.hudTimer = 0;
+
     game.playerX = 2;
     game.playerY = 2;
+
     game.lifeTileX = -1;
     game.lifeTileY = -1;
     game.lifeTileUsed = false;
+
     game.pendingMonster = null;
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
+
     spawnHole();
     spawnSticksForLevel(game.level);
     spawnLifeTile();
+
     ui.log.innerHTML = "";
     logEvent("neutral","Welcome to STICKS.");
     logEvent("neutral","Roll to begin.");
@@ -1052,6 +1164,7 @@
     spawnHole();
     spawnSticksForLevel(game.level);
     spawnLifeTile();
+
     game.actions = 0;
     game.carry = [];
     game.bonusActive = false;
@@ -1059,15 +1172,20 @@
     game.pendingMonster = null;
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
+
     logEvent("level",`Level ${game.level}! (${THEMES[game.themeIndex].name})`);
     sfxLevelUp();
     setHud(`LEVEL ${game.level}!`);
+
     commitScoreToLeaderboard();
     updateUI();
   }
 
   function newGame(fresh=false){
-    if (!fresh){ showNameModal(); return; }
+    if (!fresh){
+      showNameModal();
+      return;
+    }
     resetCoreState();
     applyThemeForLevel();
     updateUI();
@@ -1086,6 +1204,7 @@
     if (Math.random() < zc) return 0;
     return randInt(1,5);
   }
+
   function rollBonus2d6(){
     const d1 = randInt(1,6);
     const d2 = randInt(1,6);
@@ -1132,6 +1251,7 @@
           logEvent("roll",`Rolled ${r}.`);
         }
       }
+
       updateUI();
     }, 260);
   }
@@ -1176,6 +1296,7 @@
     setHud("BONUS MODE!");
     game.holePulse = 1.0;
   }
+
   function exitBonusIfDone(){
     if (game.actions === 0 && !game.bonusExtraRollReady){
       if (game.bonusActive){
@@ -1203,16 +1324,6 @@
     return true;
   }
 
-  function spawnSparks(gx,gy,count=18, evil=false){
-    const cx = gx*TILE + TILE/2;
-    const cy = gy*TILE + TILE/2;
-    for (let i=0;i<count;i++){
-      const a = Math.random()*Math.PI*2;
-      const sp = 0.6 + Math.random()*2.2;
-      game.sparks.push({ x:cx, y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life: 24 + Math.random()*20, evil });
-    }
-  }
-
   function resolveMonsterRoll(){
     const pending = game.pendingMonster;
     if (!pending) return;
@@ -1233,11 +1344,14 @@
       const s = game.sticks[index];
 
       if (roll <= 1){
-        if (s && s.cursed) game.sticks.splice(index,1);
+        if (s && s.cursed){
+          game.sticks.splice(index,1);
+        }
         game.lives = Math.max(0, game.lives - 1);
         spawnSparks(game.playerX, game.playerY, 18, true);
         logEvent("monster","Monster wins! Lost 1 life.");
         setHud("MONSTER WINS! -1 LIFE");
+
         if (game.lives <= 0){
           ui.monsterEvent.style.display = "none";
           ui.btnRoll.classList.remove("flashRoll");
@@ -1290,11 +1404,14 @@
       }
       game.score += pts;
       game.carry = [];
+
       logEvent("deposit",`Deposited ${n} stick(s) (+${pts}).`);
       sfxDeposit();
       setHud(`+${pts} deposited!`);
+
       game.holePulse = 1.0;
       spawnSparks(game.holeX, game.holeY, 28);
+
       commitScoreToLeaderboard();
 
       if (game.sticks.length === 0){
@@ -1319,7 +1436,7 @@
       const s = game.sticks[idx];
 
       if (s.cursed){
-        // monster is never visually marked; no extra highlight
+        // IMPORTANT: player never sees which stick is cursed in the field (no highlighting)
         game.pendingMonster = { index: idx };
         game.inputLocked = true;
         logEvent("monster","Monster Stick! Press ROLL (0–5) to fight.");
@@ -1336,6 +1453,7 @@
 
       game.sticks.splice(idx,1);
       game.carry.push({ color:s.color, value:1 });
+
       sfxPickup();
 
       if (s.bonus) enterBonus();
@@ -1348,6 +1466,7 @@
         logEvent("pickup",`Picked up a stick. (${game.carry.length}/${cap})`);
         setHud(`Picked up (${game.carry.length}/${cap})`);
       }
+
       updateUI();
       return;
     }
@@ -1360,6 +1479,7 @@
       if (isLifeTile(game.playerX, game.playerY)){
         game.carry.pop();
         game.lifeTileUsed = true;
+
         if (game.lives < 5){
           game.lives++;
           logEvent("bonus","Secret life tile! +1 life.");
@@ -1400,23 +1520,33 @@
     game.inputLocked = false;
   }
 
+  function spawnSparks(gx,gy,count=18, evil=false){
+    const cx = gx*TILE + TILE/2;
+    const cy = gy*TILE + TILE/2;
+    for (let i=0;i<count;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 0.6 + Math.random()*2.2;
+      game.sparks.push({ x:cx, y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life: 24 + Math.random()*20, evil });
+    }
+  }
+
   function updateRollButtonState(){
     ui.btnRoll.disabled = (game.inputLocked && !game.pendingMonster) || (game.actions !== 0 && !game.pendingMonster);
   }
 
   function updateUI(){
-    if (ui.player) ui.player.textContent = player.name;
-    if (ui.lives) ui.lives.textContent = String(game.lives);
-    if (ui.level) ui.level.textContent = String(game.level);
-    if (ui.score) ui.score.textContent = String(game.score);
-    if (ui.actions) ui.actions.textContent = String(game.actions);
+    ui.player.textContent = player.name;
+    ui.lives.textContent = String(game.lives);
+    ui.level.textContent = String(game.level);
+    ui.score.textContent = String(game.score);
+    ui.actions.textContent = String(game.actions);
 
     const cap = carryCap();
-    if (ui.carry) ui.carry.textContent = `${game.carry.length}/${cap}`;
-    if (ui.left) ui.left.textContent = String(game.sticks.length);
+    ui.carry.textContent = `${game.carry.length}/${cap}`;
+    ui.left.textContent = String(game.sticks.length);
 
-    if (ui.mode) ui.mode.textContent = game.bonusActive ? (game.bonusExtraRollReady ? "BONUS+" : "BONUS") : "NORMAL";
-    if (ui.die) ui.die.textContent = game.bonusActive ? "2–12" : "0–5";
+    ui.mode.textContent = game.bonusActive ? (game.bonusExtraRollReady ? "BONUS+" : "BONUS") : "NORMAL";
+    ui.die.textContent = game.bonusActive ? "2–12" : "0–5";
 
     updateRollButtonState();
   }
@@ -1495,6 +1625,7 @@
 
     const x = game.lifeTileX*TILE;
     const y = game.lifeTileY*TILE;
+
     const t = (performance.now ? performance.now() : Date.now()) / 1000;
     const osc = (Math.sin(t*4) + 1) / 2;
 
@@ -1533,6 +1664,7 @@
     ctx.stroke();
     ctx.globalAlpha = 1;
 
+    // Bonus glow is fine. Cursed sticks are NEVER visually highlighted.
     if (s.bonus){
       ctx.globalAlpha = 0.12;
       ctx.fillStyle = "#ffd166";
@@ -1690,6 +1822,7 @@
       }
       return;
     }
+
     if (inInfo || inOver) return;
     if (game.inputLocked) return;
 
@@ -1700,24 +1833,26 @@
     else if (e.key === " "){ e.preventDefault(); pickOrDrop(); }
   }
 
-  ui.btnRoll.addEventListener("click", () => {
-    unlockAudio();
+  /* ---- Button handlers (unlock audio on phone) ---- */
+  ui.btnRoll.addEventListener("click", async () => {
+    await unlockAudio();
     if (game.pendingMonster){ resolveMonsterRoll(); return; }
     doRoll();
   });
-  ui.btnUse.addEventListener("click", () => { unlockAudio(); pickOrDrop(); });
-  ui.btnNew.addEventListener("click", () => { unlockAudio(); showNameModal(); });
 
-  ui.btnClear.addEventListener("click", () => {
-    unlockAudio();
+  ui.btnUse.addEventListener("click", async () => { await unlockAudio(); pickOrDrop(); });
+  ui.btnNew.addEventListener("click", async () => { await unlockAudio(); showNameModal(); });
+
+  ui.btnClear.addEventListener("click", async () => {
+    await unlockAudio();
     localStorage.removeItem(LS_LEADERBOARD);
     renderLeaderboard([]);
     logEvent("neutral","Stats cleared.");
     setHud("Stats cleared.");
   });
 
-  ui.btnMusic.addEventListener("click", () => {
-    unlockAudio();
+  ui.btnMusic.addEventListener("click", async () => {
+    await unlockAudio();
     if (!musicOn){
       musicOn = true;
       ui.btnMusic.textContent = "Music: ON";
@@ -1731,31 +1866,41 @@
     }
   });
 
-  ui.btnUp.addEventListener("click", () => { unlockAudio(); move(0,-1); });
-  ui.btnDown.addEventListener("click", () => { unlockAudio(); move(0,1); });
-  ui.btnLeft.addEventListener("click", () => { unlockAudio(); move(-1,0); });
-  ui.btnRight.addEventListener("click", () => { unlockAudio(); move(1,0); });
+  ui.btnUp.addEventListener("click", async () => { await unlockAudio(); move(0,-1); });
+  ui.btnDown.addEventListener("click", async () => { await unlockAudio(); move(0,1); });
+  ui.btnLeft.addEventListener("click", async () => { await unlockAudio(); move(-1,0); });
+  ui.btnRight.addEventListener("click", async () => { await unlockAudio(); move(1,0); });
 
-  ui.btnInfo.addEventListener("click", () => { unlockAudio(); ui.infoOverlay.style.display = "flex"; game.inputLocked = true; });
-  ui.btnInfoClose.addEventListener("click", () => { unlockAudio(); ui.infoOverlay.style.display = "none"; game.inputLocked = false; });
+  ui.btnInfo.addEventListener("click", async () => { await unlockAudio(); ui.infoOverlay.style.display = "flex"; game.inputLocked = true; });
+  ui.btnInfoClose.addEventListener("click", async () => { await unlockAudio(); ui.infoOverlay.style.display = "none"; game.inputLocked = false; });
 
-  ui.nameStartBtn.addEventListener("click", () => { unlockAudio(); startFromNameInput(); });
-  ui.nameUseP1Btn.addEventListener("click", () => {
-    unlockAudio();
+  // Close Info if you tap the dark backdrop
+  ui.infoOverlay.addEventListener("click", (e) => {
+    if (e.target === ui.infoOverlay){
+      ui.infoOverlay.style.display = "none";
+      game.inputLocked = false;
+    }
+  });
+
+  ui.nameStartBtn.addEventListener("click", async () => { await unlockAudio(); startFromNameInput(); });
+
+  ui.nameUseP1Btn.addEventListener("click", async () => {
+    await unlockAudio();
     setAndStoreName("PLAYER1");
     closeNameModal();
     newGame(true);
   });
-  ui.nameUseSavedBtn?.addEventListener("click", () => {
-    unlockAudio();
+
+  ui.nameUseSavedBtn?.addEventListener("click", async () => {
+    await unlockAudio();
     const saved = getSavedName() || "PLAYER1";
     setAndStoreName(saved);
     closeNameModal();
     newGame(true);
   });
 
-  ui.btnRestart.addEventListener("click", () => {
-    unlockAudio();
+  ui.btnRestart.addEventListener("click", async () => {
+    await unlockAudio();
     closeGameOver();
     showNameModal();
   });
@@ -1764,9 +1909,10 @@
 
   function boot(){
     renderLeaderboard(loadLeaderboard());
+
     const saved = getSavedName();
     if (saved) player.name = saved;
-    if (ui.player) ui.player.textContent = player.name;
+    ui.player.textContent = player.name;
 
     resetCoreState();
     applyThemeForLevel();
