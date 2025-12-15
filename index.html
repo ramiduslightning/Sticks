@@ -32,6 +32,7 @@
       image-rendering: pixelated;
       background: var(--lvlBg, #070a0e);
       box-shadow: 0 0 0 2px rgba(0,0,0,.15), 0 18px 50px rgba(0,0,0,.35);
+      display:block;
     }
 
     .panel{
@@ -41,7 +42,7 @@
       padding:12px;
     }
 
-    /* KEY FIX: Right panel stays in view + scrolls internally */
+    /* KEY FIX (DESKTOP/TABLET): Right panel stays in view + scrolls internally */
     .panelSticky{
       position: sticky;
       top: 14px;
@@ -177,10 +178,11 @@
       font-weight:1000;
       cursor:pointer;
       user-select:none;
+      touch-action: manipulation;
     }
     .dpad .empty{ visibility:hidden; }
 
-    /* Main action buttons — always near top now */
+    /* Main action buttons */
     .btns{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -198,6 +200,7 @@
       user-select:none;
       box-shadow: 0 6px 18px rgba(0,0,0,.25);
       transition: transform .05s ease, filter .15s ease, box-shadow .15s ease;
+      touch-action: manipulation;
     }
     button:active{ transform: translateY(1px); }
     button:hover{ filter: brightness(1.08); }
@@ -233,7 +236,7 @@
     .monsterEventIcon{ font-size:20px; margin-top:2px; }
     .monsterEventTitle{ font-weight:1000; color:#ffb347; margin-bottom:3px; }
 
-    /* Stats block compact so it doesn’t push buttons down */
+    /* Stats block compact */
     .statsGrid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -358,6 +361,54 @@
       .dpad{ width:100%; max-width:240px; }
       .panelSticky{ position: static; max-height: none; overflow: visible; padding-right:12px; }
     }
+
+    /* PHONE FIX: no scrolling needed to Roll/Move/Pick — keep controls visible */
+    @media (max-width:720px){
+      /* kill the left Activity panel on phone (biggest space win) */
+      .wrap > .panel:first-child{ display:none; }
+
+      /* make the layout a 2-row game screen: canvas + controls panel */
+      body{ height:100vh; overflow:hidden; }
+      .wrap{
+        height:100vh;
+        max-width:none;
+        margin:0;
+        padding:10px;
+        gap:10px;
+        grid-template-columns: 1fr;
+        grid-template-rows: 1fr auto;
+        align-items:stretch;
+      }
+
+      /* canvas becomes the top "play area" */
+      canvas{
+        height:100%;
+        max-height: 100%;
+      }
+
+      /* right panel becomes the bottom "controls area" */
+      .panel-right{
+        max-height: 46vh;          /* controls always visible */
+        overflow: hidden;          /* internal scroll handled below */
+        padding-right: 12px;
+      }
+
+      /* keep your controls fixed at top of the panel */
+      .controlsTop{ grid-template-columns: 110px 1fr; }
+      .diceBox{ width:110px; height:110px; }
+
+      /* everything below the buttons can scroll inside the panel */
+      .rightBody{
+        max-height: 18vh;
+        overflow:auto;
+        padding-right: 6px;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* tighter spacing so nothing gets pushed off */
+      .dpadWrap{ margin-top:8px; }
+      .btns{ gap:8px; margin-top:8px; }
+    }
   </style>
 </head>
 
@@ -374,8 +425,8 @@
     <!-- MIDDLE -->
     <canvas id="game"></canvas>
 
-    <!-- RIGHT (sticky + scrollable; buttons stay near top) -->
-    <div class="panel panelSticky">
+    <!-- RIGHT (desktop sticky + phone bottom-controls) -->
+    <div class="panel panelSticky panel-right">
       <div class="title">
         <div>STICKS <span class="badge">v2.13</span></div>
         <button class="btn-info" id="btnInfo" style="padding:8px 10px;">Info</button>
@@ -384,7 +435,7 @@
 
       <div class="hr"></div>
 
-      <!-- TOP PLAY CONTROLS (this is what you showed in the screenshot) -->
+      <!-- TOP PLAY CONTROLS -->
       <div class="controlsTop">
         <div class="diceBox" id="diceBox">
           <div class="diceGlow"></div>
@@ -427,23 +478,25 @@
         <button id="btnMusic" class="btn-music">Music: OFF</button>
       </div>
 
-      <!-- BELOW-THE-FOLD STUFF (won’t hide the buttons now) -->
-      <div class="hr"></div>
+      <!-- BELOW-THE-FOLD STUFF (scrolls on phone, normal on desktop) -->
+      <div class="rightBody">
+        <div class="hr"></div>
 
-      <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
+        <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
 
-      <div class="statsGrid">
-        <div class="kv"><span>Lives</span><span id="uiLives" class="big">3</span></div>
-        <div class="kv"><span>Level</span><span id="uiLevel" class="big">1</span></div>
-        <div class="kv"><span>Score</span><span id="uiScore" class="big">0</span></div>
-        <div class="kv"><span>Actions</span><span id="uiActions" class="big">0</span></div>
-        <div class="kv"><span>Mode</span><span id="uiMode" class="big">NORMAL</span></div>
-        <div class="kv"><span>Die</span><span id="uiDie" class="big">0–5</span></div>
-        <div class="kv"><span>Carrying</span><span id="uiCarry" class="big">0/3</span></div>
-        <div class="kv"><span>Sticks left</span><span id="uiLeft" class="big">0</span></div>
+        <div class="statsGrid">
+          <div class="kv"><span>Lives</span><span id="uiLives" class="big">3</span></div>
+          <div class="kv"><span>Level</span><span id="uiLevel" class="big">1</span></div>
+          <div class="kv"><span>Score</span><span id="uiScore" class="big">0</span></div>
+          <div class="kv"><span>Actions</span><span id="uiActions" class="big">0</span></div>
+          <div class="kv"><span>Mode</span><span id="uiMode" class="big">NORMAL</span></div>
+          <div class="kv"><span>Die</span><span id="uiDie" class="big">0–5</span></div>
+          <div class="kv"><span>Carrying</span><span id="uiCarry" class="big">0/3</span></div>
+          <div class="kv"><span>Sticks left</span><span id="uiLeft" class="big">0</span></div>
+        </div>
+
+        <div class="leaderboard" id="leaderboard"></div>
       </div>
-
-      <div class="leaderboard" id="leaderboard"></div>
     </div>
   </div>
 
