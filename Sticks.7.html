@@ -1,0 +1,1711 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>STICKS</title>
+  <style>
+    :root{ color-scheme: dark; }
+
+    body{
+      margin:0;
+      font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+      background:#0b0f14;
+      color:#e6edf3;
+    }
+
+    .wrap{
+      max-width: 1320px; margin:0 auto; padding:14px;
+      display:grid; grid-template-columns: 260px 1fr 420px; gap:14px; align-items:start;
+    }
+
+    canvas{
+      width:100%; height:auto;
+      border:2px solid var(--lvlBorder, #1f2a37);
+      border-radius:12px;
+      image-rendering: pixelated;
+      background: var(--lvlBg, #070a0e);
+      box-shadow: 0 0 0 2px rgba(0,0,0,.15), 0 18px 50px rgba(0,0,0,.35);
+    }
+
+    .panel{
+      background:#0f1720;
+      border:2px solid #1f2a37;
+      border-radius:12px;
+      padding:12px;
+    }
+
+    .title{
+      font-weight:1000; letter-spacing:.6px;
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+    }
+    .subtitle{
+      color:#9fb1c6; font-size:12px; line-height:1.35; margin-top:6px;
+    }
+    .hr{ height:1px; background:#1f2a37; margin:10px 0; }
+
+    .log{
+      height: 600px; overflow:auto;
+      background:#0b1220; border:1px solid #1f2a37; border-radius:12px;
+      padding:10px; font-size:12px; line-height:1.45;
+    }
+    .log .line{ margin: 0 0 8px 0; }
+    .log .line:last-child{ margin-bottom:0; }
+
+    .kv{ display:flex; justify-content:space-between; gap:10px; margin:6px 0; }
+    .kv span:first-child{ color:#9fb1c6; }
+    .big{ font-size:18px; font-weight:1000; }
+
+    .badge{
+      display:inline-block; padding:3px 8px; border-radius:999px;
+      border:1px solid #2b3a4c; background:#0b1220;
+      font-weight:1000; font-size:12px; user-select:none;
+    }
+
+    .playerArcade{
+      font-size:22px; font-weight:1000; letter-spacing:1.2px; text-transform:uppercase;
+      padding:8px 10px; border-radius:12px; border:1px solid #2b3a4c;
+      background: linear-gradient(180deg,#0b1220,#070c16);
+      text-shadow: 0 0 18px rgba(120,180,255,0.18);
+      user-select:none;
+    }
+
+    .btns{ display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:10px; }
+
+    button{
+      cursor:pointer; border:0; padding:11px 10px; border-radius:12px;
+      font-weight:1000; letter-spacing:.2px; user-select:none;
+      box-shadow: 0 6px 18px rgba(0,0,0,.25);
+      transition: transform .05s ease, filter .15s ease, box-shadow .15s ease;
+    }
+    button:active{ transform: translateY(1px); }
+    button:hover{ filter: brightness(1.08); }
+    button:disabled{ opacity:.55; cursor:not-allowed; filter:none; }
+
+    .btn-roll { background: linear-gradient(180deg,#3aa7ff,#1172ff); color:#061018; }
+    .btn-use  { background: linear-gradient(180deg,#39ff95,#08c46b); color:#061018; }
+    .btn-new  { background: linear-gradient(180deg,#ffb347,#ff7a18); color:#1a0f00; }
+    .btn-clear{ background: linear-gradient(180deg,#ff5a6a,#ff1f3a); color:#200007; }
+    .btn-music{ background: linear-gradient(180deg,#c27bff,#7a35ff); color:#120018; grid-column: 1 / span 2; }
+    .btn-info { background: linear-gradient(180deg,#f3f4f6,#cbd5e1); color:#0b0f14; }
+
+    /* Flashing Roll for monster event */
+    @keyframes flashRoll {
+      0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.0); transform: translateY(0); }
+      100% { box-shadow: 0 0 0 3px rgba(255,255,255,0.75); transform: translateY(-1px); }
+    }
+    .flashRoll{
+      animation: flashRoll 0.55s ease-in-out infinite alternate;
+    }
+
+    .diceRow{ display:grid; grid-template-columns: 132px 1fr; gap:12px; align-items:center; margin-top:10px; }
+    .diceBox{
+      width:132px; height:132px; border-radius:16px; border:2px solid #2b3a4c;
+      background: radial-gradient(120px 120px at 40% 35%, #1a2a3c 0%, #0b1220 70%);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      position:relative; overflow:hidden;
+    }
+
+    .diceGlow{
+      position:absolute; inset:-40px;
+      background: conic-gradient(from 180deg,
+        rgba(0,0,0,0),
+        rgba(0,0,0,0),
+        var(--lvlAccentGlow, rgba(58,167,255,.32)),
+        rgba(0,0,0,0)
+      );
+      opacity:0; filter: blur(10px); transform: rotate(0deg); pointer-events:none;
+    }
+    .rolling .diceGlow{ opacity:1; animation: spin .32s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .diceFace{
+      font-size:52px; font-weight:1000; line-height:1;
+      text-shadow: 0 0 16px var(--lvlAccentShadow, rgba(58,167,255,.25));
+      user-select:none;
+    }
+    .diceLabel{ margin-top:8px; font-size:12px; color:#9fb1c6; text-align:center; line-height:1.25; user-select:none; }
+
+    /* Monster event box */
+    .monsterEvent{
+      margin-top:10px;
+      padding:8px 10px;
+      border-radius:12px;
+      border:1px solid #ff1f3a;
+      background:#1a0509;
+      display:flex;
+      gap:8px;
+      align-items:flex-start;
+      font-size:12px;
+      line-height:1.35;
+    }
+    .monsterEventIcon{
+      font-size:20px;
+      margin-top:2px;
+    }
+    .monsterEventTitle{
+      font-weight:1000;
+      color:#ffb347;
+      margin-bottom:3px;
+    }
+
+    /* D-PAD */
+    .dpadWrap{ margin-top:10px; display:flex; justify-content:center; align-items:center; }
+    .dpad{ width:170px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; }
+    .dpad button{
+      padding:10px 0; border-radius:12px;
+      background: linear-gradient(180deg,#f3f4f6,#cbd5e1);
+      color:#0b0f14; box-shadow:none;
+    }
+    .dpad .empty{ visibility:hidden; }
+
+    /* Overlays */
+    #infoOverlay,#nameOverlay,#gameOverOverlay{
+      display:none; position:fixed; inset:0; background:rgba(0,0,0,.72);
+      z-index:9999; align-items:center; justify-content:center;
+    }
+    .modalBox{
+      width:min(780px,94vw);
+      background:#0f1720; border:2px solid #1f2a37; border-radius:16px; padding:16px;
+    }
+    .modalTitle{ font-weight:1000; letter-spacing:.8px; font-size:18px; }
+    .modalText{ color:#cdd9e5; font-size:13px; line-height:1.45; margin-top:8px; }
+    .modalActions{ display:flex; gap:10px; justify-content:flex-end; margin-top:14px; flex-wrap:wrap; }
+    .modalClose{
+      padding:10px 14px; border-radius:12px; border:1px solid #2b3a4c;
+      background:#0b1220; color:#e6edf3; font-weight:1000;
+    }
+
+    #nameOverlay input{
+      flex:1; padding:12px 12px; border-radius:12px;
+      border:1px solid #2b3a4c; background:#0b1220; color:#e6edf3;
+      font-weight:1000; outline:none; font-size:16px; letter-spacing:.6px; text-transform: uppercase;
+    }
+    .saveBtn{
+      padding:12px 14px; border-radius:12px; border:1px solid #39ff95;
+      background: linear-gradient(180deg,#39ff95,#08c46b);
+      color:#061018; font-weight:1000;
+    }
+    .altBtn{
+      padding:12px 14px; border-radius:12px; border:1px solid #2b3a4c;
+      background: linear-gradient(180deg,#f3f4f6,#cbd5e1);
+      color:#0b0f14; font-weight:1000;
+    }
+    .warnBtn{
+      padding:12px 14px; border-radius:12px; border:1px solid #ff5a6a;
+      background: linear-gradient(180deg,#ff5a6a,#ff1f3a);
+      color:#200007; font-weight:1000;
+    }
+    .hintRow{
+      margin-top:10px; padding:10px; border-radius:12px; border:1px solid #2b3a4c;
+      background:#0b1220; color:#9fb1c6; font-size:12px; line-height:1.35;
+    }
+
+    .leaderboard{
+      background:#0b1220; border:1px solid #1f2a37; border-radius:12px;
+      padding:10px;
+      font-size:12px;
+    }
+    .leaderRow{
+      display:flex; justify-content:space-between; gap:10px;
+      padding:6px 6px; border-radius:10px;
+    }
+    .leaderRow:nth-child(odd){ background: rgba(255,255,255,0.03); }
+    .leaderName{ font-weight:1000; letter-spacing:.3px; }
+    .leaderMeta{ color:#9fb1c6; }
+    .gold { color:#ffd166; }
+    .silver { color:#cbd5e1; }
+    .bronze { color:#ffb347; }
+
+    @media (max-width:1200px){
+      .wrap{ grid-template-columns:1fr; }
+      .log{ height:220px; }
+      .diceRow{ grid-template-columns:1fr; }
+      .diceBox{ width:100%; height:120px; }
+      .dpad{ width:100%; max-width:220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- LEFT -->
+    <div class="panel">
+      <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Obsidian</span></div>
+      <div class="subtitle">Latest on top. Color = importance.</div>
+      <div class="hr"></div>
+      <div class="log" id="log"></div>
+    </div>
+
+    <!-- MIDDLE -->
+    <canvas id="game"></canvas>
+
+    <!-- RIGHT -->
+    <div class="panel">
+      <div class="title">
+        <div>STICKS <span class="badge">v2.10</span></div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-info" id="btnInfo" style="padding:10px 12px;">Info</button>
+        </div>
+      </div>
+      <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
+
+      <div class="hr"></div>
+
+      <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
+      <div class="kv"><span>Lives</span><span id="uiLives" class="big">3</span></div>
+
+      <div class="kv"><span>Level</span><span id="uiLevel" class="big">1</span></div>
+      <div class="kv"><span>Score</span><span id="uiScore" class="big">0</span></div>
+      <div class="kv"><span>Actions</span><span id="uiActions" class="big">0</span></div>
+      <div class="kv"><span>Mode</span><span id="uiMode" class="big">NORMAL</span></div>
+      <div class="kv"><span>Die</span><span id="uiDie" class="big">0–5</span></div>
+      <div class="kv"><span>Carrying</span><span id="uiCarry" class="big">0/3</span></div>
+      <div class="kv"><span>Sticks left</span><span id="uiLeft" class="big">0</span></div>
+
+      <div class="hr"></div>
+
+      <div class="diceRow">
+        <div class="diceBox" id="diceBox">
+          <div class="diceGlow"></div>
+          <div class="diceFace" id="diceFace">—</div>
+          <div class="diceLabel" id="diceLabel">Press Roll</div>
+        </div>
+        <div class="subtitle">
+          <b>Actions</b> = your energy for the turn.<br/>
+          Spend Actions to <span class="badge">Move</span> or <span class="badge">Pick/Drop</span>.<br/>
+          <span style="color:#9fb1c6">You must spend Actions before rolling again.</span>
+        </div>
+      </div>
+
+      <!-- Monster encounter chat box -->
+      <div id="monsterEvent" class="monsterEvent" style="display:none;">
+        <div class="monsterEventIcon">👹</div>
+        <div>
+          <div class="monsterEventTitle">Stick Monster Appears!</div>
+          <div id="monsterEventText">
+            Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.
+          </div>
+        </div>
+      </div>
+
+      <div class="dpadWrap" aria-label="D-pad">
+        <div class="dpad">
+          <button class="empty"></button>
+          <button id="btnUp">▲</button>
+          <button class="empty"></button>
+          <button id="btnLeft">◀</button>
+          <button id="btnDown">▼</button>
+          <button id="btnRight">▶</button>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="btnRoll" class="btn-roll">🎲 Roll</button>
+        <button id="btnUse" class="btn-use">Pick/Drop</button>
+        <button id="btnNew" class="btn-new">New Game</button>
+        <button id="btnClear" class="btn-clear">Clear Stats</button>
+        <button id="btnMusic" class="btn-music">Music: OFF</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <div class="title" style="font-size:13px;">
+        <div>Top Scores (Local)</div>
+        <span class="badge" id="uiTopHint">Top 3</span>
+      </div>
+      <div class="subtitle">Saved on this device only.</div>
+      <div class="leaderboard" id="leaderboard"></div>
+    </div>
+  </div>
+
+  <!-- INFO -->
+  <div id="infoOverlay">
+    <div class="modalBox" role="dialog" aria-modal="true">
+      <div class="modalTitle">How to Play (Quick)</div>
+      <div class="modalText">
+        <div style="margin:8px 0;"><span class="badge">Roll</span> gives Actions. You must spend Actions before rolling again.</div>
+        <div style="margin:8px 0;"><span class="badge">Move</span> costs 1 Action per step (Arrow Keys or D-Pad).</div>
+        <div style="margin:8px 0;"><span class="badge">Pick/Drop</span> costs 1 Action:
+          pick a stick if on one, <b>place 1 carried stick</b> onto an empty tile, or deposit into the hole.
+        </div>
+        <div style="margin:8px 0;"><span class="badge">Zero</span>:
+          if carrying sticks, you drop and they scatter. If carrying none, the hole gets angry and spits out a stick.
+        </div>
+        <div style="margin:8px 0;"><span class="badge">Bonus</span>:
+          secret sticks trigger BONUS. In Bonus you roll <b>double dice (2–12)</b> (1–6 + 1–6). Deposits are 2×.
+          Roll <b>12</b> to earn <b>one extra Bonus roll</b> (after Actions hit 0).
+        </div>
+        <div style="margin:8px 0;"><span class="badge">Stick Monster</span>:
+          some sticks are cursed. When you try to pick one up, a Stick Monster appears.
+          Press <b>ROLL</b>: roll <b>2–5</b> to keep a 2× stick, roll <b>0–1</b> and you lose 1 life.
+        </div>
+        <div style="margin:8px 0; color:#9fb1c6;">Controls: Arrow Keys or D-Pad • Space = Pick/Drop</div>
+      </div>
+      <div class="modalActions">
+        <button class="modalClose" id="btnInfoClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAME -->
+  <div id="nameOverlay">
+    <div class="modalBox" role="dialog" aria-modal="true">
+      <div class="modalTitle">ENTER YOUR NAME</div>
+      <div class="modalText" style="color:#9fb1c6">Stored only on this device (local browser storage).</div>
+
+      <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
+        <input id="nameInput" maxlength="16" placeholder="ENTER NAME"/>
+        <button id="nameStartBtn" class="saveBtn">Start</button>
+      </div>
+
+      <div class="hintRow" id="savedNameHint" style="display:none;"></div>
+
+      <div class="modalActions" style="justify-content:flex-start;">
+        <button id="nameUseSavedBtn" class="altBtn" style="display:none;">Use SAVED</button>
+        <button id="nameUseP1Btn" class="warnBtn">Use PLAYER1</button>
+      </div>
+
+      <div class="modalText" style="color:#9fb1c6; margin-top:10px;">Press <b>Enter</b> to start • <b>Esc</b> uses PLAYER1</div>
+    </div>
+  </div>
+
+  <!-- GAME OVER -->
+  <div id="gameOverOverlay">
+    <div class="modalBox" role="dialog" aria-modal="true">
+      <div class="modalTitle">GAME OVER</div>
+      <div class="modalText" id="gameOverText">The sticks won this time.</div>
+      <div class="modalActions">
+        <button class="modalClose" id="btnRestart">Restart</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const randInt = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
+
+  const LS_PLAYER_NAME = "sticks_playerName_v3";
+  const LS_LEADERBOARD = "sticks_leaderboard_v1";
+
+  const THEMES = [
+    { name:"Obsidian",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
+    { name:"Neon Blue",  bg:"#041027", grid:"#0b234a", border:"#1d4ed8", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.42)", accentShadow:"rgba(58,167,255,.30)" },
+    { name:"Crimson",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.42)", accentShadow:"rgba(255,90,106,.28)" },
+    { name:"Ember",      bg:"#1a0f00", grid:"#2c1700", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.42)", accentShadow:"rgba(255,179,71,.26)" },
+    { name:"Toxic",      bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.40)", accentShadow:"rgba(57,255,149,.26)" },
+    { name:"Violet",     bg:"#0c0418", grid:"#1a0b33", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.42)", accentShadow:"rgba(194,123,255,.28)" },
+    { name:"Arctic",     bg:"#07131a", grid:"#0e2630", border:"#a8dadc", accent:"#f3f4f6", accentGlow:"rgba(168,218,220,.38)", accentShadow:"rgba(243,244,246,.16)" },
+    { name:"Gold Rush",  bg:"#141006", grid:"#241b0a", border:"#ffd166", accent:"#ffd166", accentGlow:"rgba(255,209,102,.45)", accentShadow:"rgba(255,209,102,.28)" },
+  ];
+
+  const STICK_COLORS = [
+    "#ff5a6a","#ff1f3a","#ffb347","#ff7a18","#39ff95","#08c46b",
+    "#3aa7ff","#1172ff","#c27bff","#7a35ff","#ffd166","#a8dadc",
+    "#95d5b2","#ff9f1c","#b08cff","#f3f4f6"
+  ];
+
+  const TILE = 24, GRID_W = 24, GRID_H = 24;
+  const CANVAS_W = GRID_W * TILE, CANVAS_H = GRID_H * TILE;
+
+  const BASE_STICKS_L1 = 6;
+  const STICKS_PER_LEVEL = 3;
+  const BONUS_MULTIPLIER = 2;
+  const MAX_LIVES = 5;
+
+  const ZERO_CHANCE_L1  = 0.00;
+  const ZERO_CHANCE_INC = 0.015;
+  const ZERO_CHANCE_CAP = 0.18;
+
+  const CURSE_CHANCE_L1  = 0.08;
+  const CURSE_CHANCE_INC = 0.015;
+  const CURSE_CHANCE_CAP = 0.16;
+
+  const BONUS_CHANCE_L1  = 0.10;
+  const BONUS_CHANCE_INC = 0.01;
+  const BONUS_CHANCE_CAP = 0.22;
+
+  const ZERO_SCATTER_RADIUS = 3;
+  const LOG_MAX_LINES = 12;
+
+  const MUSIC_STEP_MS = 190;
+  const MUSIC_PATTERN = [
+    { lead:262, bass:110, dur:0.15 },
+    { lead:0 },
+    { lead:294, bass:110, dur:0.15 },
+    { lead:330, bass:110, dur:0.15 },
+    { lead:392, bass:110, dur:0.16 },
+    { lead:330, bass:110, dur:0.14 },
+    { lead:294, bass:110, dur:0.15 },
+    { lead:0 },
+    { lead:262, bass:110, dur:0.14 },
+    { lead:294, bass:110, dur:0.14 },
+    { lead:330, bass:110, dur:0.15 },
+    { lead:392, bass:110, dur:0.15 },
+    { chord:[440,523], bass:110, dur:0.20, gain:0.05 },
+    { lead:330, bass:110, dur:0.14 },
+    { lead:294, bass:110, dur:0.14 },
+    { lead:0 },
+    { lead:294, bass:98,  dur:0.14 },
+    { lead:330, bass:98,  dur:0.14 },
+    { lead:392, bass:98,  dur:0.15 },
+    { lead:440, bass:98,  dur:0.16 },
+    { lead:392, bass:98,  dur:0.14 },
+    { lead:330, bass:98,  dur:0.14 },
+    { lead:294, bass:98,  dur:0.14 },
+    { lead:0 },
+    { lead:262, bass:87,  dur:0.14 },
+    { lead:294, bass:87,  dur:0.14 },
+    { lead:330, bass:87,  dur:0.15 },
+    { lead:392, bass:87,  dur:0.15 },
+    { chord:[392,523], bass:82, dur:0.20, gain:0.05 },
+    { lead:330, bass:82,  dur:0.16 },
+    { lead:294, bass:110, dur:0.15 },
+    { lead:0 }
+  ];
+
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  canvas.width = CANVAS_W;
+  canvas.height = CANVAS_H;
+
+  const ui = {
+    log: document.getElementById("log"),
+    themeMini: document.getElementById("uiThemeMini"),
+    player: document.getElementById("uiPlayer"),
+    lives: document.getElementById("uiLives"),
+    level: document.getElementById("uiLevel"),
+    score: document.getElementById("uiScore"),
+    actions: document.getElementById("uiActions"),
+    mode: document.getElementById("uiMode"),
+    die: document.getElementById("uiDie"),
+    carry: document.getElementById("uiCarry"),
+    left: document.getElementById("uiLeft"),
+
+    diceBox: document.getElementById("diceBox"),
+    diceFace: document.getElementById("diceFace"),
+    diceLabel: document.getElementById("diceLabel"),
+
+    btnRoll: document.getElementById("btnRoll"),
+    btnUse: document.getElementById("btnUse"),
+    btnNew: document.getElementById("btnNew"),
+    btnClear: document.getElementById("btnClear"),
+    btnMusic: document.getElementById("btnMusic"),
+
+    btnUp: document.getElementById("btnUp"),
+    btnDown: document.getElementById("btnDown"),
+    btnLeft: document.getElementById("btnLeft"),
+    btnRight: document.getElementById("btnRight"),
+
+    infoOverlay: document.getElementById("infoOverlay"),
+    btnInfo: document.getElementById("btnInfo"),
+    btnInfoClose: document.getElementById("btnInfoClose"),
+
+    nameOverlay: document.getElementById("nameOverlay"),
+    nameInput: document.getElementById("nameInput"),
+    nameStartBtn: document.getElementById("nameStartBtn"),
+    nameUseSavedBtn: document.getElementById("nameUseSavedBtn"),
+    nameUseP1Btn: document.getElementById("nameUseP1Btn"),
+    savedNameHint: document.getElementById("savedNameHint"),
+
+    gameOverOverlay: document.getElementById("gameOverOverlay"),
+    gameOverText: document.getElementById("gameOverText"),
+    btnRestart: document.getElementById("btnRestart"),
+
+    leaderboard: document.getElementById("leaderboard"),
+
+    monsterEvent: document.getElementById("monsterEvent"),
+    monsterEventText: document.getElementById("monsterEventText"),
+  };
+
+  const LOG_STYLE = {
+    neutral: { color:"#e5e7eb", icon:"" },
+    roll:    { color:"#e5e7eb", icon:"🎲 " },
+    place:   { color:"#e5e7eb", icon:"📍 " },
+    pickup:  { color:"#e5e7eb", icon:"🪵 " },
+    deposit: { color:"#39ff95", icon:"✨ " },
+    bonus:   { color:"#c27bff", icon:"💥 " },
+    level:   { color:"#ffd166", icon:"🏆 " },
+    warn:    { color:"#ffb347", icon:"⚠️ " },
+    bad:     { color:"#ff5a6a", icon:"💀 " },
+    monster: { color:"#ff1f3a", icon:"👹 " },
+  };
+
+  function logEvent(kind, msg){
+    const st = LOG_STYLE[kind] || LOG_STYLE.neutral;
+    const line = document.createElement("div");
+    line.className = "line";
+    line.style.color = st.color;
+    line.textContent = (st.icon || "") + msg;
+    ui.log.prepend(line);
+    while (ui.log.children.length > LOG_MAX_LINES) ui.log.removeChild(ui.log.lastChild);
+  }
+
+  function loadLeaderboard(){
+    try{
+      const raw = localStorage.getItem(LS_LEADERBOARD);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    }catch(_){ return []; }
+  }
+
+  function saveLeaderboard(arr){
+    localStorage.setItem(LS_LEADERBOARD, JSON.stringify(arr));
+  }
+
+  function upsertLeaderboardEntry(name, score, level){
+    const n = (name || "PLAYER1").toUpperCase();
+    const lb = loadLeaderboard();
+    const filtered = lb.filter(e => (e?.name || "").toUpperCase() !== n);
+    filtered.push({ name:n, score: Number(score)||0, level: Number(level)||1 });
+    filtered.sort((x,y) => {
+      if (y.score !== x.score) return y.score - x.score;
+      return y.level - x.level;
+    });
+    const top3 = filtered.slice(0,3);
+    saveLeaderboard(top3);
+    renderLeaderboard(top3);
+  }
+
+  function renderLeaderboard(lb){
+    const rows = (lb && lb.length) ? lb : loadLeaderboard();
+    ui.leaderboard.innerHTML = "";
+    if (!rows.length){
+      ui.leaderboard.innerHTML = `<div style="color:#9fb1c6;">No scores yet. Play a game.</div>`;
+      return;
+    }
+    const medals = ["gold","silver","bronze"];
+    rows.forEach((e, idx) => {
+      const wrap = document.createElement("div");
+      wrap.className = "leaderRow";
+      const medalClass = medals[idx] || "";
+      const label = idx === 0 ? "🥇" : idx === 1 ? "🥈" : "🥉";
+      wrap.innerHTML = `
+        <div>
+          <div class="leaderName ${medalClass}">${escapeHtml(e.name || "PLAYER1")}</div>
+          <div class="leaderMeta">Lvl ${Number(e.level)||1}</div>
+        </div>
+        <div class="big">${Number(e.score)||0}</div>
+      `;
+      ui.leaderboard.appendChild(wrap);
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+    }[m]));
+  }
+
+  let audioCtx = null;
+  let musicOn = false;
+  let musicTimer = null;
+  let musicStep = 0;
+
+  function ensureAudio(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+  }
+  function beep(freq=440, dur=0.08, type="sine", gain=0.08){
+    try{
+      ensureAudio();
+      const t0 = audioCtx.currentTime;
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(gain, t0 + 0.01);
+      g.gain.linearRampToValueAtTime(0, t0 + dur);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start(t0);
+      o.stop(t0 + dur + 0.02);
+    }catch(e){}
+  }
+  function chord(freqs=[440,550], dur=0.12, gain=0.05){
+    freqs.forEach((f)=>beep(f, dur, "triangle", gain));
+  }
+
+  function startMusic(){
+    ensureAudio();
+    if (musicTimer) return;
+    musicStep = 0;
+    musicTimer = setInterval(() => {
+      const step = MUSIC_PATTERN[musicStep % MUSIC_PATTERN.length];
+      musicStep++;
+      if (!step) return;
+
+      const hasChord = Array.isArray(step.chord) && step.chord.length;
+      const hasLead  = step.lead && !hasChord;
+      const hasBass  = step.bass;
+
+      if (!hasChord && !hasLead && !hasBass) return;
+
+      const dur  = step.dur  ?? 0.16;
+      const gain = step.gain ?? 0.045;
+
+      if (hasChord){
+        chord(step.chord, dur, gain);
+      } else if (hasLead){
+        beep(step.lead, dur, "triangle", gain);
+      }
+      if (hasBass){
+        beep(step.bass, dur * 1.15, "sine", gain * 0.75);
+      }
+    }, MUSIC_STEP_MS);
+  }
+  function stopMusic(){
+    if (musicTimer){ clearInterval(musicTimer); musicTimer = null; }
+  }
+
+  function sfxRoll(){ beep(320,0.06,"square",0.06); beep(420,0.07,"square",0.05); }
+  function sfxPickup(){ beep(740,0.06,"triangle",0.07); }
+  function sfxPlace(){ beep(420,0.07,"triangle",0.05); }
+  function sfxDeposit(){ chord([520,660,780],0.14,0.06); }
+  function sfxError(){ beep(160,0.08,"sawtooth",0.06); }
+  function sfxZeroBad(){ beep(120,0.10,"sawtooth",0.07); beep(90,0.12,"sawtooth",0.06); }
+  function sfxBonus(){ chord([660,880],0.16,0.06); }
+  function sfxMonster(){ beep(70,0.16,"sawtooth",0.08); beep(55,0.18,"sawtooth",0.08); }
+  function sfxLevelUp(){ chord([440,660,880],0.20,0.06); chord([520,780,1040],0.22,0.06); }
+  function sfxExtraRoll(){ chord([880,990],0.14,0.06); }
+
+  const player = { name: "PLAYER1" };
+
+  function sanitizeName(s){
+    return (s || "").trim().replace(/\s+/g," ").slice(0,16);
+  }
+  function getSavedName(){
+    const saved = localStorage.getItem(LS_PLAYER_NAME);
+    const name = saved ? sanitizeName(saved).toUpperCase() : "";
+    return name || "";
+  }
+  function setAndStoreName(name){
+    const n = (sanitizeName(name) || "PLAYER1").toUpperCase();
+    player.name = n;
+    localStorage.setItem(LS_PLAYER_NAME, n);
+    ui.player.textContent = n;
+  }
+
+  const game = {
+    themeIndex: 0,
+    level: 1,
+    lives: 3,
+    score: 0,
+    actions: 0,
+
+    bonusActive: false,
+    bonusExtraRollReady: false,
+
+    playerX: 2,
+    playerY: 2,
+    carry: [],
+    sticks: [],
+    holeX: 12,
+    holeY: 12,
+
+    lifeTileX: -1,
+    lifeTileY: -1,
+    lifeTileUsed: false,
+
+    pendingMonster: null,   // { index }
+
+    hudMsg: "",
+    hudTimer: 0,
+    holePulse: 0,
+    holeFlash: 0,
+    sparks: [],
+
+    inputLocked: false
+  };
+
+  function carryCap(){
+    const base = Math.min(6, 3 + Math.floor((game.level - 1) / 3));
+    return game.bonusActive ? (base + 2) : base;
+  }
+
+  function sticksToSpawnForLevel(level){
+    return BASE_STICKS_L1 + (level-1)*STICKS_PER_LEVEL;
+  }
+
+  function zeroChance(level){
+    return Math.min(ZERO_CHANCE_CAP, ZERO_CHANCE_L1 + (level-1)*ZERO_CHANCE_INC);
+  }
+  function curseChance(level){
+    return Math.min(CURSE_CHANCE_CAP, CURSE_CHANCE_L1 + (level-1)*CURSE_CHANCE_INC);
+  }
+  function bonusChance(level){
+    return Math.min(BONUS_CHANCE_CAP, BONUS_CHANCE_L1 + (level-1)*BONUS_CHANCE_INC);
+  }
+
+  function setHud(msg){
+    game.hudMsg = msg;
+    game.hudTimer = 60;
+  }
+
+  function applyThemeForLevel(){
+    game.themeIndex = (game.level - 1) % THEMES.length;
+    const t = THEMES[game.themeIndex];
+    ui.themeMini.textContent = t.name;
+    document.documentElement.style.setProperty("--lvlBg", t.bg);
+    document.documentElement.style.setProperty("--lvlBorder", t.border);
+    document.documentElement.style.setProperty("--lvlAccentGlow", t.accentGlow);
+    document.documentElement.style.setProperty("--lvlAccentShadow", t.accentShadow);
+  }
+
+  function isOccupiedByStick(x,y){
+    return game.sticks.some(s => s.x===x && s.y===y);
+  }
+  function isHole(x,y){ return x===game.holeX && y===game.holeY; }
+  function isLifeTile(x,y){
+    return !game.lifeTileUsed && x===game.lifeTileX && y===game.lifeTileY;
+  }
+  function randomEmptyTile(){
+    for (let i=0;i<2000;i++){
+      const x = randInt(0, GRID_W-1);
+      const y = randInt(0, GRID_H-1);
+      if ((x===game.playerX && y===game.playerY) || isHole(x,y) || isOccupiedByStick(x,y)) continue;
+      if (!game.lifeTileUsed && x===game.lifeTileX && y===game.lifeTileY) continue;
+      return {x,y};
+    }
+    return {x:0,y:0};
+  }
+
+  function spawnHole(){
+    if (game.level === 1){
+      game.holeX = Math.floor(GRID_W/2);
+      game.holeY = Math.floor(GRID_H/2);
+      return;
+    }
+    game.holeX = randInt(6, GRID_W-7);
+    game.holeY = randInt(6, GRID_H-7);
+  }
+
+  function spawnSticksForLevel(level){
+    game.sticks = [];
+    const n = sticksToSpawnForLevel(level);
+    const cc = curseChance(level);
+    const bc = bonusChance(level);
+
+    for (let i=0;i<n;i++){
+      const p = randomEmptyTile();
+      const color = STICK_COLORS[randInt(0, STICK_COLORS.length-1)];
+      const cursed = Math.random() < cc;
+      const bonus = !cursed && (Math.random() < bc);
+      game.sticks.push({ x:p.x, y:p.y, color, cursed, bonus });
+    }
+
+    if (game.sticks.length > 0 && !game.sticks.some(s => s.cursed)){
+      const idx = randInt(0, game.sticks.length - 1);
+      game.sticks[idx].cursed = true;
+      game.sticks[idx].bonus = false;
+    }
+  }
+
+  function spawnLifeTile(){
+    const p = randomEmptyTile();
+    game.lifeTileX = p.x;
+    game.lifeTileY = p.y;
+    game.lifeTileUsed = false;
+  }
+
+  function showNameModal(){
+    game.inputLocked = true;
+    ui.nameOverlay.style.display = "flex";
+    ui.nameInput.value = "";
+    ui.nameInput.placeholder = "ENTER NAME";
+
+    const saved = getSavedName();
+    if (saved && saved !== "PLAYER1"){
+      ui.savedNameHint.style.display = "block";
+      ui.savedNameHint.textContent = `Saved on this device: ${saved}`;
+      ui.nameUseSavedBtn.style.display = "inline-block";
+      ui.nameUseSavedBtn.textContent = `Use ${saved}`;
+    }else{
+      ui.savedNameHint.style.display = "none";
+      ui.nameUseSavedBtn.style.display = "none";
+    }
+
+    setTimeout(()=>ui.nameInput.focus(), 50);
+  }
+  function closeNameModal(){
+    ui.nameOverlay.style.display = "none";
+    game.inputLocked = false;
+  }
+  function startFromNameInput(){
+    const entered = sanitizeName(ui.nameInput.value);
+    if (!entered) setAndStoreName("PLAYER1");
+    else setAndStoreName(entered);
+    closeNameModal();
+    newGame(true);
+  }
+
+  function resetCoreState(){
+    game.level = 1;
+    game.lives = 3;
+    game.score = 0;
+    game.actions = 0;
+
+    game.bonusActive = false;
+    game.bonusExtraRollReady = false;
+
+    game.carry = [];
+    game.sticks = [];
+    game.sparks = [];
+    game.holePulse = 0;
+    game.holeFlash = 0;
+    game.hudMsg = "";
+    game.hudTimer = 0;
+
+    game.playerX = 2;
+    game.playerY = 2;
+
+    game.lifeTileX = -1;
+    game.lifeTileY = -1;
+    game.lifeTileUsed = false;
+
+    game.pendingMonster = null;
+    ui.monsterEvent.style.display = "none";
+    ui.btnRoll.classList.remove("flashRoll");
+
+    spawnHole();
+    spawnSticksForLevel(game.level);
+    spawnLifeTile();
+
+    ui.log.innerHTML = "";
+    logEvent("neutral","Welcome to STICKS.");
+    logEvent("neutral","Roll to begin.");
+  }
+
+  function commitScoreToLeaderboard(){
+    upsertLeaderboardEntry(player.name, game.score, game.level);
+  }
+
+  function newLevel(){
+    game.level++;
+    applyThemeForLevel();
+    spawnHole();
+    spawnSticksForLevel(game.level);
+    spawnLifeTile();
+
+    game.actions = 0;
+    game.carry = [];
+    game.bonusActive = false;
+    game.bonusExtraRollReady = false;
+    game.pendingMonster = null;
+    ui.monsterEvent.style.display = "none";
+    ui.btnRoll.classList.remove("flashRoll");
+
+    logEvent("level",`Level ${game.level}! (${THEMES[game.themeIndex].name})`);
+    sfxLevelUp();
+    setHud(`LEVEL ${game.level}!`);
+
+    commitScoreToLeaderboard();
+    updateUI();
+  }
+
+  function newGame(fresh=false){
+    if (!fresh){
+      showNameModal();
+      return;
+    }
+    resetCoreState();
+    applyThemeForLevel();
+    updateUI();
+    requestAnimationFrame(loop);
+  }
+
+  function canRoll(){
+    if (game.inputLocked && !game.pendingMonster) return false;
+    if (game.pendingMonster) return true; // monster roll ignores actions
+    if (game.actions > 0) return false;
+    return true;
+  }
+
+  function rollNormal(){
+    const zc = zeroChance(game.level);
+    if (Math.random() < zc) return 0;
+    return randInt(1,5);
+  }
+
+  function rollBonus2d6(){
+    const d1 = randInt(1,6);
+    const d2 = randInt(1,6);
+    return { total: d1 + d2, d1, d2 };
+  }
+
+  function doRoll(){
+    if (!canRoll()){
+      sfxError();
+      setHud("Spend Actions first!");
+      return;
+    }
+
+    ui.diceBox.classList.add("rolling");
+    sfxRoll();
+
+    setTimeout(() => {
+      ui.diceBox.classList.remove("rolling");
+
+      if (game.bonusActive){
+        const r = rollBonus2d6();
+        ui.diceFace.textContent = String(r.total);
+        ui.diceLabel.textContent = `BONUS 🎲🎲 (${r.d1}+${r.d2})`;
+        game.actions = r.total;
+        logEvent("bonus",`Bonus roll: ${r.total}`);
+        if (r.total === 12){
+          game.bonusExtraRollReady = true;
+          logEvent("bonus","Jackpot 12! Extra Bonus roll earned.");
+          sfxExtraRoll();
+          setHud("12! Extra Bonus roll earned!");
+        }
+      } else {
+        const r = rollNormal();
+        ui.diceFace.textContent = String(r);
+        ui.diceLabel.textContent = `Normal 🎲 (0–5)`;
+
+        if (r === 0){
+          logEvent("bad","Rolled 0!");
+          sfxZeroBad();
+          handleZeroPenalty();
+          game.actions = 0;
+        } else {
+          game.actions = r;
+          logEvent("roll",`Rolled ${r}.`);
+        }
+      }
+
+      updateUI();
+    }, 260);
+  }
+
+  function scatterPositionAround(x,y, radius){
+    for (let i=0;i<200;i++){
+      const nx = clamp(x + randInt(-radius, radius), 0, GRID_W-1);
+      const ny = clamp(y + randInt(-radius, radius), 0, GRID_H-1);
+      if (isHole(nx,ny)) continue;
+      if (isOccupiedByStick(nx,ny)) continue;
+      if (nx===game.playerX && ny===game.playerY) continue;
+      if (isLifeTile(nx,ny)) continue;
+      return {x:nx,y:ny};
+    }
+    return randomEmptyTile();
+  }
+
+  function handleZeroPenalty(){
+    if (game.carry.length > 0){
+      const dropped = game.carry.splice(0, game.carry.length);
+      dropped.forEach(st => {
+        const p = scatterPositionAround(game.playerX, game.playerY, ZERO_SCATTER_RADIUS);
+        game.sticks.push({ x:p.x, y:p.y, color: st.color, cursed:false, bonus:false });
+      });
+      logEvent("bad",`Zero! Dropped ${dropped.length} stick(s).`);
+      setHud(`Zero! Dropped ${dropped.length}!`);
+    } else {
+      const p = scatterPositionAround(game.holeX, game.holeY, ZERO_SCATTER_RADIUS);
+      const color = STICK_COLORS[randInt(0, STICK_COLORS.length-1)];
+      game.sticks.push({ x:p.x, y:p.y, color, cursed:false, bonus:false });
+      logEvent("bad","Zero! Hole spits out a stick.");
+      setHud("Hole spits out a stick!");
+    }
+    game.holeFlash = 1.0;
+  }
+
+  function enterBonus(){
+    game.bonusActive = true;
+    game.bonusExtraRollReady = false;
+    logEvent("bonus","BONUS MODE!");
+    sfxBonus();
+    setHud("BONUS MODE!");
+    game.holePulse = 1.0;
+  }
+
+  function exitBonusIfDone(){
+    if (game.actions === 0 && !game.bonusExtraRollReady){
+      if (game.bonusActive){
+        game.bonusActive = false;
+        logEvent("neutral","Bonus ended.");
+        setHud("Bonus ended.");
+      }
+    }
+  }
+
+  function spendAction(){
+    if (game.pendingMonster){
+      sfxError();
+      setHud("Fight the monster first! Press ROLL.");
+      return false;
+    }
+    if (game.actions <= 0){
+      sfxError();
+      setHud("No Actions. Roll!");
+      return false;
+    }
+    game.actions--;
+    if (game.actions === 0){
+      if (game.bonusExtraRollReady){
+        logEvent("bonus","Extra Bonus roll ready!");
+        setHud("Extra Bonus roll ready!");
+      }
+      exitBonusIfDone();
+    }
+    updateUI();
+    return true;
+  }
+
+  function resolveMonsterRoll(){
+    const pending = game.pendingMonster;
+    if (!pending) return;
+    const index = pending.index;
+    game.pendingMonster = null;
+
+    ui.diceBox.classList.add("rolling");
+    sfxRoll();
+    logEvent("monster","Monster Stick! Rolling (0–5)...");
+
+    setTimeout(() => {
+      ui.diceBox.classList.remove("rolling");
+
+      const roll = randInt(0,5);
+      ui.diceFace.textContent = String(roll);
+      ui.diceLabel.textContent = "Monster Roll (0–5)";
+
+      const s = game.sticks[index];
+
+      if (roll <= 1){
+        if (s && s.cursed){
+          game.sticks.splice(index,1);
+        }
+        game.lives = Math.max(0, game.lives - 1);
+        spawnSparks(game.playerX, game.playerY, 18, true);
+        logEvent("monster","Monster wins! Lost 1 life.");
+        setHud("MONSTER WINS! -1 LIFE");
+
+        if (game.lives <= 0){
+          ui.monsterEvent.style.display = "none";
+          ui.btnRoll.classList.remove("flashRoll");
+          updateUI();
+          game.inputLocked = false;
+          game.pendingMonster = null;
+          gameOver();
+          return;
+        }
+      } else {
+        if (s){
+          game.sticks.splice(index,1);
+          game.carry.push({ color: s.color, value: 2, fromMonster:true });
+        }
+        logEvent("bonus","You beat the monster! Stick is worth 2×.");
+        setHud("MONSTER BEATEN! 2× STICK");
+        sfxPickup();
+      }
+
+      ui.monsterEvent.style.display = "none";
+      ui.btnRoll.classList.remove("flashRoll");
+      game.inputLocked = false;
+      updateUI();
+    }, 260);
+  }
+
+  function move(dx,dy){
+    if (game.inputLocked) return;
+    if (!spendAction()) return;
+    game.playerX = clamp(game.playerX + dx, 0, GRID_W-1);
+    game.playerY = clamp(game.playerY + dy, 0, GRID_H-1);
+    beep(220,0.03,"triangle",0.02);
+    updateUI();
+  }
+
+  function pickOrDrop(){
+    if (game.inputLocked) return;
+    if (!spendAction()) return;
+
+    if (isHole(game.playerX, game.playerY)){
+      if (game.carry.length === 0){
+        sfxError(); setHud("Nothing to deposit."); return;
+      }
+      const n = game.carry.length;
+      let pts = 0;
+      for (const st of game.carry){
+        let v = st.value || 1;
+        if (game.bonusActive) v *= BONUS_MULTIPLIER;
+        pts += v;
+      }
+      game.score += pts;
+      game.carry = [];
+
+      logEvent("deposit",`Deposited ${n} stick(s) (+${pts}).`);
+      sfxDeposit();
+      setHud(`+${pts} deposited!`);
+
+      game.holePulse = 1.0;
+      spawnSparks(game.holeX, game.holeY, 28);
+
+      commitScoreToLeaderboard();
+
+      if (game.sticks.length === 0){
+        logEvent("level","Cleared the field!");
+        newLevel();
+      } else {
+        updateUI();
+      }
+      return;
+    }
+
+    const idx = game.sticks.findIndex(s => s.x===game.playerX && s.y===game.playerY);
+    if (idx >= 0){
+      if (game.carry.length >= carryCap()){
+        sfxError();
+        const cap = carryCap();
+        setHud(`MAX STICKS (${cap})`);
+        logEvent("warn",`MAX STICKS (${cap}).`);
+        return;
+      }
+
+      const s = game.sticks[idx];
+
+      if (s.cursed){
+        game.pendingMonster = { index: idx };
+        game.inputLocked = true;
+        logEvent("monster","Monster Stick! Press ROLL (0–5) to fight.");
+        setHud("MONSTER STICK! PRESS ROLL");
+        ui.diceFace.textContent = "?";
+        ui.diceLabel.textContent = "Monster Roll (0–5)";
+        ui.monsterEventText.textContent = "Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.";
+        ui.monsterEvent.style.display = "flex";
+        ui.btnRoll.classList.add("flashRoll");
+        sfxMonster();
+        updateUI();
+        return;
+      }
+
+      game.sticks.splice(idx,1);
+      game.carry.push({ color:s.color, value:1 });
+
+      sfxPickup();
+
+      if (s.bonus) enterBonus();
+      else if (game.carry.length >= 2){
+        beep(820,0.05,"triangle",0.05);
+        beep(980,0.06,"triangle",0.04);
+      }
+
+      const cap = carryCap();
+      if (game.carry.length === cap){
+        logEvent("warn",`MAX LOAD (${cap}).`);
+        setHud(`MAX LOAD (${cap})`);
+      } else {
+        logEvent("pickup",`Picked up a stick. (${game.carry.length}/${cap})`);
+        setHud(`Picked up (${game.carry.length}/${cap})`);
+      }
+
+      updateUI();
+      return;
+    }
+
+    if (game.carry.length > 0){
+      if (isOccupiedByStick(game.playerX, game.playerY)){
+        sfxError(); setHud("Tile already has a stick."); return;
+      }
+
+      if (isLifeTile(game.playerX, game.playerY)){
+        const st = game.carry.pop();
+        game.lifeTileUsed = true;
+
+        if (game.lives < MAX_LIVES){
+          game.lives++;
+          logEvent("bonus","Secret life tile! +1 life.");
+          setHud("+1 LIFE");
+          sfxBonus();
+        } else {
+          logEvent("bonus","Life tile found (already at max lives).");
+          setHud("Life tile (MAX LIVES)");
+          sfxPickup();
+        }
+        updateUI();
+        return;
+      }
+
+      const st = game.carry.pop();
+      game.sticks.push({ x:game.playerX, y:game.playerY, color:st.color, cursed:false, bonus:false });
+      sfxPlace();
+      logEvent("place","Placed 1 stick.");
+      setHud("Placed 1 stick.");
+      updateUI();
+      return;
+    }
+
+    sfxError();
+    setHud("No stick here.");
+  }
+
+  function gameOver(){
+    commitScoreToLeaderboard();
+    ui.gameOverText.textContent = `GAME OVER — ${player.name} • Score ${game.score} • Level ${game.level}.`;
+    ui.gameOverOverlay.style.display = "flex";
+    ui.monsterEvent.style.display = "none";
+    ui.btnRoll.classList.remove("flashRoll");
+    game.inputLocked = true;
+  }
+  function closeGameOver(){
+    ui.gameOverOverlay.style.display = "none";
+    game.inputLocked = false;
+  }
+
+  function spawnSparks(gx,gy,count=18, evil=false){
+    const cx = gx*TILE + TILE/2;
+    const cy = gy*TILE + TILE/2;
+    for (let i=0;i<count;i++){
+      const a = Math.random()*Math.PI*2;
+      const sp = 0.6 + Math.random()*2.2;
+      game.sparks.push({ x:cx, y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life: 24 + Math.random()*20, evil });
+    }
+  }
+
+  function updateRollButtonState(){
+    ui.btnRoll.disabled = (game.inputLocked && !game.pendingMonster) || (game.actions !== 0 && !game.pendingMonster);
+  }
+
+  function updateUI(){
+    ui.player.textContent = player.name;
+    ui.lives.textContent = String(game.lives);
+    ui.level.textContent = String(game.level);
+    ui.score.textContent = String(game.score);
+    ui.actions.textContent = String(game.actions);
+
+    const cap = carryCap();
+    ui.carry.textContent = `${game.carry.length}/${cap}`;
+    ui.left.textContent = String(game.sticks.length);
+
+    ui.mode.textContent = game.bonusActive ? (game.bonusExtraRollReady ? "BONUS+" : "BONUS") : "NORMAL";
+    ui.die.textContent = game.bonusActive ? "2–12" : "0–5";
+
+    updateRollButtonState();
+  }
+
+  function drawGrid(theme){
+    ctx.fillStyle = theme.bg;
+    ctx.fillRect(0,0,CANVAS_W,CANVAS_H);
+
+    ctx.strokeStyle = theme.grid;
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.55;
+    for (let x=0;x<=GRID_W;x++){
+      ctx.beginPath();
+      ctx.moveTo(x*TILE + 0.5, 0);
+      ctx.lineTo(x*TILE + 0.5, CANVAS_H);
+      ctx.stroke();
+    }
+    for (let y=0;y<=GRID_H;y++){
+      ctx.beginPath();
+      ctx.moveTo(0, y*TILE + 0.5);
+      ctx.lineTo(CANVAS_W, y*TILE + 0.5);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHole(theme){
+    const cx = game.holeX*TILE + TILE/2;
+    const cy = game.holeY*TILE + TILE/2;
+
+    if (game.holePulse > 0) game.holePulse = Math.max(0, game.holePulse - 0.03);
+    if (game.holeFlash > 0) game.holeFlash = Math.max(0, game.holeFlash - 0.04);
+
+    const pulse = game.holePulse;
+    const flash = game.holeFlash;
+
+    ctx.save();
+
+    if (pulse > 0){
+      ctx.globalAlpha = 0.20 + pulse*0.55;
+      ctx.fillStyle = theme.accent;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 18 + pulse*12, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    if (flash > 0){
+      ctx.globalAlpha = 0.25 + flash*0.55;
+      ctx.fillStyle = "#ff1f3a";
+      ctx.beginPath();
+      ctx.arc(cx, cy, 18 + flash*10, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 1;
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "#f3f4f6";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 16 + pulse*6, 0, Math.PI*2);
+    ctx.stroke();
+
+    ctx.fillStyle = "#000000";
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 8 + pulse*2, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawLifeHint(theme){
+    if (game.lifeTileUsed) return;
+    if (game.carry.length <= 0) return;
+    if (game.playerX !== game.lifeTileX || game.playerY !== game.lifeTileY) return;
+
+    const x = game.lifeTileX*TILE;
+    const y = game.lifeTileY*TILE;
+
+    const t = (performance.now ? performance.now() : Date.now()) / 1000;
+    const osc = (Math.sin(t*4) + 1) / 2;
+
+    ctx.save();
+    ctx.globalAlpha = 0.15 + osc*0.25;
+    ctx.strokeStyle = THEMES[game.themeIndex].accent;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.rect(x+3, y+3, TILE-6, TILE-6);
+    ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawStick(s){
+    const x = s.x*TILE;
+    const y = s.y*TILE;
+    ctx.save();
+    ctx.translate(x + TILE/2, y + TILE/2);
+
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    ctx.moveTo(-6, -8);
+    ctx.lineTo(7, 9);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.35;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-4, -6);
+    ctx.lineTo(5, 7);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    if (s.bonus){
+      ctx.globalAlpha = 0.12;
+      ctx.fillStyle = "#ffd166";
+      ctx.beginPath();
+      ctx.arc(0,0,10,0,Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  function roundRect(c, x, y, w, h, r){
+    c.beginPath();
+    c.moveTo(x+r, y);
+    c.arcTo(x+w, y, x+w, y+h, r);
+    c.arcTo(x+w, y+h, x, y+h, r);
+    c.arcTo(x, y+h, x, y, r);
+    c.arcTo(x, y, x+w, y, r);
+    c.closePath();
+  }
+
+  function drawPlayer(){
+    const cx = game.playerX*TILE + TILE/2;
+    const cy = game.playerY*TILE + TILE/2;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    ctx.strokeStyle = "#f3f4f6";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    ctx.arc(0, -6, 5, 0, Math.PI*2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, -1);
+    ctx.lineTo(0, 9);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-6, 2);
+    ctx.lineTo(6, 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 9);
+    ctx.lineTo(-6, 15);
+    ctx.moveTo(0, 9);
+    ctx.lineTo(6, 15);
+    ctx.stroke();
+
+    const cap = carryCap();
+    const carried = game.carry.length;
+    const slots = Math.min(6, cap);
+    const startX = -((slots-1)*4)/2;
+    const isFull = carried >= cap;
+
+    for (let i=0;i<slots;i++){
+      ctx.beginPath();
+      const filled = i < carried;
+      if (isFull){
+        ctx.fillStyle = filled ? "#ff1f3a" : "rgba(255,31,58,0.25)";
+      } else {
+        ctx.fillStyle = filled ? "#ffd166" : "rgba(243,244,246,0.18)";
+      }
+      ctx.arc(startX + i*4, -16, 1.5, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    const actions = Math.min(game.actions, 12);
+    if (actions > 0) {
+      const ringR = 20;
+      const maxPips = 12;
+
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = "#2b3a4c";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 2, ringR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      for (let i = 0; i < actions; i++) {
+        const ang = (-Math.PI / 2) + (i * (2 * Math.PI / maxPips));
+        const px = Math.cos(ang) * ringR;
+        const py = 2 + Math.sin(ang) * ringR;
+
+        ctx.fillStyle = THEMES[game.themeIndex].accent;
+        ctx.beginPath();
+        ctx.arc(px, py, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const txt = String(game.actions);
+      const bx = 14;
+      const by = -18;
+      const w = 16 + txt.length * 8;
+      const h = 18;
+
+      ctx.save();
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = "rgba(11,18,32,0.90)";
+      ctx.strokeStyle = "#2b3a4c";
+      ctx.lineWidth = 2;
+
+      roundRect(ctx, bx - w/2, by - h/2, w, h, 7);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = THEMES[game.themeIndex].accent;
+      ctx.font = "bold 12px ui-monospace, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(txt, bx, by);
+      ctx.restore();
+    }
+
+    if (game.bonusActive){
+      ctx.globalAlpha = 0.18;
+      ctx.strokeStyle = "#ffd166";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 2, 16, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+  }
+
+  function drawSparks(){
+    for (let i=game.sparks.length-1;i>=0;i--){
+      const p = game.sparks[i];
+      p.x += p.vx; p.y += p.vy;
+      p.vx *= 0.96; p.vy *= 0.96;
+      p.life -= 1;
+
+      ctx.globalAlpha = Math.max(0, p.life/44);
+      ctx.fillStyle = p.evil ? "#ff1f3a" : "#39ff95";
+      ctx.fillRect(p.x, p.y, 2, 2);
+
+      if (p.life <= 0) game.sparks.splice(i,1);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHUD(){
+    if (game.hudTimer > 0){
+      game.hudTimer--;
+      const t = game.hudTimer;
+
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, t/14);
+
+      ctx.fillStyle = "rgba(11,18,32,0.85)";
+      ctx.strokeStyle = "#2b3a4c";
+      ctx.lineWidth = 2;
+
+      const w = Math.min(420, 18 + game.hudMsg.length*10);
+      const x = CANVAS_W/2 - w/2;
+      const y = 14;
+
+      roundRect(ctx, x, y, w, 34, 10);
+      ctx.fill(); ctx.stroke();
+
+      ctx.fillStyle = "#e6edf3";
+      ctx.font = "bold 14px ui-monospace, monospace";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(game.hudMsg, CANVAS_W/2, y+17);
+
+      ctx.restore();
+    }
+  }
+
+  function loop(){
+    const theme = THEMES[game.themeIndex];
+    drawGrid(theme);
+    drawHole(theme);
+    drawLifeHint(theme);
+    for (const s of game.sticks) drawStick(s);
+    drawPlayer();
+    drawSparks();
+    drawHUD();
+    requestAnimationFrame(loop);
+  }
+
+  function keyHandler(e){
+    const inInfo  = ui.infoOverlay.style.display === "flex";
+    const inName  = ui.nameOverlay.style.display === "flex";
+    const inOver  = ui.gameOverOverlay.style.display === "flex";
+
+    if (inName){
+      if (e.key === "Enter"){ e.preventDefault(); startFromNameInput(); }
+      else if (e.key === "Escape"){
+        e.preventDefault();
+        setAndStoreName("PLAYER1");
+        closeNameModal();
+        newGame(true);
+      }
+      return;
+    }
+
+    if (inInfo || inOver) return;
+    if (game.inputLocked) return;
+
+    if (e.key === "ArrowUp"){ e.preventDefault(); move(0,-1); }
+    else if (e.key === "ArrowDown"){ e.preventDefault(); move(0,1); }
+    else if (e.key === "ArrowLeft"){ e.preventDefault(); move(-1,0); }
+    else if (e.key === "ArrowRight"){ e.preventDefault(); move(1,0); }
+    else if (e.key === " "){ e.preventDefault(); pickOrDrop(); }
+  }
+
+  ui.btnRoll.addEventListener("click", () => {
+    if (game.pendingMonster){
+      resolveMonsterRoll();
+      return;
+    }
+
+    const wasExtraReady = game.bonusExtraRollReady;
+    const wasBonus = game.bonusActive;
+
+    doRoll();
+
+    if (wasExtraReady && wasBonus){
+      setTimeout(() => {
+        if (game.bonusActive && game.actions > 0){
+          game.bonusExtraRollReady = false;
+          logEvent("bonus","Extra Bonus roll used.");
+          updateUI();
+        }
+      }, 280);
+    }
+  });
+
+  ui.btnUse.addEventListener("click", pickOrDrop);
+  ui.btnNew.addEventListener("click", () => showNameModal());
+
+  ui.btnClear.addEventListener("click", () => {
+    localStorage.removeItem(LS_LEADERBOARD);
+    renderLeaderboard([]);
+    logEvent("neutral","Stats cleared.");
+    setHud("Stats cleared.");
+  });
+
+  ui.btnMusic.addEventListener("click", () => {
+    if (!musicOn){
+      musicOn = true;
+      ui.btnMusic.textContent = "Music: ON";
+      startMusic();
+      chord([262,330,392],0.18,0.05);
+    } else {
+      musicOn = false;
+      ui.btnMusic.textContent = "Music: OFF";
+      stopMusic();
+      beep(196,0.10,"triangle",0.05);
+    }
+  });
+
+  ui.btnUp.addEventListener("click", () => move(0,-1));
+  ui.btnDown.addEventListener("click", () => move(0,1));
+  ui.btnLeft.addEventListener("click", () => move(-1,0));
+  ui.btnRight.addEventListener("click", () => move(1,0));
+
+  ui.btnInfo.addEventListener("click", () => { ui.infoOverlay.style.display = "flex"; game.inputLocked = true; });
+  ui.btnInfoClose.addEventListener("click", () => { ui.infoOverlay.style.display = "none"; game.inputLocked = false; });
+
+  ui.nameStartBtn.addEventListener("click", startFromNameInput);
+
+  ui.nameUseP1Btn.addEventListener("click", () => {
+    setAndStoreName("PLAYER1");
+    closeNameModal();
+    newGame(true);
+  });
+
+  ui.nameUseSavedBtn?.addEventListener("click", () => {
+    const saved = getSavedName() || "PLAYER1";
+    setAndStoreName(saved);
+    closeNameModal();
+    newGame(true);
+  });
+
+  ui.btnRestart.addEventListener("click", () => {
+    closeGameOver();
+    showNameModal();
+  });
+
+  document.addEventListener("keydown", keyHandler);
+
+  function boot(){
+    renderLeaderboard(loadLeaderboard());
+
+    const saved = getSavedName();
+    if (saved) player.name = saved;
+    ui.player.textContent = player.name;
+
+    resetCoreState();
+    applyThemeForLevel();
+    updateUI();
+    requestAnimationFrame(loop);
+
+    showNameModal();
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
