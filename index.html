@@ -24,7 +24,6 @@
       align-items:start;
     }
 
-    /* canvas wrapper so we can letterbox on phone without stretching */
     .gameWrap{
       display:flex;
       align-items:center;
@@ -41,7 +40,7 @@
       background: var(--lvlBg, #070a0e);
       box-shadow: 0 0 0 2px rgba(0,0,0,.15), 0 18px 50px rgba(0,0,0,.35);
       display:block;
-      aspect-ratio: 1 / 1; /* keeps it square when CSS resizing happens */
+      aspect-ratio: 1 / 1;
     }
 
     .panel{
@@ -51,7 +50,6 @@
       padding:12px;
     }
 
-    /* Right panel stays in view + scrolls internally (desktop/tablet) */
     .panelSticky{
       position: sticky;
       top: 14px;
@@ -119,7 +117,6 @@
       user-select:none;
     }
 
-    /* Controls block: Dice + help text */
     .controlsTop{
       display:grid;
       grid-template-columns: 132px 1fr;
@@ -174,24 +171,28 @@
       user-select:none;
     }
 
-    /* D-PAD */
+    /* D-PAD (keycap style) */
     .dpadWrap{ margin-top:10px; display:flex; justify-content:center; align-items:center; }
-    .dpad{ width:200px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; }
+    .dpad{ width:200px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; }
     .dpad button{
       padding:10px 0;
       border-radius:12px;
-      background: linear-gradient(180deg,#f3f4f6,#cbd5e1);
-      color:#0b0f14;
-      box-shadow:none;
-      border:0;
+      color:#e6edf3;
+      background: linear-gradient(180deg,#1b2432,#0b1220);
+      border:1px solid #2b3a4c;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.10),
+        0 8px 18px rgba(0,0,0,.35);
       font-weight:1000;
       cursor:pointer;
       user-select:none;
       touch-action: manipulation;
+      text-shadow: 0 0 14px rgba(255,255,255,0.08);
     }
+    .dpad button:hover{ filter: brightness(1.08); }
+    .dpad button:active{ transform: translateY(1px); }
     .dpad .empty{ visibility:hidden; }
 
-    /* Main action buttons */
     .btns{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -219,17 +220,31 @@
     .btn-use  { background: linear-gradient(180deg,#39ff95,#08c46b); color:#061018; }
     .btn-new  { background: linear-gradient(180deg,#ffb347,#ff7a18); color:#1a0f00; }
     .btn-clear{ background: linear-gradient(180deg,#ff5a6a,#ff1f3a); color:#200007; }
+
+    /* Save/Load = small, top-row, black w/ white text */
+    .btn-save { background: linear-gradient(180deg,#111827,#0b0f14); color:#f3f4f6; border:1px solid #2b3a4c; box-shadow:none; }
+    .btn-load { background: linear-gradient(180deg,#111827,#0b0f14); color:#f3f4f6; border:1px solid #2b3a4c; box-shadow:none; }
+
     .btn-music{ background: linear-gradient(180deg,#c27bff,#7a35ff); color:#120018; grid-column: 1 / span 2; }
     .btn-info { background: linear-gradient(180deg,#f3f4f6,#cbd5e1); color:#0b0f14; }
 
-    /* Flashing Roll for monster event (doesn't reveal cursed sticks) */
+    /* Top title buttons layout + sizing (Info centered between Save/Load) */
+    .titleBtns{ display:flex; align-items:center; gap:8px; }
+    .btn-mini{
+      padding:8px 10px;
+      border-radius:12px;
+      font-weight:1000;
+      box-shadow:none;
+      min-width:44px;
+      line-height:1;
+    }
+
     @keyframes flashRoll {
       0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.0); transform: translateY(0); }
       100% { box-shadow: 0 0 0 3px rgba(255,255,255,0.75); transform: translateY(-1px); }
     }
     .flashRoll{ animation: flashRoll 0.55s ease-in-out infinite alternate; }
 
-    /* Monster event box */
     .monsterEvent{
       margin-top:10px;
       padding:8px 10px;
@@ -245,7 +260,6 @@
     .monsterEventIcon{ font-size:20px; margin-top:2px; }
     .monsterEventTitle{ font-weight:1000; color:#ffb347; margin-bottom:3px; }
 
-    /* Stats block compact */
     .statsGrid{
       display:grid;
       grid-template-columns: 1fr 1fr;
@@ -281,7 +295,6 @@
     .silver { color:#cbd5e1; }
     .bronze { color:#ffb347; }
 
-    /* Phone-only battle feed */
     .battleFeedWrap{
       margin-top:10px;
       border:1px solid #1f2a37;
@@ -309,7 +322,6 @@
       line-height:1.45;
     }
 
-    /* Scroll hint (phone) */
     .scrollHint{
       display:none;
       margin-top:8px;
@@ -334,8 +346,7 @@
       50%{ transform: translateY(2px); opacity:1; }
     }
 
-    /* Overlays */
-    #infoOverlay,#nameOverlay,#gameOverOverlay{
+    #infoOverlay,#nameOverlay,#gameOverOverlay,#winOverlay{
       display:none;
       position:fixed;
       inset:0;
@@ -387,6 +398,7 @@
       box-shadow:none;
     }
 
+    /* Name input: dark, not gray */
     #nameOverlay input{
       flex:1;
       padding:12px 12px;
@@ -447,14 +459,12 @@
       .panelSticky{ position: static; max-height: none; overflow: visible; padding-right:12px; }
     }
 
-    /* PHONE: reliable viewport sizing + scrollable controls area */
     @media (max-width:720px){
-      /* hide left Activity panel */
       .wrap > .panel:first-child{ display:none; }
 
       body{
         height: calc(var(--vh, 1vh) * 100);
-        overflow:hidden; /* page itself doesn't scroll */
+        overflow:hidden;
       }
 
       .wrap{
@@ -480,7 +490,6 @@
         max-height:100%;
       }
 
-      /* Right panel becomes a fixed header + a single scroll area */
       .panel-right{
         height:100%;
         min-height:0;
@@ -489,7 +498,6 @@
         flex-direction:column;
       }
 
-      /* tighten tagline */
       .panel-right .subtitle:first-of-type{ display:none; }
 
       .controlsTop{
@@ -507,7 +515,6 @@
         margin-top:0;
       }
 
-      /* THIS is what scrolls on phone (includes buttons + stats + battle feed) */
       .controlsScroll{
         overflow:auto;
         -webkit-overflow-scrolling: touch;
@@ -515,11 +522,9 @@
         padding-right:6px;
       }
 
-      /* show battle feed on phone only */
       .battleFeedWrap{ display:block; }
     }
 
-    /* Hide battle feed on desktop/tablet */
     @media (min-width:721px){
       .battleFeedWrap{ display:none; }
     }
@@ -528,32 +533,31 @@
 
 <body>
   <div class="wrap">
-    <!-- LEFT (desktop only) -->
     <div class="panel">
-      <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Obsidian</span></div>
+      <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Night Stick</span></div>
       <div class="subtitle">Latest on top. Color = importance.</div>
       <div class="hr"></div>
       <div class="log" id="log"></div>
     </div>
 
-    <!-- MIDDLE -->
     <div class="gameWrap">
       <canvas id="game"></canvas>
     </div>
 
-    <!-- RIGHT -->
     <div class="panel panelSticky panel-right">
       <div class="title">
-        <div>STICKS <span class="badge">v2.19</span></div>
-        <button class="btn-info" id="btnInfo" style="padding:8px 10px;">Info</button>
+        <div>STICKS <span class="badge">v2.31</span></div>
+        <div class="titleBtns">
+          <button id="btnSave" class="btn-save btn-mini" aria-label="Save Game" title="Save (S)">💾</button>
+          <button class="btn-info btn-mini" id="btnInfo" title="Info">Info</button>
+          <button id="btnLoad" class="btn-load btn-mini" aria-label="Load Game" title="Load (L)">📂</button>
+        </div>
       </div>
       <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
 
       <div class="hr"></div>
 
-      <!-- Everything below scrolls on PHONE (and stays normal on desktop) -->
       <div class="controlsScroll" id="controlsScroll">
-        <!-- TOP PLAY CONTROLS -->
         <div class="controlsTop">
           <div class="diceBox" id="diceBox">
             <div class="diceGlow"></div>
@@ -584,11 +588,11 @@
         <div class="dpadWrap" aria-label="D-pad">
           <div class="dpad">
             <button class="empty"></button>
-            <button id="btnUp">▲</button>
+            <button id="btnUp" aria-label="Up">▲</button>
             <button class="empty"></button>
-            <button id="btnLeft">◀</button>
-            <button id="btnDown">▼</button>
-            <button id="btnRight">▶</button>
+            <button id="btnLeft" aria-label="Left">◀</button>
+            <button id="btnDown" aria-label="Down">▼</button>
+            <button id="btnRight" aria-label="Right">▶</button>
           </div>
         </div>
 
@@ -617,7 +621,6 @@
 
         <div class="leaderboard" id="leaderboard"></div>
 
-        <!-- PHONE-ONLY: Battle Feed (mirrors Activity) -->
         <div class="battleFeedWrap" id="battleFeedWrap">
           <div class="battleFeedHeader">
             <b>Battle Feed</b>
@@ -634,7 +637,6 @@
     </div>
   </div>
 
-  <!-- INFO -->
   <div id="infoOverlay">
     <div class="modalBox" role="dialog" aria-modal="true">
       <div class="modalTitle">How to Play (Quick)</div>
@@ -660,6 +662,7 @@
           Press <b>ROLL</b>: roll <b>2–5</b> to keep a 2× stick, roll <b>0–1</b> and you lose 1 life.
         </div>
         <div style="margin:8px 0; color:#9fb1c6;">Controls: Arrow Keys or D-Pad • Space = Pick/Drop</div>
+        <div style="margin:10px 0; color:#9fb1c6;"><b>Save/Load:</b> saves only on this device (local browser storage).</div>
       </div>
       <div class="modalActions">
         <button class="modalClose" id="btnInfoClose">Close</button>
@@ -667,7 +670,6 @@
     </div>
   </div>
 
-  <!-- NAME -->
   <div id="nameOverlay">
     <div class="modalBox" role="dialog" aria-modal="true">
       <div class="modalTitle">ENTER YOUR NAME</div>
@@ -689,7 +691,6 @@
     </div>
   </div>
 
-  <!-- GAME OVER -->
   <div id="gameOverOverlay">
     <div class="modalBox" role="dialog" aria-modal="true">
       <div class="modalTitle">GAME OVER</div>
@@ -700,9 +701,18 @@
     </div>
   </div>
 
+  <div id="winOverlay">
+    <div class="modalBox" role="dialog" aria-modal="true">
+      <div class="modalTitle">YOU WIN</div>
+      <div class="modalText" id="winText">You cleared the sticks. The hole is satisfied (for now).</div>
+      <div class="modalActions">
+        <button class="modalClose" id="btnWinRestart">Play Again</button>
+      </div>
+    </div>
+  </div>
+
 <script>
 (() => {
-  /* ---------- MOBILE SAFARI VH FIX (prevents clipping) ---------- */
   function setVhVar(){
     const vh = window.innerHeight * 0.01;
     document.documentElement.style.setProperty('--vh', `${vh}px`);
@@ -714,19 +724,22 @@
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const randInt = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
 
-  const LS_PLAYER_NAME = "sticks_playerName_v3";
-  const LS_LEADERBOARD = "sticks_leaderboard_v1";
-  const SS_SCROLLED = "sticks_scrolled_controls_v1";
+  const LS_PLAYER_NAME  = "sticks_playerName_v3";
+  const LS_LEADERBOARD  = "sticks_leaderboard_v1";
+  const LS_SAVEGAME     = "sticks_savegame_v1";
+  const SS_SCROLLED     = "sticks_scrolled_controls_v1";
 
-  const THEMES = [
-    { name:"Obsidian",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
-    { name:"Neon Blue",  bg:"#041027", grid:"#0b234a", border:"#1d4ed8", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.42)", accentShadow:"rgba(58,167,255,.30)" },
-    { name:"Crimson",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.42)", accentShadow:"rgba(255,90,106,.28)" },
-    { name:"Ember",      bg:"#1a0f00", grid:"#2c1700", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.42)", accentShadow:"rgba(255,179,71,.26)" },
-    { name:"Toxic",      bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.40)", accentShadow:"rgba(57,255,149,.26)" },
-    { name:"Violet",     bg:"#0c0418", grid:"#1a0b33", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.42)", accentShadow:"rgba(194,123,255,.28)" },
-    { name:"Arctic",     bg:"#07131a", grid:"#0e2630", border:"#a8dadc", accent:"#f3f4f6", accentGlow:"rgba(168,218,220,.38)", accentShadow:"rgba(243,244,246,.16)" },
-    { name:"Gold Rush",  bg:"#141006", grid:"#241b0a", border:"#ffd166", accent:"#ffd166", accentGlow:"rgba(255,209,102,.45)", accentShadow:"rgba(255,209,102,.28)" },
+  /* ---- Level Themes + Stick Names (names only shown to user) ---- */
+  const LEVELS = [
+    { name:"Night Stick",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
+    { name:"Sun Stick",     bg:"#140a03", grid:"#2a1406", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.46)", accentShadow:"rgba(255,179,71,.28)" },
+    { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
+    { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
+    { name:"Leaf Stick",    bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
+    { name:"Spell Stick",   bg:"#0c0418", grid:"#1a0b33", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.46)", accentShadow:"rgba(194,123,255,.30)" },
+    { name:"Ice Stick",     bg:"#07131a", grid:"#0e2630", border:"#a8dadc", accent:"#f3f4f6", accentGlow:"rgba(168,218,220,.40)", accentShadow:"rgba(243,244,246,.18)" },
+    { name:"Glow Stick",    bg:"#09060f", grid:"#1a1026", border:"#ff7a18", accent:"#ffd166", accentGlow:"rgba(255,122,24,.40)", accentShadow:"rgba(255,209,102,.24)" },
+    { name:"Victory Stick", bg:"#0b0f14", grid:"#161f2b", border:"#f3f4f6", accent:"#ffffff", accentGlow:"rgba(255,255,255,.45)", accentShadow:"rgba(255,255,255,.22)" }
   ];
 
   const STICK_COLORS = [
@@ -752,41 +765,61 @@
 
   const LOG_MAX_LINES = 12;
 
-  const MUSIC_STEP_MS = 190;
-  const MUSIC_PATTERN = [
-    { lead:262, bass:110, dur:0.15 },
-    { lead:0 },
-    { lead:294, bass:110, dur:0.15 },
-    { lead:330, bass:110, dur:0.15 },
-    { lead:392, bass:110, dur:0.16 },
-    { lead:330, bass:110, dur:0.14 },
-    { lead:294, bass:110, dur:0.15 },
-    { lead:0 },
-    { lead:262, bass:110, dur:0.14 },
-    { lead:294, bass:110, dur:0.14 },
-    { lead:330, bass:110, dur:0.15 },
-    { lead:392, bass:110, dur:0.15 },
-    { chord:[440,523], bass:110, dur:0.20, gain:0.05 },
-    { lead:330, bass:110, dur:0.14 },
-    { lead:294, bass:110, dur:0.14 },
-    { lead:0 },
-    { lead:294, bass:98,  dur:0.14 },
-    { lead:330, bass:98,  dur:0.14 },
-    { lead:392, bass:98,  dur:0.15 },
-    { lead:440, bass:98,  dur:0.16 },
-    { lead:392, bass:98,  dur:0.14 },
-    { lead:330, bass:98,  dur:0.14 },
-    { lead:294, bass:98,  dur:0.14 },
-    { lead:0 },
-    { lead:262, bass:87,  dur:0.14 },
-    { lead:294, bass:87,  dur:0.14 },
-    { lead:330, bass:87,  dur:0.15 },
-    { lead:392, bass:87,  dur:0.15 },
-    { chord:[392,523], bass:82, dur:0.20, gain:0.05 },
-    { lead:330, bass:82,  dur:0.16 },
-    { lead:294, bass:110, dur:0.15 },
+  /* ---- Music: slowed + variation (Nintendo-ish) ---- */
+  const MUSIC_STEP_MS = 245; // slower than before
+  let musicOn = false;
+  let musicTimer = null;
+  let musicStep = 0;
+
+  const MUSIC_A = [
+    { chord:[262,330,392], bass:98, dur:0.18, gain:0.040 },
+    { lead:392, bass:98, dur:0.16, gain:0.040 },
+    { lead:330, bass:98, dur:0.16, gain:0.038 },
+    { lead:294, bass:98, dur:0.16, gain:0.038 },
+    { chord:[294,370,440], bass:110, dur:0.18, gain:0.040 },
+    { lead:440, bass:110, dur:0.16, gain:0.040 },
+    { lead:392, bass:110, dur:0.16, gain:0.038 },
+    { lead:330, bass:110, dur:0.16, gain:0.038 },
+    { chord:[330,392,494], bass:82, dur:0.20, gain:0.040 },
+    { lead:494, bass:82, dur:0.16, gain:0.040 },
+    { lead:440, bass:82, dur:0.16, gain:0.038 },
+    { lead:392, bass:82, dur:0.16, gain:0.038 },
+    { chord:[262,330,392], bass:98, dur:0.18, gain:0.040 },
+    { lead:392, bass:98, dur:0.16, gain:0.038 },
+    { lead:330, bass:98, dur:0.16, gain:0.036 },
     { lead:0 }
   ];
+
+  const MUSIC_B = [
+    { chord:[294,370,440], bass:110, dur:0.18, gain:0.040 },
+    { lead:440, bass:110, dur:0.16, gain:0.040 },
+    { lead:494, bass:110, dur:0.16, gain:0.038 },
+    { lead:523, bass:110, dur:0.16, gain:0.038 },
+    { chord:[330,392,494], bass:82, dur:0.20, gain:0.040 },
+    { lead:494, bass:82, dur:0.16, gain:0.040 },
+    { lead:440, bass:82, dur:0.16, gain:0.038 },
+    { lead:392, bass:82, dur:0.16, gain:0.038 },
+    { chord:[262,330,392], bass:98, dur:0.18, gain:0.040 },
+    { lead:392, bass:98, dur:0.16, gain:0.038 },
+    { lead:330, bass:98, dur:0.16, gain:0.036 },
+    { lead:294, bass:98, dur:0.16, gain:0.036 },
+    { chord:[247,311,370], bass:92, dur:0.18, gain:0.040 },
+    { lead:370, bass:92, dur:0.16, gain:0.038 },
+    { lead:330, bass:92, dur:0.16, gain:0.036 },
+    { lead:0 }
+  ];
+
+  function pickMusicStep(stepIdx){
+    const block = Math.floor(stepIdx / 32);
+    const useB = (block % 2 === 1);
+    const seq = useB ? MUSIC_B : MUSIC_A;
+    const s = seq[stepIdx % seq.length];
+
+    if (s && s.lead && Math.random() < 0.10){
+      return { ...s, lead: s.lead * 2 };
+    }
+    return s;
+  }
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -818,6 +851,8 @@
     btnUse: document.getElementById("btnUse"),
     btnNew: document.getElementById("btnNew"),
     btnClear: document.getElementById("btnClear"),
+    btnSave: document.getElementById("btnSave"),
+    btnLoad: document.getElementById("btnLoad"),
     btnMusic: document.getElementById("btnMusic"),
 
     btnUp: document.getElementById("btnUp"),
@@ -840,6 +875,10 @@
     gameOverText: document.getElementById("gameOverText"),
     btnRestart: document.getElementById("btnRestart"),
 
+    winOverlay: document.getElementById("winOverlay"),
+    winText: document.getElementById("winText"),
+    btnWinRestart: document.getElementById("btnWinRestart"),
+
     leaderboard: document.getElementById("leaderboard"),
 
     monsterEvent: document.getElementById("monsterEvent"),
@@ -857,6 +896,9 @@
     warn:    { color:"#ffb347", icon:"⚠️ " },
     bad:     { color:"#ff5a6a", icon:"💀 " },
     monster: { color:"#ff1f3a", icon:"👹 " },
+    save:    { color:"#ffd166", icon:"💾 " },
+    load:    { color:"#a8dadc", icon:"📂 " },
+    win:     { color:"#f3f4f6", icon:"🌟 " },
   };
 
   function prependToLog(el, line){
@@ -886,11 +928,9 @@
       return Array.isArray(arr) ? arr : [];
     }catch(_){ return []; }
   }
-
   function saveLeaderboard(arr){
     localStorage.setItem(LS_LEADERBOARD, JSON.stringify(arr));
   }
-
   function upsertLeaderboardEntry(name, score, level){
     const n = (name || "PLAYER1").toUpperCase();
     const lb = loadLeaderboard();
@@ -904,7 +944,6 @@
     saveLeaderboard(top3);
     renderLeaderboard(top3);
   }
-
   function renderLeaderboard(lb){
     const rows = (lb && lb.length) ? lb : loadLeaderboard();
     ui.leaderboard.innerHTML = "";
@@ -934,11 +973,9 @@
     }[m]));
   }
 
-  /* ---------- PHONE SCROLL HINT ---------- */
   function isPhone(){
     return window.matchMedia && window.matchMedia("(max-width:720px)").matches;
   }
-
   function updateScrollHint(){
     if (!ui.scrollHint || !ui.controlsScroll) return;
     if (!isPhone()){ ui.scrollHint.style.display = "none"; return; }
@@ -947,7 +984,6 @@
     const atTop = ui.controlsScroll.scrollTop <= 2;
     ui.scrollHint.style.display = (canScroll && atTop) ? "block" : "none";
   }
-
   ui.controlsScroll?.addEventListener("scroll", () => {
     if (!isPhone()) return;
     if (ui.controlsScroll.scrollTop > 20){
@@ -955,16 +991,10 @@
       updateScrollHint();
     }
   }, { passive:true });
+  window.addEventListener("resize", () => setTimeout(updateScrollHint, 60), { passive:true });
 
-  window.addEventListener("resize", () => {
-    setTimeout(updateScrollHint, 60);
-  }, { passive:true });
-
-  /* ---------- AUDIO: iOS requires unlock via user gesture ---------- */
+  /* ---------- AUDIO ---------- */
   let audioCtx = null;
-  let musicOn = false;
-  let musicTimer = null;
-  let musicStep = 0;
   let audioUnlocked = false;
 
   function ensureAudio(){
@@ -985,7 +1015,6 @@
       audioUnlocked = true;
     }catch(_){}
   }
-
   const unlockOnce = async () => {
     if (audioUnlocked) return;
     await unlockAudio();
@@ -1001,11 +1030,14 @@
       const g = audioCtx.createGain();
       o.type = type;
       o.frequency.setValueAtTime(freq, t0);
+
       g.gain.setValueAtTime(0, t0);
       g.gain.linearRampToValueAtTime(gain, t0 + 0.01);
       g.gain.linearRampToValueAtTime(0, t0 + dur);
+
       o.connect(g);
       g.connect(audioCtx.destination);
+
       o.start(t0);
       o.stop(t0 + dur + 0.02);
     }catch(e){}
@@ -1019,8 +1051,9 @@
     if (musicTimer) return;
     musicStep = 0;
     musicTimer = setInterval(() => {
-      const step = MUSIC_PATTERN[musicStep % MUSIC_PATTERN.length];
-      musicStep++;
+      if (!musicOn) return;
+      if (game.pendingMonster) return; // doom sting takes over briefly
+      const step = pickMusicStep(musicStep++);
       if (!step) return;
 
       const hasChord = Array.isArray(step.chord) && step.chord.length;
@@ -1030,7 +1063,7 @@
       if (!hasChord && !hasLead && !hasBass) return;
 
       const dur  = step.dur  ?? 0.16;
-      const gain = step.gain ?? 0.045;
+      const gain = step.gain ?? 0.040;
 
       if (hasChord){
         chord(step.chord, dur, gain);
@@ -1038,7 +1071,7 @@
         beep(step.lead, dur, "triangle", gain);
       }
       if (hasBass){
-        beep(step.bass, dur * 1.15, "sine", gain * 0.75);
+        beep(step.bass, dur * 1.2, "sine", gain * 0.70);
       }
     }, MUSIC_STEP_MS);
   }
@@ -1046,6 +1079,40 @@
     if (musicTimer){ clearInterval(musicTimer); musicTimer = null; }
   }
 
+  /* ---- Stick Monster: 2–3 second doom sting ONCE (not continuous) ---- */
+  let monsterDoomStingTimer = null;
+  function stopMonsterDoom(){
+    if (monsterDoomStingTimer){
+      clearTimeout(monsterDoomStingTimer);
+      monsterDoomStingTimer = null;
+    }
+  }
+  function playMonsterDoomSting(){
+    if (!musicOn) return;
+    ensureAudio();
+    stopMonsterDoom();
+
+    // Quick “doom” sequence (~2.4s)
+    const seq = [
+      () => { beep(55, 0.22, "sawtooth", 0.10); beep(73.4, 0.20, "sawtooth", 0.08); chord([110,131,165], 0.14, 0.055); },
+      () => { beep(49, 0.22, "sawtooth", 0.10); chord([98,117,147], 0.16, 0.055); },
+      () => { beep(55, 0.26, "sawtooth", 0.10); chord([110,147,165], 0.14, 0.055); },
+      () => { beep(41.2, 0.28, "sawtooth", 0.10); chord([82,98,123], 0.18, 0.055); },
+      () => { beep(55, 0.30, "sawtooth", 0.10); chord([110,131,165], 0.18, 0.055); }
+    ];
+
+    let i = 0;
+    const step = () => {
+      if (!musicOn) return;
+      if (!game.pendingMonster) return;
+      if (i >= seq.length) return;
+      seq[i++]();
+      monsterDoomStingTimer = setTimeout(step, 480);
+    };
+    step();
+  }
+
+  /* ---- SFX events ---- */
   function sfxRoll(){ beep(320,0.06,"square",0.06); beep(420,0.07,"square",0.05); }
   function sfxPickup(){ beep(740,0.06,"triangle",0.07); }
   function sfxPlace(){ beep(420,0.07,"triangle",0.05); }
@@ -1053,9 +1120,18 @@
   function sfxError(){ beep(160,0.08,"sawtooth",0.06); }
   function sfxZeroBad(){ beep(120,0.10,"sawtooth",0.07); beep(90,0.12,"sawtooth",0.06); }
   function sfxBonus(){ chord([660,880],0.16,0.06); }
-  function sfxMonster(){ beep(70,0.16,"sawtooth",0.08); beep(55,0.18,"sawtooth",0.08); }
-  function sfxLevelUp(){ chord([440,660,880],0.20,0.06); chord([520,780,1040],0.22,0.06); }
-  function sfxExtraRoll(){ chord([880,990],0.14,0.06); }
+  function sfxExtraLife(){ chord([523,659,784],0.20,0.06); chord([659,784,988],0.22,0.06); }
+  function sfxMonsterHit(){ beep(70,0.16,"sawtooth",0.08); beep(55,0.18,"sawtooth",0.08); }
+  function sfxLevelUp(){
+    chord([440,660,880],0.18,0.06);
+    chord([494,740,988],0.18,0.06);
+    chord([523,784,1046],0.22,0.06);
+  }
+  function sfxWin(){
+    chord([523,659,784],0.22,0.07);
+    chord([659,784,988],0.22,0.07);
+    chord([784,988,1175],0.26,0.07);
+  }
 
   const player = { name: "PLAYER1" };
 
@@ -1075,7 +1151,6 @@
   }
 
   const game = {
-    themeIndex: 0,
     level: 1,
     lives: 3,
     score: 0,
@@ -1130,9 +1205,13 @@
     game.hudTimer = 60;
   }
 
+  function currentLevelTheme(){
+    const idx = clamp(game.level - 1, 0, LEVELS.length - 1);
+    return LEVELS[idx];
+  }
+
   function applyThemeForLevel(){
-    game.themeIndex = (game.level - 1) % THEMES.length;
-    const t = THEMES[game.themeIndex];
+    const t = currentLevelTheme();
     if (ui.themeMini) ui.themeMini.textContent = t.name;
     document.documentElement.style.setProperty("--lvlBg", t.bg);
     document.documentElement.style.setProperty("--lvlBorder", t.border);
@@ -1253,6 +1332,7 @@
     game.pendingMonster = null;
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
+    stopMonsterDoom();
 
     spawnHole();
     spawnSticksForLevel(game.level);
@@ -1270,7 +1350,30 @@
     upsertLeaderboardEntry(player.name, game.score, game.level);
   }
 
+  function winGame(){
+    commitScoreToLeaderboard();
+    ui.winText.textContent = `YOU WIN — ${player.name} • Score ${game.score}.`;
+    ui.winOverlay.style.display = "flex";
+    game.inputLocked = true;
+    ui.monsterEvent.style.display = "none";
+    ui.btnRoll.classList.remove("flashRoll");
+    stopMonsterDoom();
+    setHud("VICTORY STICK!");
+    logEvent("win","Victory Stick cleared. You win.");
+    sfxWin();
+  }
+  function closeWin(){
+    ui.winOverlay.style.display = "none";
+    game.inputLocked = false;
+  }
+
   function newLevel(){
+    if (game.level >= 9){
+      winGame();
+      updateUI();
+      return;
+    }
+
     game.level++;
     applyThemeForLevel();
     spawnHole();
@@ -1281,11 +1384,13 @@
     game.carry = [];
     game.bonusActive = false;
     game.bonusExtraRollReady = false;
+
     game.pendingMonster = null;
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
+    stopMonsterDoom();
 
-    logEvent("level",`Level ${game.level}! (${THEMES[game.themeIndex].name})`);
+    logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
     sfxLevelUp();
     setHud(`LEVEL ${game.level}!`);
 
@@ -1345,7 +1450,6 @@
         if (r.total === 12){
           game.bonusExtraRollReady = true;
           logEvent("bonus","Jackpot 12! Extra Bonus roll earned.");
-          sfxExtraRoll();
           setHud("12! Extra Bonus roll earned!");
         }
       } else {
@@ -1456,6 +1560,8 @@
 
       const s = game.sticks[index];
 
+      stopMonsterDoom();
+
       if (roll <= 1){
         if (s && s.cursed){
           game.sticks.splice(index,1);
@@ -1550,7 +1656,6 @@
       const s = game.sticks[idx];
 
       if (s.cursed){
-        // player never sees cursed sticks in the field
         game.pendingMonster = { index: idx };
         game.inputLocked = true;
         logEvent("monster","Monster Stick! Press ROLL (0–5) to fight.");
@@ -1560,7 +1665,8 @@
         ui.monsterEventText.textContent = "Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.";
         ui.monsterEvent.style.display = "flex";
         ui.btnRoll.classList.add("flashRoll");
-        sfxMonster();
+        sfxMonsterHit();
+        playMonsterDoomSting();
         updateUI();
         setTimeout(updateScrollHint, 30);
         return;
@@ -1600,7 +1706,7 @@
           game.lives++;
           logEvent("bonus","Secret life tile! +1 life.");
           setHud("+1 LIFE");
-          sfxBonus();
+          sfxExtraLife();
         } else {
           logEvent("bonus","Life tile found (already at max lives).");
           setHud("Life tile (MAX LIVES)");
@@ -1629,6 +1735,7 @@
     ui.gameOverOverlay.style.display = "flex";
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
+    stopMonsterDoom();
     game.inputLocked = true;
   }
   function closeGameOver(){
@@ -1667,6 +1774,138 @@
     updateRollButtonState();
   }
 
+  /* -------- Save/Load Game -------- */
+  function canSaveLoad(){
+    if (ui.infoOverlay.style.display === "flex") return false;
+    if (ui.nameOverlay.style.display === "flex") return false;
+    if (ui.gameOverOverlay.style.display === "flex") return false;
+    if (ui.winOverlay.style.display === "flex") return false;
+    if (game.pendingMonster) return false;
+    return true;
+  }
+
+  function serializeGame(){
+    return {
+      v: 1,
+      when: Date.now(),
+      playerName: player.name,
+      game: {
+        level: game.level,
+        lives: game.lives,
+        score: game.score,
+        actions: game.actions,
+        bonusActive: game.bonusActive,
+        bonusExtraRollReady: game.bonusExtraRollReady,
+        playerX: game.playerX,
+        playerY: game.playerY,
+        carry: game.carry,
+        sticks: game.sticks,
+        holeX: game.holeX,
+        holeY: game.holeY,
+        lifeTileX: game.lifeTileX,
+        lifeTileY: game.lifeTileY,
+        lifeTileUsed: game.lifeTileUsed,
+        hudMsg: "",
+        hudTimer: 0,
+        holePulse: 0,
+        holeFlash: 0
+      }
+    };
+  }
+
+  function applySerialized(obj){
+    if (!obj || !obj.game) return false;
+
+    setAndStoreName(obj.playerName || "PLAYER1");
+
+    const g = obj.game;
+    game.level = clamp(Number(g.level)||1, 1, 9);
+    game.lives = clamp(Number(g.lives)||3, 0, 5);
+    game.score = Math.max(0, Number(g.score)||0);
+    game.actions = Math.max(0, Number(g.actions)||0);
+    game.bonusActive = !!g.bonusActive;
+    game.bonusExtraRollReady = !!g.bonusExtraRollReady;
+
+    game.playerX = clamp(Number(g.playerX)||2, 0, GRID_W-1);
+    game.playerY = clamp(Number(g.playerY)||2, 0, GRID_H-1);
+
+    game.carry = Array.isArray(g.carry) ? g.carry.slice(0, 12) : [];
+    game.sticks = Array.isArray(g.sticks) ? g.sticks.map(s => ({
+      x: clamp(Number(s.x)||0, 0, GRID_W-1),
+      y: clamp(Number(s.y)||0, 0, GRID_H-1),
+      color: String(s.color || "#f3f4f6"),
+      cursed: !!s.cursed,
+      bonus: !!s.bonus
+    })) : [];
+
+    game.holeX = clamp(Number(g.holeX)||12, 0, GRID_W-1);
+    game.holeY = clamp(Number(g.holeY)||12, 0, GRID_H-1);
+
+    game.lifeTileX = clamp(Number(g.lifeTileX)||-1, -1, GRID_W-1);
+    game.lifeTileY = clamp(Number(g.lifeTileY)||-1, -1, GRID_H-1);
+    game.lifeTileUsed = !!g.lifeTileUsed;
+
+    game.pendingMonster = null;
+    ui.monsterEvent.style.display = "none";
+    ui.btnRoll.classList.remove("flashRoll");
+    stopMonsterDoom();
+
+    game.inputLocked = false;
+    applyThemeForLevel();
+    updateUI();
+    setHud("Game loaded!");
+    return true;
+  }
+
+  function saveGame(){
+    if (!canSaveLoad()){
+      sfxError();
+      setHud("Can't save right now.");
+      logEvent("warn","Can't save during overlays or monster encounter.");
+      return;
+    }
+    try{
+      localStorage.setItem(LS_SAVEGAME, JSON.stringify(serializeGame()));
+      logEvent("save","Game saved (this device).");
+      setHud("GAME SAVED");
+      chord([262,330,392],0.16,0.05);
+    }catch(_){
+      sfxError();
+      setHud("Save failed.");
+    }
+  }
+
+  function loadGame(){
+    if (!canSaveLoad()){
+      sfxError();
+      setHud("Can't load right now.");
+      logEvent("warn","Can't load during overlays or monster encounter.");
+      return;
+    }
+    try{
+      const raw = localStorage.getItem(LS_SAVEGAME);
+      if (!raw){
+        sfxError();
+        setHud("No saved game.");
+        logEvent("load","No saved game found.");
+        return;
+      }
+      const obj = JSON.parse(raw);
+      const ok = applySerialized(obj);
+      if (ok){
+        logEvent("load","Game loaded.");
+        chord([294,370,440],0.16,0.05);
+      } else {
+        sfxError();
+        setHud("Load failed.");
+      }
+    }catch(_){
+      sfxError();
+      setHud("Load failed.");
+    }
+  }
+
+  /* ---- Drawing ---- */
   function drawGrid(theme){
     ctx.fillStyle = theme.bg;
     ctx.fillRect(0,0,CANVAS_W,CANVAS_H);
@@ -1747,7 +1986,7 @@
 
     ctx.save();
     ctx.globalAlpha = 0.15 + osc*0.25;
-    ctx.strokeStyle = THEMES[game.themeIndex].accent;
+    ctx.strokeStyle = theme.accent;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.rect(x+3, y+3, TILE-6, TILE-6);
@@ -1771,7 +2010,6 @@
     ctx.lineTo(7, 9);
     ctx.stroke();
 
-    /* subtle highlight on all sticks (NOT cursed-specific) */
     ctx.globalAlpha = 0.35;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1;
@@ -1912,7 +2150,16 @@
   }
 
   function loop(){
-    const theme = THEMES[game.themeIndex];
+    if (game.level === 9){
+      const t = (performance.now()||Date.now())/1000;
+      const pulse = (Math.sin(t*2.2)+1)/2;
+      const border = `rgba(243,244,246,${0.75 + pulse*0.25})`;
+      document.documentElement.style.setProperty("--lvlBorder", border);
+      document.documentElement.style.setProperty("--lvlAccentGlow", `rgba(255,255,255,${0.30 + pulse*0.25})`);
+      document.documentElement.style.setProperty("--lvlAccentShadow", `rgba(255,255,255,${0.18 + pulse*0.12})`);
+    }
+
+    const theme = currentLevelTheme();
     drawGrid(theme);
     drawHole(theme);
     drawLifeHint(theme);
@@ -1927,6 +2174,7 @@
     const inInfo  = ui.infoOverlay.style.display === "flex";
     const inName  = ui.nameOverlay.style.display === "flex";
     const inOver  = ui.gameOverOverlay.style.display === "flex";
+    const inWin   = ui.winOverlay.style.display === "flex";
 
     if (inName){
       if (e.key === "Enter"){ e.preventDefault(); startFromNameInput(); }
@@ -1939,7 +2187,16 @@
       return;
     }
 
-    if (inInfo || inOver) return;
+    if (inInfo || inOver || inWin) return;
+
+    if (game.pendingMonster){
+      if (e.key === "Enter" || e.key === " "){
+        e.preventDefault();
+        resolveMonsterRoll();
+      }
+      return;
+    }
+
     if (game.inputLocked) return;
 
     if (e.key === "ArrowUp"){ e.preventDefault(); move(0,-1); }
@@ -1947,6 +2204,8 @@
     else if (e.key === "ArrowLeft"){ e.preventDefault(); move(-1,0); }
     else if (e.key === "ArrowRight"){ e.preventDefault(); move(1,0); }
     else if (e.key === " "){ e.preventDefault(); pickOrDrop(); }
+    else if (e.key.toLowerCase() === "s"){ e.preventDefault(); saveGame(); }
+    else if (e.key.toLowerCase() === "l"){ e.preventDefault(); loadGame(); }
   }
 
   /* ---- Button handlers ---- */
@@ -1967,6 +2226,9 @@
     setHud("Stats cleared.");
   });
 
+  ui.btnSave.addEventListener("click", async () => { await unlockAudio(); saveGame(); });
+  ui.btnLoad.addEventListener("click", async () => { await unlockAudio(); loadGame(); });
+
   ui.btnMusic.addEventListener("click", async () => {
     await unlockAudio();
     if (!musicOn){
@@ -1979,6 +2241,7 @@
       musicOn = false;
       ui.btnMusic.textContent = "Music: OFF";
       stopMusic();
+      stopMonsterDoom();
       beep(196,0.10,"triangle",0.05);
       logEvent("neutral","Music OFF.");
     }
@@ -2022,6 +2285,12 @@
     showNameModal();
   });
 
+  ui.btnWinRestart.addEventListener("click", async () => {
+    await unlockAudio();
+    closeWin();
+    showNameModal();
+  });
+
   document.addEventListener("keydown", keyHandler);
 
   function boot(){
@@ -2046,5 +2315,4 @@
 </script>
 </body>
 </html>
-
 
