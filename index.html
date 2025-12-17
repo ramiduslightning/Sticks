@@ -503,7 +503,7 @@
         display:flex;
         flex-direction:column;
 
-        /* prevents Safari bottom bar from covering STICKS v2.31 / Save/Info/Load */
+        /* prevents Safari bottom bar from covering STICKS v2.35 / Save/Info/Load */
         padding-bottom: calc(env(safe-area-inset-bottom) + 90px);
       }
 
@@ -640,7 +640,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.31</span></div>
+          <div>STICKS <span class="badge">v2.35</span></div>
           <div class="titleBtns">
             <button id="btnSave" class="btn-save btn-mini" aria-label="Save Game" title="Save (S)">💾</button>
             <button class="btn-info btn-mini" id="btnInfo" title="Info">Info</button>
@@ -669,10 +669,20 @@
           secret sticks trigger BONUS. In Bonus you roll <b>double dice (2–12)</b> (1–6 + 1–6). Deposits are 2×.
           Roll <b>12</b> to earn <b>one extra Bonus roll</b> (after Actions hit 0).
         </div>
-        <div style="margin:8px 0;"><span class="badge">Extra Life</span>:
+        <div style="margin:8px 0;"><span class="badge">Extra Life (Secret Tile)</span>:
           each level hides <b>one secret tile</b>. The tile only hints/pulses when you are <b>standing on it</b> while <b>carrying a stick</b>.
           If you <b>drop</b> a stick on that square, you gain <b>+1 life</b> (the stick is used up).
         </div>
+
+        <div style="margin:8px 0;"><span class="badge">Tree (Life + Magic Load)</span>:
+          the tree appears <b>mid-level</b> for <b>15s</b>, then <b>blinks for 15s</b> before disappearing.
+          While standing on it:
+          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
+            <li><b>If carrying sticks:</b> press <b>Pick/Drop</b> to feed <b>1 stick</b> for <b>+1 life</b> (1 stick = 1 life).</li>
+            <li><b>If carrying 0 sticks:</b> press <b>Pick/Drop</b> to instantly get a <b>full load</b> (fills to your carry limit for that level).</li>
+          </ul>
+        </div>
+
         <div style="margin:8px 0;"><span class="badge">Stick Monster</span>:
           some sticks are cursed. When you try to pick one up, a Stick Monster appears.
           Press <b>ROLL</b>: roll <b>2–5</b> to keep a 2× stick, roll <b>0–1</b> and you lose 1 life.
@@ -748,7 +758,10 @@
   /* ---- Level Themes + Stick Names (names only shown to user) ---- */
   const LEVELS = [
     { name:"Night Stick",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
-    { name:"Sun Stick",     bg:"#140a03", grid:"#2a1406", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.46)", accentShadow:"rgba(255,179,71,.28)" },
+
+    /* Sun Stick: Pac-Man yellow vibe */
+    { name:"Sun Stick",     bg:"#140a03", grid:"#2a1406", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
+
     { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
     { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
     { name:"Leaf Stick",    bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
@@ -782,10 +795,14 @@
   const LOG_MAX_LINES = 12;
 
   /* ---- Music: slowed + variation (Nintendo-ish) ---- */
-  const MUSIC_STEP_MS = 245; // slower than before
+  const MUSIC_STEP_MS = 245;
   let musicOn = false;
   let musicTimer = null;
   let musicStep = 0;
+
+  // ✅ Celebration override (5 seconds of "victory" music)
+  let celebrationUntil = 0;
+  let celebrationStep = 0;
 
   const MUSIC_A = [
     { chord:[262,330,392], bass:98, dur:0.18, gain:0.040 },
@@ -825,6 +842,25 @@
     { lead:0 }
   ];
 
+  // ✅ Bright, short "celebration" pattern (loops for 5s)
+  const MUSIC_CELEB = [
+    { chord:[523,659,784], bass:131, dur:0.18, gain:0.050 },
+    { lead:784, bass:131, dur:0.14, gain:0.048 },
+    { lead:988, bass:131, dur:0.14, gain:0.048 },
+    { chord:[659,784,988], bass:147, dur:0.18, gain:0.050 },
+    { lead:1175, bass:147, dur:0.14, gain:0.048 },
+    { lead:988, bass:147, dur:0.14, gain:0.046 },
+    { chord:[587,740,880], bass:110, dur:0.18, gain:0.048 },
+    { lead:880, bass:110, dur:0.14, gain:0.046 },
+    { lead:0 }
+  ];
+
+  function startCelebrationMusic(ms=5000){
+    if (!musicOn) return;              // respect Music toggle
+    celebrationUntil = Date.now() + ms;
+    celebrationStep = 0;
+  }
+
   function pickMusicStep(stepIdx){
     const block = Math.floor(stepIdx / 32);
     const useB = (block % 2 === 1);
@@ -832,6 +868,15 @@
     const s = seq[stepIdx % seq.length];
 
     if (s && s.lead && Math.random() < 0.10){
+      return { ...s, lead: s.lead * 2 };
+    }
+    return s;
+  }
+
+  function pickCelebrationStep(){
+    const s = MUSIC_CELEB[celebrationStep++ % MUSIC_CELEB.length];
+    // small chance to octave-pop the lead
+    if (s && s.lead && Math.random() < 0.18){
       return { ...s, lead: s.lead * 2 };
     }
     return s;
@@ -1068,8 +1113,10 @@
     musicStep = 0;
     musicTimer = setInterval(() => {
       if (!musicOn) return;
-      if (game.pendingMonster) return; // doom sting takes over briefly
-      const step = pickMusicStep(musicStep++);
+      if (game.pendingMonster) return;
+
+      const inCelebration = Date.now() < celebrationUntil;
+      const step = inCelebration ? pickCelebrationStep() : pickMusicStep(musicStep++);
       if (!step) return;
 
       const hasChord = Array.isArray(step.chord) && step.chord.length;
@@ -1108,7 +1155,6 @@
     ensureAudio();
     stopMonsterDoom();
 
-    // Quick “doom” sequence (~2.4s)
     const seq = [
       () => { beep(55, 0.22, "sawtooth", 0.10); beep(73.4, 0.20, "sawtooth", 0.08); chord([110,131,165], 0.14, 0.055); },
       () => { beep(49, 0.22, "sawtooth", 0.10); chord([98,117,147], 0.16, 0.055); },
@@ -1186,6 +1232,15 @@
     lifeTileY: -1,
     lifeTileUsed: false,
 
+    // 🌳 Timed Tree (random mid-level, not at start)
+    treeX: -1,
+    treeY: -1,
+    treeActive: false,
+    treePhase: "hidden",      // "hidden" | "visible" | "blinking"
+    treePhaseTimer: 0,        // frames left in current phase
+    treeSpawnDelay: 0,        // frames until the tree appears
+    treeSpawnedThisLevel: false,
+
     pendingMonster: null,
 
     hudMsg: "",
@@ -1242,12 +1297,17 @@
   function isLifeTile(x,y){
     return !game.lifeTileUsed && x===game.lifeTileX && y===game.lifeTileY;
   }
+  function isTreeTile(x,y){
+    return game.treeActive && x===game.treeX && y===game.treeY;
+  }
+
   function randomEmptyTile(){
     for (let i=0;i<2000;i++){
       const x = randInt(0, GRID_W-1);
       const y = randInt(0, GRID_H-1);
       if ((x===game.playerX && y===game.playerY) || isHole(x,y) || isOccupiedByStick(x,y)) continue;
       if (!game.lifeTileUsed && x===game.lifeTileX && y===game.lifeTileY) continue;
+      if (game.treeActive && x===game.treeX && y===game.treeY) continue;
       return {x,y};
     }
     return {x:0,y:0};
@@ -1288,6 +1348,49 @@
     game.lifeTileX = p.x;
     game.lifeTileY = p.y;
     game.lifeTileUsed = false;
+  }
+
+  /* 🌳 Tree scheduling (random mid-level, not at start) */
+  function clearTree(){
+    game.treeActive = false;
+    game.treePhase = "hidden";
+    game.treePhaseTimer = 0;
+    game.treeX = -1;
+    game.treeY = -1;
+  }
+
+  function scheduleTreeForLevel(){
+    clearTree();
+    game.treeSpawnedThisLevel = false;
+
+    // “not right away” + random: 8–26 seconds after level starts
+    game.treeSpawnDelay = 60 * randInt(8, 26);
+  }
+
+  function spawnTreeNow(){
+    const p = randomEmptyTile();
+    game.treeX = p.x;
+    game.treeY = p.y;
+    game.treeActive = true;
+    game.treePhase = "visible";
+    game.treePhaseTimer = 60 * 15; // 15s visible
+    game.treeSpawnedThisLevel = true;
+
+    logEvent("bonus","A tree appears... (15s)");
+    setHud("TREE APPEARS!");
+  }
+
+  function startTreeBlinking(){
+    game.treePhase = "blinking";
+    game.treePhaseTimer = 60 * 15; // 15s blinking
+    logEvent("warn","Tree is blinking... hurry!");
+    setHud("TREE BLINKING!");
+  }
+
+  function endTree(){
+    clearTree();
+    logEvent("warn","The tree fades away.");
+    setHud("TREE GONE");
   }
 
   function showNameModal(){
@@ -1345,6 +1448,11 @@
     game.lifeTileY = -1;
     game.lifeTileUsed = false;
 
+    scheduleTreeForLevel();
+
+    celebrationUntil = 0;
+    celebrationStep = 0;
+
     game.pendingMonster = null;
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
@@ -1395,11 +1503,15 @@
     spawnHole();
     spawnSticksForLevel(game.level);
     spawnLifeTile();
+    scheduleTreeForLevel();
 
     game.actions = 0;
     game.carry = [];
     game.bonusActive = false;
     game.bonusExtraRollReady = false;
+
+    celebrationUntil = 0;
+    celebrationStep = 0;
 
     game.pendingMonster = null;
     ui.monsterEvent.style.display = "none";
@@ -1497,6 +1609,7 @@
       if (isOccupiedByStick(nx,ny)) continue;
       if (nx===game.playerX && ny===game.playerY) continue;
       if (isLifeTile(nx,ny)) continue;
+      if (isTreeTile(nx,ny)) continue;
       return {x:nx,y:ny};
     }
     return randomEmptyTile();
@@ -1604,6 +1717,9 @@
         logEvent("bonus","You beat the monster! Stick is worth 2×.");
         setHud("MONSTER BEATEN! 2× STICK");
         sfxPickup();
+
+        // ✅ 5 seconds of celebratory music (monster defeated)
+        startCelebrationMusic(5000);
       }
 
       ui.monsterEvent.style.display = "none";
@@ -1626,6 +1742,41 @@
   function pickOrDrop(){
     if (game.inputLocked) return;
     if (!spendAction()) return;
+
+    // 🌳 Tree: (A) If carrying 0 => MAGIC FULL LOAD, (B) If carrying sticks => feed for life
+    if (isTreeTile(game.playerX, game.playerY)){
+      // ✅ Corrected concept: Magic Load ONLY happens here (on the tree) when carrying 0.
+      if (game.carry.length === 0){
+        const cap = carryCap();
+        for (let i=0;i<cap;i++){
+          const color = STICK_COLORS[randInt(0, STICK_COLORS.length-1)];
+          game.carry.push({ color, value:1, fromMagic:true });
+        }
+        logEvent("bonus",`Tree magic! Instantly filled to ${cap}.`);
+        setHud(`TREE LOAD (${cap})`);
+        sfxPickup();
+        updateUI();
+        return;
+      }
+
+      // feeding the tree (life per stick)
+      game.carry.pop();
+      if (game.lives < 5){
+        game.lives++;
+        logEvent("bonus","Fed the tree. +1 life.");
+        setHud("+1 LIFE (TREE)");
+        sfxExtraLife();
+
+        // ✅ 5 seconds celebratory music on extra life (tree)
+        startCelebrationMusic(5000);
+      } else {
+        logEvent("bonus","Fed the tree (max lives).");
+        setHud("TREE FED (MAX)");
+        sfxPickup();
+      }
+      updateUI();
+      return;
+    }
 
     if (isHole(game.playerX, game.playerY)){
       if (game.carry.length === 0){
@@ -1723,6 +1874,9 @@
           logEvent("bonus","Secret life tile! +1 life.");
           setHud("+1 LIFE");
           sfxExtraLife();
+
+          // ✅ 5 seconds celebratory music on extra life (secret tile)
+          startCelebrationMusic(5000);
         } else {
           logEvent("bonus","Life tile found (already at max lives).");
           setHud("Life tile (MAX LIVES)");
@@ -1741,6 +1895,7 @@
       return;
     }
 
+    // ✅ No more "Magic Load on empty tile" — it's TREE-ONLY now.
     sfxError();
     setHud("No stick here.");
   }
@@ -1821,6 +1976,16 @@
         lifeTileX: game.lifeTileX,
         lifeTileY: game.lifeTileY,
         lifeTileUsed: game.lifeTileUsed,
+
+        // 🌳 Tree state (Save/Load preserves timing + blinking)
+        treeX: game.treeX,
+        treeY: game.treeY,
+        treeActive: game.treeActive,
+        treePhase: game.treePhase,
+        treePhaseTimer: game.treePhaseTimer,
+        treeSpawnDelay: game.treeSpawnDelay,
+        treeSpawnedThisLevel: game.treeSpawnedThisLevel,
+
         hudMsg: "",
         hudTimer: 0,
         holePulse: 0,
@@ -1860,6 +2025,17 @@
     game.lifeTileX = clamp(Number(g.lifeTileX)||-1, -1, GRID_W-1);
     game.lifeTileY = clamp(Number(g.lifeTileY)||-1, -1, GRID_H-1);
     game.lifeTileUsed = !!g.lifeTileUsed;
+
+    game.treeX = clamp(Number(g.treeX)||-1, -1, GRID_W-1);
+    game.treeY = clamp(Number(g.treeY)||-1, -1, GRID_H-1);
+    game.treeActive = !!g.treeActive;
+    game.treePhase = String(g.treePhase || (game.treeActive ? "visible" : "hidden"));
+    game.treePhaseTimer = Math.max(0, Number(g.treePhaseTimer)||0);
+    game.treeSpawnDelay = Math.max(0, Number(g.treeSpawnDelay)||0);
+    game.treeSpawnedThisLevel = !!g.treeSpawnedThisLevel;
+
+    celebrationUntil = 0;
+    celebrationStep = 0;
 
     game.pendingMonster = null;
     ui.monsterEvent.style.display = "none";
@@ -2007,6 +2183,49 @@
     ctx.beginPath();
     ctx.rect(x+3, y+3, TILE-6, TILE-6);
     ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  // 🌳 Draw timed tree (visible 15s, blinking 15s)
+  function drawTree(theme){
+    if (!game.treeActive) return;
+
+    if (game.treePhase === "blinking"){
+      const blinkOn = (Math.floor(game.treePhaseTimer / 10) % 2) === 0;
+      if (!blinkOn) return;
+    }
+
+    const x = game.treeX*TILE;
+    const y = game.treeY*TILE;
+
+    const t = (performance.now ? performance.now() : Date.now()) / 1000;
+    const osc = (Math.sin(t*5) + 1) / 2;
+
+    ctx.save();
+
+    ctx.globalAlpha = 0.10 + osc*0.18;
+    ctx.strokeStyle = "#39ff95";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x + TILE/2, y + TILE/2, 10 + osc*3, 0, Math.PI*2);
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#a16207";
+    ctx.fillRect(x + 11, y + 12, 2, 7);
+    ctx.fillRect(x + 10, y + 14, 4, 5);
+
+    ctx.fillStyle = "#22c55e";
+    ctx.fillRect(x + 8,  y + 8,  8, 2);
+    ctx.fillRect(x + 7,  y + 10, 10, 2);
+    ctx.fillRect(x + 8,  y + 12, 8, 2);
+
+    ctx.globalAlpha = 0.35 + osc*0.35;
+    ctx.fillStyle = theme.accent;
+    ctx.fillRect(x + 6, y + 6, 1, 1);
+    ctx.fillRect(x + 17, y + 7, 1, 1);
+
     ctx.restore();
     ctx.globalAlpha = 1;
   }
@@ -2166,6 +2385,26 @@
   }
 
   function loop(){
+    // 🌳 Tree scheduler tick
+    if (!game.treeSpawnedThisLevel && !game.treeActive){
+      game.treeSpawnDelay = Math.max(0, game.treeSpawnDelay - 1);
+      if (game.treeSpawnDelay === 0){
+        spawnTreeNow();
+      }
+    }
+
+    // 🌳 Tree phase timers
+    if (game.treeActive){
+      game.treePhaseTimer = Math.max(0, game.treePhaseTimer - 1);
+      if (game.treePhaseTimer === 0){
+        if (game.treePhase === "visible"){
+          startTreeBlinking();
+        } else if (game.treePhase === "blinking"){
+          endTree();
+        }
+      }
+    }
+
     if (game.level === 9){
       const t = (performance.now()||Date.now())/1000;
       const pulse = (Math.sin(t*2.2)+1)/2;
@@ -2179,6 +2418,7 @@
     drawGrid(theme);
     drawHole(theme);
     drawLifeHint(theme);
+    drawTree(theme);
     for (const s of game.sticks) drawStick(s);
     drawPlayer();
     drawSparks();
@@ -2258,6 +2498,7 @@
       ui.btnMusic.textContent = "Music: OFF";
       stopMusic();
       stopMonsterDoom();
+      celebrationUntil = 0;
       beep(196,0.10,"triangle",0.05);
       logEvent("neutral","Music OFF.");
     }
@@ -2331,4 +2572,5 @@
 </script>
 </body>
 </html>
+
 
