@@ -89,7 +89,7 @@
     .log .line{ margin: 0 0 8px 0; }
     .log .line:last-child{ margin-bottom:0; }
 
-    .kv{ display:flex; justify-content:space-between; gap:10px; margin:6px 0; }
+    .kv{ display:flex; justify-content:space-between; gap:10px; margin:6px 0; align-items:center; }
     .kv span:first-child{ color:#9fb1c6; }
     .big{ font-size:18px; font-weight:1000; }
 
@@ -171,7 +171,6 @@
       user-select:none;
     }
 
-    /* D-PAD (keycap style) */
     .dpadWrap{ margin-top:10px; display:flex; justify-content:center; align-items:center; }
     .dpad{ width:200px; display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; }
     .dpad button{
@@ -221,14 +220,12 @@
     .btn-new  { background: linear-gradient(180deg,#ffb347,#ff7a18); color:#1a0f00; }
     .btn-clear{ background: linear-gradient(180deg,#ff5a6a,#ff1f3a); color:#200007; }
 
-    /* Save/Load = small, top-row, black w/ white text */
     .btn-save { background: linear-gradient(180deg,#111827,#0b0f14); color:#f3f4f6; border:1px solid #2b3a4c; box-shadow:none; }
     .btn-load { background: linear-gradient(180deg,#111827,#0b0f14); color:#f3f4f6; border:1px solid #2b3a4c; box-shadow:none; }
 
     .btn-music{ background: linear-gradient(180deg,#c27bff,#7a35ff); color:#120018; grid-column: 1 / span 2; }
     .btn-info { background: linear-gradient(180deg,#f3f4f6,#cbd5e1); color:#0b0f14; }
 
-    /* Top title buttons layout + sizing (Info centered between Save/Load) */
     .titleBtns{ display:flex; align-items:center; gap:8px; }
     .btn-mini{
       padding:8px 10px;
@@ -237,10 +234,6 @@
       box-shadow:none;
       min-width:44px;
       line-height:1;
-    }
-
-    .headerBlock{
-      /* desktop stays normal */
     }
 
     @keyframes flashRoll {
@@ -350,7 +343,20 @@
       50%{ transform: translateY(2px); opacity:1; }
     }
 
-    #infoOverlay,#nameOverlay,#gameOverOverlay,#winOverlay{
+    /* ✅ stick figure selector */
+    select{
+      padding:9px 10px;
+      border-radius:12px;
+      border:1px solid #2b3a4c;
+      background:#0b1220;
+      color:#e6edf3;
+      font-weight:1000;
+      outline:none;
+      cursor:pointer;
+    }
+    select:focus{ box-shadow: 0 0 0 3px rgba(58,167,255,0.18); }
+
+    #infoOverlay,#nameOverlay,#gameOverOverlay,#winOverlay,#pauseOverlay{
       display:none;
       position:fixed;
       inset:0;
@@ -402,7 +408,6 @@
       box-shadow:none;
     }
 
-    /* Name input: dark, not gray */
     #nameOverlay input{
       flex:1;
       padding:12px 12px;
@@ -494,7 +499,6 @@
         max-height:100%;
       }
 
-      /* ✅ KEY FIX: make the whole right panel scroll + add safe bottom padding */
       .panel-right{
         height:100%;
         min-height:0;
@@ -502,17 +506,13 @@
         -webkit-overflow-scrolling: touch;
         display:flex;
         flex-direction:column;
-
-        /* prevents Safari bottom bar from covering STICKS v2.35 / Save/Info/Load */
         padding-bottom: calc(env(safe-area-inset-bottom) + 90px);
       }
 
-      /* keep buttons visible by ordering */
       .controlsScroll{ order:1; }
       .headerBlock{ order:2; margin-top:10px; }
       .headerBlock .hr{ margin:10px 0 0 0; }
 
-      /* Make the top of the controls more compact so D-pad + buttons fit */
       .controlsTop{
         grid-template-columns: 1fr;
         gap:8px;
@@ -528,7 +528,6 @@
       .diceFace{ font-size:40px; }
       .diceLabel{ font-size:11px; margin-top:4px; }
 
-      /* ✅ remove nested scroll on phone (no scroll-inside-scroll) */
       .controlsScroll{
         overflow: visible;
         -webkit-overflow-scrolling: auto;
@@ -603,13 +602,23 @@
           <button id="btnRoll" class="btn-roll">🎲 Roll</button>
           <button id="btnUse" class="btn-use">Pick/Drop</button>
           <button id="btnNew" class="btn-new">New Game</button>
-          <button id="btnClear" class="btn-clear">Clear Stats</button>
+          <button id="btnPause" class="btn-clear">⏸ Pause</button>
           <button id="btnMusic" class="btn-music">Music: OFF</button>
         </div>
 
         <div class="hr"></div>
 
         <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
+
+        <div class="kv"><span>Stick Figure</span>
+          <select id="uiSkin" aria-label="Stick Figure">
+            <option value="classic">Classic</option>
+            <option value="alien">Alien</option>
+            <option value="sally">Sally Stick</option>
+            <option value="rick">Rick Stick</option>
+            <option value="robot">Robo Stick</option>
+          </select>
+        </div>
 
         <div class="statsGrid">
           <div class="kv"><span>Lives</span><span id="uiLives" class="big">3</span></div>
@@ -640,7 +649,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.35</span></div>
+          <div>STICKS <span class="badge">v2.38</span></div>
           <div class="titleBtns">
             <button id="btnSave" class="btn-save btn-mini" aria-label="Save Game" title="Save (S)">💾</button>
             <button class="btn-info btn-mini" id="btnInfo" title="Info">Info</button>
@@ -665,17 +674,26 @@
         <div style="margin:8px 0;"><span class="badge">Zero</span>:
           if carrying sticks, you drop and they scatter. If carrying none, the hole gets angry and spits out a stick.
         </div>
-        <div style="margin:8px 0;"><span class="badge">Bonus</span>:
-          secret sticks trigger BONUS. In Bonus you roll <b>double dice (2–12)</b> (1–6 + 1–6). Deposits are 2×.
-          Roll <b>12</b> to earn <b>one extra Bonus roll</b> (after Actions hit 0).
+
+        <div style="margin:8px 0;"><span class="badge">Bonus Stick</span>:
+          a secret Bonus stick pays out in 2 parts:
+          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
+            <li><b>If you have Actions left</b> after picking it up, your remaining Actions are <b>doubled</b>.</li>
+            <li><b>After Actions hit 0</b>, you get a <b>Bonus Roll</b> (double dice <b>2–12</b>).</li>
+            <li><b>If you hit 0 Actions immediately</b> after picking it up, the <b>Bonus Roll happens right away</b>.</li>
+          </ul>
+          During Bonus Roll mode: deposits are <b>2×</b>. Roll <b>12</b> to earn <b>one extra Bonus roll</b> (after Actions hit 0).
         </div>
+
         <div style="margin:8px 0;"><span class="badge">Extra Life (Secret Tile)</span>:
-          each level hides <b>one secret tile</b>. The tile only hints/pulses when you are <b>standing on it</b> while <b>carrying a stick</b>.
+          each level hides <b>one secret tile</b>.
+          The tile only hints/pulses when you are <b>standing on it</b> while <b>carrying a stick</b>.
           If you <b>drop</b> a stick on that square, you gain <b>+1 life</b> (the stick is used up).
         </div>
 
         <div style="margin:8px 0;"><span class="badge">Tree (Life + Magic Load)</span>:
-          the tree appears <b>mid-level</b> for <b>15s</b>, then <b>blinks for 15s</b> before disappearing.
+          the tree appears <b>mid-level</b> sometime between <b>1–5 minutes</b>, stays <b>15s</b>, then <b>blinks for 15s</b> before disappearing.
+          <b>(Tree timer freezes during Stick Monster battles.)</b>
           While standing on it:
           <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
             <li><b>If carrying sticks:</b> press <b>Pick/Drop</b> to feed <b>1 stick</b> for <b>+1 life</b> (1 stick = 1 life).</li>
@@ -685,9 +703,18 @@
 
         <div style="margin:8px 0;"><span class="badge">Stick Monster</span>:
           some sticks are cursed. When you try to pick one up, a Stick Monster appears.
-          Press <b>ROLL</b>: roll <b>2–5</b> to keep a 2× stick, roll <b>0–1</b> and you lose 1 life.
+          Press <b>ROLL</b>: roll <b>2–5</b> to keep a powered-up stick, roll <b>0–1</b> and you lose 1 life (streak resets).
+          <div style="margin-top:6px;color:#9fb1c6;">
+            <b>Streak Bonus:</b>
+            <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
+              <li>Each monster win in a row builds a <b>Monster streak</b>.</li>
+              <li>On your <b>3rd win in a row</b> you gain <b>+1 life</b> (max 5).</li>
+              <li>From that 3rd win onward, each new monster win makes that stick worth more: <b>2× → 3× → 4× → 5×...</b> until you lose.</li>
+            </ul>
+          </div>
         </div>
-        <div style="margin:8px 0; color:#9fb1c6;">Controls: Arrow Keys or D-Pad • Space = Pick/Drop</div>
+
+        <div style="margin:8px 0; color:#9fb1c6;">Controls: Arrow Keys or D-Pad • Space = Pick/Drop • Esc or P = Pause</div>
         <div style="margin:10px 0; color:#9fb1c6;"><b>Save/Load:</b> saves only on this device (local browser storage).</div>
       </div>
       <div class="modalActions">
@@ -717,11 +744,25 @@
     </div>
   </div>
 
+  <div id="pauseOverlay">
+    <div class="modalBox" role="dialog" aria-modal="true">
+      <div class="modalTitle">PAUSED</div>
+      <div class="modalText" style="color:#9fb1c6">
+        Game + music are paused.<br/>
+        Press <b>Pause</b> again to resume.
+      </div>
+      <div class="modalActions">
+        <button class="modalClose" id="btnPauseClose">Resume</button>
+      </div>
+    </div>
+  </div>
+
   <div id="gameOverOverlay">
     <div class="modalBox" role="dialog" aria-modal="true">
       <div class="modalTitle">GAME OVER</div>
       <div class="modalText" id="gameOverText">The sticks won this time.</div>
       <div class="modalActions">
+        <button class="modalClose" id="btnGameOverClose">Close</button>
         <button class="modalClose" id="btnRestart">Restart</button>
       </div>
     </div>
@@ -754,19 +795,17 @@
   const LS_LEADERBOARD  = "sticks_leaderboard_v1";
   const LS_SAVEGAME     = "sticks_savegame_v1";
   const SS_SCROLLED     = "sticks_scrolled_controls_v1";
+  const LS_PLAYER_SKIN  = "sticks_playerSkin_v1";
 
-  /* ---- Level Themes + Stick Names (names only shown to user) ---- */
+  /* ---- Level Themes + Stick Names ---- */
   const LEVELS = [
     { name:"Night Stick",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
-
-    /* Sun Stick: Pac-Man yellow vibe */
     { name:"Sun Stick",     bg:"#140a03", grid:"#4a3a06", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
-
     { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
     { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
     { name:"Leaf Stick",    bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
     { name:"Spell Stick",   bg:"#0c0418", grid:"#1a0b33", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.46)", accentShadow:"rgba(194,123,255,.30)" },
-    { name:"Ice Stick",     bg:"#07131a", grid:"#0e2630", border:"#a8dadc", accent:"#f3f4f6", accentGlow:"rgba(168,218,220,.40)", accentShadow:"rgba(243,244,246,.18)" },
+    { name:"Ice Stick",     bg:"#f7fbff", grid:"#cfe8ff", border:"#ffffff", accent:"#ffffff", accentGlow:"rgba(255,255,255,.62)", accentShadow:"rgba(120,170,210,.22)" },
     { name:"Glow Stick",    bg:"#09060f", grid:"#1a1026", border:"#ff7a18", accent:"#ffd166", accentGlow:"rgba(255,122,24,.40)", accentShadow:"rgba(255,209,102,.24)" },
     { name:"Victory Stick", bg:"#0b0f14", grid:"#161f2b", border:"#f3f4f6", accent:"#ffffff", accentGlow:"rgba(255,255,255,.45)", accentShadow:"rgba(255,255,255,.22)" }
   ];
@@ -794,15 +833,17 @@
 
   const LOG_MAX_LINES = 12;
 
-  /* ---- Music: slowed + variation (Nintendo-ish) ---- */
+  /* ---- Music ---- */
   const MUSIC_STEP_MS = 245;
   let musicOn = false;
   let musicTimer = null;
   let musicStep = 0;
 
-  // ✅ Celebration override (5 seconds of "victory" music)
   let celebrationUntil = 0;
   let celebrationStep = 0;
+
+  let doomUntil = 0;
+  let doomStep = 0;
 
   const MUSIC_A = [
     { chord:[262,330,392], bass:98, dur:0.18, gain:0.040 },
@@ -842,7 +883,6 @@
     { lead:0 }
   ];
 
-  // ✅ Bright, short "celebration" pattern (loops for 5s)
   const MUSIC_CELEB = [
     { chord:[523,659,784], bass:131, dur:0.18, gain:0.050 },
     { lead:784, bass:131, dur:0.14, gain:0.048 },
@@ -855,10 +895,24 @@
     { lead:0 }
   ];
 
-  function startCelebrationMusic(ms=5000){
-    if (!musicOn) return;              // respect Music toggle
+  const MUSIC_DOOM = [
+    { chord:[65,78,98], bass:49,  dur:0.22, gain:0.070, type:"sawtooth" },
+    { lead:55,  bass:41, dur:0.18, gain:0.070, type:"sawtooth" },
+    { chord:[73,87,110], bass:55, dur:0.22, gain:0.072, type:"sawtooth" },
+    { lead:49,  bass:37, dur:0.18, gain:0.072, type:"sawtooth" },
+    { chord:[62,74,93],  bass:46, dur:0.22, gain:0.070, type:"sawtooth" },
+    { lead:0 }
+  ];
+
+  function startCelebrationMusic(ms=6500){
+    if (!musicOn) return;
     celebrationUntil = Date.now() + ms;
     celebrationStep = 0;
+  }
+  function startDoomMusic(ms=6500){
+    if (!musicOn) return;
+    doomUntil = Date.now() + ms;
+    doomStep = 0;
   }
 
   function pickMusicStep(stepIdx){
@@ -866,19 +920,20 @@
     const useB = (block % 2 === 1);
     const seq = useB ? MUSIC_B : MUSIC_A;
     const s = seq[stepIdx % seq.length];
-
     if (s && s.lead && Math.random() < 0.10){
       return { ...s, lead: s.lead * 2 };
     }
     return s;
   }
-
   function pickCelebrationStep(){
     const s = MUSIC_CELEB[celebrationStep++ % MUSIC_CELEB.length];
-    // small chance to octave-pop the lead
     if (s && s.lead && Math.random() < 0.18){
       return { ...s, lead: s.lead * 2 };
     }
+    return s;
+  }
+  function pickDoomStep(){
+    const s = MUSIC_DOOM[doomStep++ % MUSIC_DOOM.length];
     return s;
   }
 
@@ -895,6 +950,8 @@
     scrollHint: document.getElementById("scrollHint"),
 
     player: document.getElementById("uiPlayer"),
+    skin: document.getElementById("uiSkin"),
+
     lives: document.getElementById("uiLives"),
     level: document.getElementById("uiLevel"),
     score: document.getElementById("uiScore"),
@@ -911,15 +968,16 @@
     btnRoll: document.getElementById("btnRoll"),
     btnUse: document.getElementById("btnUse"),
     btnNew: document.getElementById("btnNew"),
-    btnClear: document.getElementById("btnClear"),
-    btnSave: document.getElementById("btnSave"),
-    btnLoad: document.getElementById("btnLoad"),
+    btnPause: document.getElementById("btnPause"),
     btnMusic: document.getElementById("btnMusic"),
 
     btnUp: document.getElementById("btnUp"),
     btnDown: document.getElementById("btnDown"),
     btnLeft: document.getElementById("btnLeft"),
     btnRight: document.getElementById("btnRight"),
+
+    btnSave: document.getElementById("btnSave"),
+    btnLoad: document.getElementById("btnLoad"),
 
     infoOverlay: document.getElementById("infoOverlay"),
     btnInfo: document.getElementById("btnInfo"),
@@ -932,9 +990,13 @@
     nameUseP1Btn: document.getElementById("nameUseP1Btn"),
     savedNameHint: document.getElementById("savedNameHint"),
 
+    pauseOverlay: document.getElementById("pauseOverlay"),
+    btnPauseClose: document.getElementById("btnPauseClose"),
+
     gameOverOverlay: document.getElementById("gameOverOverlay"),
     gameOverText: document.getElementById("gameOverText"),
     btnRestart: document.getElementById("btnRestart"),
+    btnGameOverClose: document.getElementById("btnGameOverClose"),
 
     winOverlay: document.getElementById("winOverlay"),
     winText: document.getElementById("winText"),
@@ -1103,8 +1165,8 @@
       o.stop(t0 + dur + 0.02);
     }catch(e){}
   }
-  function chord(freqs=[440,550], dur=0.12, gain=0.05){
-    freqs.forEach((f)=>beep(f, dur, "triangle", gain));
+  function chord(freqs=[440,550], dur=0.12, gain=0.05, type="triangle"){
+    freqs.forEach((f)=>beep(f, dur, type, gain));
   }
 
   function startMusic(){
@@ -1113,10 +1175,14 @@
     musicStep = 0;
     musicTimer = setInterval(() => {
       if (!musicOn) return;
+
       if (game.pendingMonster) return;
 
-      const inCelebration = Date.now() < celebrationUntil;
-      const step = inCelebration ? pickCelebrationStep() : pickMusicStep(musicStep++);
+      const now = Date.now();
+      const inDoom = now < doomUntil;
+      const inCelebration = (!inDoom) && (now < celebrationUntil);
+
+      const step = inDoom ? pickDoomStep() : (inCelebration ? pickCelebrationStep() : pickMusicStep(musicStep++));
       if (!step) return;
 
       const hasChord = Array.isArray(step.chord) && step.chord.length;
@@ -1127,11 +1193,12 @@
 
       const dur  = step.dur  ?? 0.16;
       const gain = step.gain ?? 0.040;
+      const oscType = step.type || "triangle";
 
       if (hasChord){
-        chord(step.chord, dur, gain);
+        chord(step.chord, dur, gain, oscType);
       } else if (hasLead){
-        beep(step.lead, dur, "triangle", gain);
+        beep(step.lead, dur, oscType, gain);
       }
       if (hasBass){
         beep(step.bass, dur * 1.2, "sine", gain * 0.70);
@@ -1142,7 +1209,103 @@
     if (musicTimer){ clearInterval(musicTimer); musicTimer = null; }
   }
 
-  /* ---- Stick Monster: 2–3 second doom sting ONCE (not continuous) ---- */
+  /* ---- Pause (true pause: stops loop, stops music, freezes timeouts) ---- */
+  let paused = false;
+  let rafId = null;
+  let pauseStartedAt = 0;
+  let pausePrevInputLocked = false;
+  let pausePrevMusicOn = false;
+
+  const activeTimeouts = new Map(); // id -> { fn, due }
+  let pausedTimeouts = [];
+
+  function gameSetTimeout(fn, ms){
+    const due = Date.now() + ms;
+    const id = setTimeout(() => {
+      activeTimeouts.delete(id);
+      fn();
+    }, ms);
+    activeTimeouts.set(id, { fn, due });
+    return id;
+  }
+  function pauseAllGameTimeouts(){
+    const now = Date.now();
+    pausedTimeouts = [];
+    for (const [id, meta] of activeTimeouts.entries()){
+      clearTimeout(id);
+      pausedTimeouts.push({ fn: meta.fn, ms: Math.max(0, meta.due - now) });
+    }
+    activeTimeouts.clear();
+  }
+  function resumeAllGameTimeouts(){
+    const list = pausedTimeouts.slice();
+    pausedTimeouts = [];
+    list.forEach(t => gameSetTimeout(t.fn, t.ms));
+  }
+
+  function startLoop(){
+    if (rafId) return;
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function pauseGame(){
+    if (paused) return;
+
+    // don't pause during name entry (already blocked on purpose)
+    if (ui.nameOverlay.style.display === "flex") return;
+
+    paused = true;
+    pauseStartedAt = Date.now();
+
+    pausePrevInputLocked = game.inputLocked;
+    game.inputLocked = true;
+
+    pausePrevMusicOn = musicOn;
+    if (musicOn) stopMusic();
+    stopMonsterDoom();
+
+    pauseAllGameTimeouts();
+
+    if (rafId){
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+
+    ui.pauseOverlay.style.display = "flex";
+    ui.btnPause.textContent = "▶ Resume";
+  }
+
+  function resumeGame(){
+    if (!paused) return;
+
+    const now = Date.now();
+    const delta = Math.max(0, now - pauseStartedAt);
+
+    if (celebrationUntil) celebrationUntil += delta;
+    if (doomUntil) doomUntil += delta;
+
+    paused = false;
+
+    ui.pauseOverlay.style.display = "none";
+    ui.btnPause.textContent = "⏸ Pause";
+
+    game.inputLocked = pausePrevInputLocked;
+
+    resumeAllGameTimeouts();
+    startLoop();
+
+    if (pausePrevMusicOn && musicOn){
+      startMusic();
+      if (game.pendingMonster) playMonsterDoomSting();
+    }
+  }
+
+  function togglePause(){
+    if (paused) resumeGame();
+    else pauseGame();
+  }
+
+  /* ---- Stick Monster: doom sting (battle intro) ---- */
   let monsterDoomStingTimer = null;
   function stopMonsterDoom(){
     if (monsterDoomStingTimer){
@@ -1156,11 +1319,11 @@
     stopMonsterDoom();
 
     const seq = [
-      () => { beep(55, 0.22, "sawtooth", 0.10); beep(73.4, 0.20, "sawtooth", 0.08); chord([110,131,165], 0.14, 0.055); },
-      () => { beep(49, 0.22, "sawtooth", 0.10); chord([98,117,147], 0.16, 0.055); },
-      () => { beep(55, 0.26, "sawtooth", 0.10); chord([110,147,165], 0.14, 0.055); },
-      () => { beep(41.2, 0.28, "sawtooth", 0.10); chord([82,98,123], 0.18, 0.055); },
-      () => { beep(55, 0.30, "sawtooth", 0.10); chord([110,131,165], 0.18, 0.055); }
+      () => { beep(55, 0.22, "sawtooth", 0.10); beep(73.4, 0.20, "sawtooth", 0.08); chord([110,131,165], 0.14, 0.055, "triangle"); },
+      () => { beep(49, 0.22, "sawtooth", 0.10); chord([98,117,147], 0.16, 0.055, "triangle"); },
+      () => { beep(55, 0.26, "sawtooth", 0.10); chord([110,147,165], 0.14, 0.055, "triangle"); },
+      () => { beep(41.2, 0.28, "sawtooth", 0.10); chord([82,98,123], 0.18, 0.055, "triangle"); },
+      () => { beep(55, 0.30, "sawtooth", 0.10); chord([110,131,165], 0.18, 0.055, "triangle"); }
     ];
 
     let i = 0;
@@ -1169,30 +1332,30 @@
       if (!game.pendingMonster) return;
       if (i >= seq.length) return;
       seq[i++]();
-      monsterDoomStingTimer = setTimeout(step, 480);
+      monsterDoomStingTimer = gameSetTimeout(step, 480);
     };
     step();
   }
 
-  /* ---- SFX events ---- */
+  /* ---- SFX ---- */
   function sfxRoll(){ beep(320,0.06,"square",0.06); beep(420,0.07,"square",0.05); }
   function sfxPickup(){ beep(740,0.06,"triangle",0.07); }
   function sfxPlace(){ beep(420,0.07,"triangle",0.05); }
-  function sfxDeposit(){ chord([520,660,780],0.14,0.06); }
+  function sfxDeposit(){ chord([520,660,780],0.14,0.06,"triangle"); }
   function sfxError(){ beep(160,0.08,"sawtooth",0.06); }
   function sfxZeroBad(){ beep(120,0.10,"sawtooth",0.07); beep(90,0.12,"sawtooth",0.06); }
-  function sfxBonus(){ chord([660,880],0.16,0.06); }
-  function sfxExtraLife(){ chord([523,659,784],0.20,0.06); chord([659,784,988],0.22,0.06); }
+  function sfxBonus(){ chord([660,880],0.16,0.06,"triangle"); }
+  function sfxExtraLife(){ chord([523,659,784],0.20,0.06,"triangle"); chord([659,784,988],0.22,0.06,"triangle"); }
   function sfxMonsterHit(){ beep(70,0.16,"sawtooth",0.08); beep(55,0.18,"sawtooth",0.08); }
   function sfxLevelUp(){
-    chord([440,660,880],0.18,0.06);
-    chord([494,740,988],0.18,0.06);
-    chord([523,784,1046],0.22,0.06);
+    chord([440,660,880],0.18,0.06,"triangle");
+    chord([494,740,988],0.18,0.06,"triangle");
+    chord([523,784,1046],0.22,0.06,"triangle");
   }
   function sfxWin(){
-    chord([523,659,784],0.22,0.07);
-    chord([659,784,988],0.22,0.07);
-    chord([784,988,1175],0.26,0.07);
+    chord([523,659,784],0.22,0.07,"triangle");
+    chord([659,784,988],0.22,0.07,"triangle");
+    chord([784,988,1175],0.26,0.07,"triangle");
   }
 
   const player = { name: "PLAYER1" };
@@ -1212,6 +1375,25 @@
     ui.player.textContent = n;
   }
 
+  function getSavedSkin(){
+    const raw = (localStorage.getItem(LS_PLAYER_SKIN) || "").toLowerCase();
+    if (raw === "bighead" || raw === "alien") return "alien";
+    if (raw === "runner" || raw === "sally") return "sally";
+    if (raw === "rick") return "rick";
+    if (raw === "robot") return "robot";
+    return "classic";
+  }
+  function setAndStoreSkin(s){
+    let val = (s || "classic").toLowerCase();
+    if (val === "bighead") val = "alien";
+    if (val === "runner") val = "sally";
+    const allowed = ["classic","alien","sally","rick","robot"];
+    const skin = allowed.includes(val) ? val : "classic";
+    game.playerSkin = skin;
+    localStorage.setItem(LS_PLAYER_SKIN, skin);
+    if (ui.skin) ui.skin.value = skin;
+  }
+
   const game = {
     level: 1,
     lives: 3,
@@ -1220,6 +1402,10 @@
 
     bonusActive: false,
     bonusExtraRollReady: false,
+    bonusPendingRoll: false,
+    bonusMovesDoubled: false,
+
+    playerSkin: "classic",
 
     playerX: 2,
     playerY: 2,
@@ -1232,16 +1418,16 @@
     lifeTileY: -1,
     lifeTileUsed: false,
 
-    // 🌳 Timed Tree (random mid-level, not at start)
     treeX: -1,
     treeY: -1,
     treeActive: false,
-    treePhase: "hidden",      // "hidden" | "visible" | "blinking"
-    treePhaseTimer: 0,        // frames left in current phase
-    treeSpawnDelay: 0,        // frames until the tree appears
+    treePhase: "hidden",
+    treePhaseTimer: 0,
+    treeSpawnDelay: 0,
     treeSpawnedThisLevel: false,
 
     pendingMonster: null,
+    monsterWinStreak: 0,
 
     hudMsg: "",
     hudTimer: 0,
@@ -1262,13 +1448,13 @@
   }
 
   function zeroChance(level){
-    return Math.min(ZERO_CHANCE_CAP, ZERO_CHANCE_L1 + (level-1)*ZERO_CHANCE_INC);
+    return Math.min(0.18, 0.00 + (level-1)*0.015);
   }
   function curseChance(level){
-    return Math.min(CURSE_CHANCE_CAP, CURSE_CHANCE_L1 + (level-1)*CURSE_CHANCE_INC);
+    return Math.min(0.16, 0.08 + (level-1)*0.015);
   }
   function bonusChance(level){
-    return Math.min(BONUS_CHANCE_CAP, BONUS_CHANCE_L1 + (level-1)*BONUS_CHANCE_INC);
+    return Math.min(0.22, 0.10 + (level-1)*0.01);
   }
 
   function setHud(msg){
@@ -1350,7 +1536,6 @@
     game.lifeTileUsed = false;
   }
 
-  /* 🌳 Tree scheduling (random mid-level, not at start) */
   function clearTree(){
     game.treeActive = false;
     game.treePhase = "hidden";
@@ -1362,9 +1547,7 @@
   function scheduleTreeForLevel(){
     clearTree();
     game.treeSpawnedThisLevel = false;
-
-    // “not right away” + random: 8–26 seconds after level starts
-    game.treeSpawnDelay = 60 * randInt(8, 26);
+    game.treeSpawnDelay = 60 * randInt(60, 300);
   }
 
   function spawnTreeNow(){
@@ -1373,7 +1556,7 @@
     game.treeY = p.y;
     game.treeActive = true;
     game.treePhase = "visible";
-    game.treePhaseTimer = 60 * 15; // 15s visible
+    game.treePhaseTimer = 60 * 15;
     game.treeSpawnedThisLevel = true;
 
     logEvent("bonus","A tree appears... (15s)");
@@ -1382,7 +1565,7 @@
 
   function startTreeBlinking(){
     game.treePhase = "blinking";
-    game.treePhaseTimer = 60 * 15; // 15s blinking
+    game.treePhaseTimer = 60 * 15;
     logEvent("warn","Tree is blinking... hurry!");
     setHud("TREE BLINKING!");
   }
@@ -1394,6 +1577,7 @@
   }
 
   function showNameModal(){
+    // front-end start: name required
     game.inputLocked = true;
     ui.nameOverlay.style.display = "flex";
     ui.nameInput.value = "";
@@ -1410,7 +1594,7 @@
       ui.nameUseSavedBtn.style.display = "none";
     }
 
-    setTimeout(()=>ui.nameInput.focus(), 50);
+    gameSetTimeout(()=>ui.nameInput.focus(), 50);
   }
   function closeNameModal(){
     ui.nameOverlay.style.display = "none";
@@ -1432,6 +1616,8 @@
 
     game.bonusActive = false;
     game.bonusExtraRollReady = false;
+    game.bonusPendingRoll = false;
+    game.bonusMovesDoubled = false;
 
     game.carry = [];
     game.sticks = [];
@@ -1452,8 +1638,11 @@
 
     celebrationUntil = 0;
     celebrationStep = 0;
+    doomUntil = 0;
+    doomStep = 0;
 
     game.pendingMonster = null;
+    game.monsterWinStreak = 0;
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
     stopMonsterDoom();
@@ -1467,7 +1656,9 @@
     logEvent("neutral","Welcome to STICKS.");
     logEvent("neutral","Roll to begin.");
 
-    setTimeout(updateScrollHint, 60);
+    setAndStoreSkin(getSavedSkin());
+
+    gameSetTimeout(updateScrollHint, 60);
   }
 
   function commitScoreToLeaderboard(){
@@ -1476,19 +1667,19 @@
 
   function winGame(){
     commitScoreToLeaderboard();
-    ui.winText.textContent = `YOU WIN — ${player.name} • Score ${game.score}.`;
+    ui.winText.textContent = `YOU WIN — ${player.name} • Score ${game.score}. The sticks have been humbled.`;
     ui.winOverlay.style.display = "flex";
     game.inputLocked = true;
+
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
     stopMonsterDoom();
+
     setHud("VICTORY STICK!");
     logEvent("win","Victory Stick cleared. You win.");
+
     sfxWin();
-  }
-  function closeWin(){
-    ui.winOverlay.style.display = "none";
-    game.inputLocked = false;
+    startCelebrationMusic(7500);
   }
 
   function newLevel(){
@@ -1507,13 +1698,19 @@
 
     game.actions = 0;
     game.carry = [];
+
     game.bonusActive = false;
     game.bonusExtraRollReady = false;
+    game.bonusPendingRoll = false;
+    game.bonusMovesDoubled = false;
 
     celebrationUntil = 0;
     celebrationStep = 0;
+    doomUntil = 0;
+    doomStep = 0;
 
     game.pendingMonster = null;
+    game.monsterWinStreak = 0;
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
     stopMonsterDoom();
@@ -1534,7 +1731,7 @@
     resetCoreState();
     applyThemeForLevel();
     updateUI();
-    requestAnimationFrame(loop);
+    startLoop();
   }
 
   function canRoll(){
@@ -1566,19 +1763,25 @@
     ui.diceBox.classList.add("rolling");
     sfxRoll();
 
-    setTimeout(() => {
+    gameSetTimeout(() => {
       ui.diceBox.classList.remove("rolling");
 
       if (game.bonusActive){
         const r = rollBonus2d6();
         ui.diceFace.textContent = String(r.total);
         ui.diceLabel.textContent = `BONUS 🎲🎲 (${r.d1}+${r.d2})`;
+
+        game.bonusPendingRoll = false;
+        game.bonusMovesDoubled = false;
+
         game.actions = r.total;
         logEvent("bonus",`Bonus roll: ${r.total}`);
         if (r.total === 12){
           game.bonusExtraRollReady = true;
           logEvent("bonus","Jackpot 12! Extra Bonus roll earned.");
           setHud("12! Extra Bonus roll earned!");
+        } else {
+          game.bonusExtraRollReady = false;
         }
       } else {
         const r = rollNormal();
@@ -1597,7 +1800,7 @@
       }
 
       updateUI();
-      setTimeout(updateScrollHint, 30);
+      gameSetTimeout(updateScrollHint, 30);
     }, 260);
   }
 
@@ -1634,19 +1837,51 @@
     game.holeFlash = 1.0;
   }
 
-  function enterBonus(){
+  function onBonusStickPickup(){
+    game.bonusPendingRoll = true;
+
+    if (game.actions > 0){
+      const before = game.actions;
+      game.actions *= 2;
+      game.bonusMovesDoubled = true;
+
+      logEvent("bonus",`BONUS STICK! Actions doubled: ${before} → ${game.actions}.`);
+      setHud(`BONUS! ${before}→${game.actions} (Roll later)`);
+      sfxBonus();
+      updateUI();
+      return;
+    }
+
+    game.bonusMovesDoubled = false;
     game.bonusActive = true;
-    game.bonusExtraRollReady = false;
-    logEvent("bonus","BONUS MODE!");
+
+    logEvent("bonus","BONUS STICK! No Actions left — Bonus roll now!");
+    setHud("BONUS ROLL NOW!");
     sfxBonus();
-    setHud("BONUS MODE!");
-    game.holePulse = 1.0;
+    updateUI();
+
+    doRoll();
+  }
+
+  function promptBonusRollReady(){
+    game.bonusActive = true;
+    game.bonusMovesDoubled = false;
+
+    ui.diceFace.textContent = "—";
+    ui.diceLabel.textContent = "BONUS READY (2–12)";
+    ui.btnRoll.classList.add("flashRoll");
+
+    logEvent("bonus","Bonus roll ready! Press ROLL.");
+    setHud("BONUS ROLL READY!");
+    sfxBonus();
+    updateUI();
   }
 
   function exitBonusIfDone(){
     if (game.actions === 0 && !game.bonusExtraRollReady){
       if (game.bonusActive){
         game.bonusActive = false;
+        ui.btnRoll.classList.remove("flashRoll");
         logEvent("neutral","Bonus ended.");
         setHud("Bonus ended.");
       }
@@ -1665,7 +1900,15 @@
       return false;
     }
     game.actions--;
-    if (game.actions === 0) exitBonusIfDone();
+
+    if (game.actions === 0){
+      if (game.bonusPendingRoll && !game.bonusActive){
+        promptBonusRollReady();
+      } else {
+        exitBonusIfDone();
+      }
+    }
+
     updateUI();
     return true;
   }
@@ -1680,7 +1923,7 @@
     sfxRoll();
     logEvent("monster","Monster Stick! Rolling (0–5)...");
 
-    setTimeout(() => {
+    gameSetTimeout(() => {
       ui.diceBox.classList.remove("rolling");
 
       const roll = randInt(0,5);
@@ -1688,7 +1931,6 @@
       ui.diceLabel.textContent = "Monster Roll (0–5)";
 
       const s = game.sticks[index];
-
       stopMonsterDoom();
 
       if (roll <= 1){
@@ -1697,8 +1939,13 @@
         }
         game.lives = Math.max(0, game.lives - 1);
         spawnSparks(game.playerX, game.playerY, 18, true);
+
+        game.monsterWinStreak = 0;
+
         logEvent("monster","Monster wins! Lost 1 life.");
         setHud("MONSTER WINS! -1 LIFE");
+
+        startDoomMusic(6500);
 
         if (game.lives <= 0){
           ui.monsterEvent.style.display = "none";
@@ -1718,15 +1965,31 @@
         setHud("MONSTER BEATEN! 2× STICK");
         sfxPickup();
 
-        // ✅ 5 seconds of celebratory music (monster defeated)
-        startCelebrationMusic(5000);
+        startCelebrationMusic(6500);
+
+        game.monsterWinStreak++;
+
+        if (game.monsterWinStreak >= 3){
+          game.monsterWinStreak = 0;
+          if (game.lives < 5){
+            game.lives++;
+            logEvent("bonus","3× Monster streak! +1 life.");
+            setHud("+1 LIFE (3× STREAK)");
+            sfxExtraLife();
+            startCelebrationMusic(7500);
+          } else {
+            logEvent("bonus","3× Monster streak (already max lives).");
+            setHud("3× STREAK (MAX LIVES)");
+            startCelebrationMusic(6500);
+          }
+        }
       }
 
       ui.monsterEvent.style.display = "none";
       ui.btnRoll.classList.remove("flashRoll");
       game.inputLocked = false;
       updateUI();
-      setTimeout(updateScrollHint, 30);
+      gameSetTimeout(updateScrollHint, 30);
     }, 260);
   }
 
@@ -1743,9 +2006,7 @@
     if (game.inputLocked) return;
     if (!spendAction()) return;
 
-    // 🌳 Tree: (A) If carrying 0 => MAGIC FULL LOAD, (B) If carrying sticks => feed for life
     if (isTreeTile(game.playerX, game.playerY)){
-      // ✅ Corrected concept: Magic Load ONLY happens here (on the tree) when carrying 0.
       if (game.carry.length === 0){
         const cap = carryCap();
         for (let i=0;i<cap;i++){
@@ -1759,21 +2020,27 @@
         return;
       }
 
-      // feeding the tree (life per stick)
+      // feed tree: consume 1 carried stick
       game.carry.pop();
       if (game.lives < 5){
         game.lives++;
         logEvent("bonus","Fed the tree. +1 life.");
         setHud("+1 LIFE (TREE)");
         sfxExtraLife();
-
-        // ✅ 5 seconds celebratory music on extra life (tree)
-        startCelebrationMusic(5000);
+        startCelebrationMusic(6500);
       } else {
         logEvent("bonus","Fed the tree (max lives).");
         setHud("TREE FED (MAX)");
         sfxPickup();
       }
+
+      // ✅ BUG FIX: if feeding the tree used the *last stick overall*, advance immediately
+      if (game.sticks.length === 0 && game.carry.length === 0){
+        logEvent("level","Cleared the field!");
+        newLevel();
+        return;
+      }
+
       updateUI();
       return;
     }
@@ -1825,17 +2092,20 @@
       if (s.cursed){
         game.pendingMonster = { index: idx };
         game.inputLocked = true;
+
         logEvent("monster","Monster Stick! Press ROLL (0–5) to fight.");
         setHud("MONSTER STICK! PRESS ROLL");
+
         ui.diceFace.textContent = "?";
         ui.diceLabel.textContent = "Monster Roll (0–5)";
         ui.monsterEventText.textContent = "Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.";
         ui.monsterEvent.style.display = "flex";
         ui.btnRoll.classList.add("flashRoll");
+
         sfxMonsterHit();
         playMonsterDoomSting();
         updateUI();
-        setTimeout(updateScrollHint, 30);
+        gameSetTimeout(updateScrollHint, 30);
         return;
       }
 
@@ -1844,7 +2114,9 @@
 
       sfxPickup();
 
-      if (s.bonus) enterBonus();
+      if (s.bonus){
+        onBonusStickPickup();
+      }
 
       const cap = carryCap();
       if (game.carry.length === cap){
@@ -1856,7 +2128,7 @@
       }
 
       updateUI();
-      setTimeout(updateScrollHint, 30);
+      gameSetTimeout(updateScrollHint, 30);
       return;
     }
 
@@ -1874,9 +2146,7 @@
           logEvent("bonus","Secret life tile! +1 life.");
           setHud("+1 LIFE");
           sfxExtraLife();
-
-          // ✅ 5 seconds celebratory music on extra life (secret tile)
-          startCelebrationMusic(5000);
+          startCelebrationMusic(6500);
         } else {
           logEvent("bonus","Life tile found (already at max lives).");
           setHud("Life tile (MAX LIVES)");
@@ -1895,23 +2165,32 @@
       return;
     }
 
-    // ✅ No more "Magic Load on empty tile" — it's TREE-ONLY now.
     sfxError();
     setHud("No stick here.");
   }
 
   function gameOver(){
     commitScoreToLeaderboard();
-    ui.gameOverText.textContent = `GAME OVER — ${player.name} • Score ${game.score} • Level ${game.level}.`;
+
+    const taunts = [
+      "The Stick Monster claps slowly. Loudly. Rudely.",
+      "The sticks whisper: 'Skill issue.'",
+      "The monster does a little dance. It’s disrespectful.",
+      "The hole sighs. The monster cackles."
+    ];
+    const t = taunts[randInt(0, taunts.length-1)];
+
+    ui.gameOverText.textContent = `GAME OVER — ${player.name} • Score ${game.score} • Level ${game.level}.\n\n${t}`;
     ui.gameOverOverlay.style.display = "flex";
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
     stopMonsterDoom();
     game.inputLocked = true;
-  }
-  function closeGameOver(){
-    ui.gameOverOverlay.style.display = "none";
-    game.inputLocked = false;
+
+    logEvent("bad", `Game Over. ${t}`);
+    setHud("GAME OVER");
+
+    startDoomMusic(8500);
   }
 
   function spawnSparks(gx,gy,count=18, evil=false){
@@ -1939,34 +2218,43 @@
     ui.carry.textContent = `${game.carry.length}/${cap}`;
     ui.left.textContent = String(game.sticks.length);
 
-    ui.mode.textContent = game.bonusActive ? (game.bonusExtraRollReady ? "BONUS+" : "BONUS") : "NORMAL";
+    let mode = "NORMAL";
+    if (game.bonusActive) mode = game.bonusExtraRollReady ? "BONUS+" : "BONUS";
+    else if (game.bonusPendingRoll) mode = "BONUS (PENDING)";
+    ui.mode.textContent = mode;
+
     ui.die.textContent = game.bonusActive ? "2–12" : "0–5";
 
     updateRollButtonState();
   }
 
-  /* -------- Save/Load Game -------- */
   function canSaveLoad(){
     if (ui.infoOverlay.style.display === "flex") return false;
     if (ui.nameOverlay.style.display === "flex") return false;
     if (ui.gameOverOverlay.style.display === "flex") return false;
     if (ui.winOverlay.style.display === "flex") return false;
+    if (ui.pauseOverlay.style.display === "flex") return false;
     if (game.pendingMonster) return false;
     return true;
   }
 
   function serializeGame(){
     return {
-      v: 1,
+      v: 2,
       when: Date.now(),
       playerName: player.name,
+      playerSkin: game.playerSkin,
       game: {
         level: game.level,
         lives: game.lives,
         score: game.score,
         actions: game.actions,
+
         bonusActive: game.bonusActive,
         bonusExtraRollReady: game.bonusExtraRollReady,
+        bonusPendingRoll: game.bonusPendingRoll,
+        bonusMovesDoubled: game.bonusMovesDoubled,
+
         playerX: game.playerX,
         playerY: game.playerY,
         carry: game.carry,
@@ -1977,7 +2265,6 @@
         lifeTileY: game.lifeTileY,
         lifeTileUsed: game.lifeTileUsed,
 
-        // 🌳 Tree state (Save/Load preserves timing + blinking)
         treeX: game.treeX,
         treeY: game.treeY,
         treeActive: game.treeActive,
@@ -1985,6 +2272,8 @@
         treePhaseTimer: game.treePhaseTimer,
         treeSpawnDelay: game.treeSpawnDelay,
         treeSpawnedThisLevel: game.treeSpawnedThisLevel,
+
+        monsterWinStreak: game.monsterWinStreak,
 
         hudMsg: "",
         hudTimer: 0,
@@ -1998,14 +2287,18 @@
     if (!obj || !obj.game) return false;
 
     setAndStoreName(obj.playerName || "PLAYER1");
+    setAndStoreSkin(obj.playerSkin || getSavedSkin());
 
     const g = obj.game;
     game.level = clamp(Number(g.level)||1, 1, 9);
     game.lives = clamp(Number(g.lives)||3, 0, 5);
     game.score = Math.max(0, Number(g.score)||0);
     game.actions = Math.max(0, Number(g.actions)||0);
+
     game.bonusActive = !!g.bonusActive;
     game.bonusExtraRollReady = !!g.bonusExtraRollReady;
+    game.bonusPendingRoll = !!g.bonusPendingRoll;
+    game.bonusMovesDoubled = !!g.bonusMovesDoubled;
 
     game.playerX = clamp(Number(g.playerX)||2, 0, GRID_W-1);
     game.playerY = clamp(Number(g.playerY)||2, 0, GRID_H-1);
@@ -2027,15 +2320,19 @@
     game.lifeTileUsed = !!g.lifeTileUsed;
 
     game.treeX = clamp(Number(g.treeX)||-1, -1, GRID_W-1);
-    game.treeY = clamp(Number(g.treeY)||-1, -1, GRID_H-1);
+    game.treeY = clamp(Number(g.treeY)||-1, -1, GRID_W-1);
     game.treeActive = !!g.treeActive;
     game.treePhase = String(g.treePhase || (game.treeActive ? "visible" : "hidden"));
     game.treePhaseTimer = Math.max(0, Number(g.treePhaseTimer)||0);
     game.treeSpawnDelay = Math.max(0, Number(g.treeSpawnDelay)||0);
     game.treeSpawnedThisLevel = !!g.treeSpawnedThisLevel;
 
+    game.monsterWinStreak = Math.max(0, Number(g.monsterWinStreak)||0);
+
     celebrationUntil = 0;
     celebrationStep = 0;
+    doomUntil = 0;
+    doomStep = 0;
 
     game.pendingMonster = null;
     ui.monsterEvent.style.display = "none";
@@ -2060,7 +2357,7 @@
       localStorage.setItem(LS_SAVEGAME, JSON.stringify(serializeGame()));
       logEvent("save","Game saved (this device).");
       setHud("GAME SAVED");
-      chord([262,330,392],0.16,0.05);
+      chord([262,330,392],0.16,0.05,"triangle");
     }catch(_){
       sfxError();
       setHud("Save failed.");
@@ -2086,7 +2383,7 @@
       const ok = applySerialized(obj);
       if (ok){
         logEvent("load","Game loaded.");
-        chord([294,370,440],0.16,0.05);
+        chord([294,370,440],0.16,0.05,"triangle");
       } else {
         sfxError();
         setHud("Load failed.");
@@ -2104,7 +2401,9 @@
 
     ctx.strokeStyle = theme.grid;
     ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.55;
+
+    ctx.globalAlpha = (theme.name === "Ice Stick") ? 0.45 : 0.55;
+
     for (let x=0;x<=GRID_W;x++){
       ctx.beginPath();
       ctx.moveTo(x*TILE + 0.5, 0);
@@ -2150,7 +2449,8 @@
 
     ctx.globalAlpha = 1;
     ctx.lineWidth = 3;
-    ctx.strokeStyle = "#f3f4f6";
+    ctx.strokeStyle = (theme.name === "Ice Stick") ? "#1f2a37" : "#f3f4f6";
+
     ctx.beginPath();
     ctx.arc(cx, cy, 16 + pulse*6, 0, Math.PI*2);
     ctx.stroke();
@@ -2187,7 +2487,6 @@
     ctx.globalAlpha = 1;
   }
 
-  // 🌳 Draw timed tree (visible 15s, blinking 15s)
   function drawTree(theme){
     if (!game.treeActive) return;
 
@@ -2236,6 +2535,11 @@
     ctx.save();
     ctx.translate(x + TILE/2, y + TILE/2);
 
+    if (currentLevelTheme().name === "Ice Stick"){
+      ctx.shadowColor = "rgba(0,0,0,0.25)";
+      ctx.shadowBlur = 6;
+    }
+
     ctx.strokeStyle = s.color;
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
@@ -2283,47 +2587,202 @@
     ctx.save();
     ctx.translate(cx, cy);
 
-    ctx.strokeStyle = "#f3f4f6";
+    const theme = currentLevelTheme();
+    const strokeBase = (theme.name === "Ice Stick") ? "#0b0f14" : "#f3f4f6";
+    ctx.strokeStyle = strokeBase;
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
 
-    ctx.beginPath();
-    ctx.arc(0, -6, 5, 0, Math.PI*2);
-    ctx.stroke();
+    const skin = game.playerSkin || "classic";
 
-    ctx.beginPath();
-    ctx.moveTo(0, -1);
-    ctx.lineTo(0, 9);
-    ctx.stroke();
+    const drawCarryDots = () => {
+      const cap = carryCap();
+      const carried = game.carry.length;
+      const slots = Math.min(6, cap);
+      const startX = -((slots-1)*4)/2;
+      const isFull = carried >= cap;
 
-    ctx.beginPath();
-    ctx.moveTo(-6, 2);
-    ctx.lineTo(6, 2);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(0, 9);
-    ctx.lineTo(-6, 15);
-    ctx.moveTo(0, 9);
-    ctx.lineTo(6, 15);
-    ctx.stroke();
-
-    const cap = carryCap();
-    const carried = game.carry.length;
-    const slots = Math.min(6, cap);
-    const startX = -((slots-1)*4)/2;
-    const isFull = carried >= cap;
-
-    for (let i=0;i<slots;i++){
-      ctx.beginPath();
-      const filled = i < carried;
-      if (isFull){
-        ctx.fillStyle = filled ? "#ff1f3a" : "rgba(255,31,58,0.25)";
-      } else {
-        ctx.fillStyle = filled ? "#ffd166" : "rgba(243,244,246,0.18)";
+      for (let i=0;i<slots;i++){
+        ctx.beginPath();
+        const filled = i < carried;
+        if (isFull){
+          ctx.fillStyle = filled ? "#ff1f3a" : "rgba(255,31,58,0.25)";
+        } else {
+          ctx.fillStyle = filled ? "#ffd166" : "rgba(243,244,246,0.18)";
+        }
+        ctx.arc(startX + i*4, 17, 1.5, 0, Math.PI*2);
+        ctx.fill();
       }
-      ctx.arc(startX + i*4, -16, 1.5, 0, Math.PI*2);
+    };
+
+    if (skin === "alien"){
+      ctx.beginPath();
+      ctx.arc(0, -7, 7, 0, Math.PI*2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-3, -14);
+      ctx.lineTo(-6, -19);
+      ctx.moveTo(3, -14);
+      ctx.lineTo(6, -19);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.fillStyle = "#ffd166";
+      ctx.arc(-6, -20, 1.6, 0, Math.PI*2);
+      ctx.arc(6, -20, 1.6, 0, Math.PI*2);
       ctx.fill();
+      ctx.strokeStyle = strokeBase;
+
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(0, 9);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-7, 3);
+      ctx.lineTo(7, 1);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 9);
+      ctx.lineTo(-6, 15);
+      ctx.moveTo(0, 9);
+      ctx.lineTo(6, 15);
+      ctx.stroke();
+
+      drawCarryDots();
+    }
+    else if (skin === "sally"){
+      ctx.beginPath();
+      ctx.arc(0, -8, 4.5, 0, Math.PI*2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, -3);
+      ctx.lineTo(-7, 9);
+      ctx.lineTo(7, 9);
+      ctx.closePath();
+      ctx.fillStyle = strokeBase;
+      ctx.globalAlpha = 0.16;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = strokeBase;
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-7, 2);
+      ctx.lineTo(-11, 4);
+      ctx.moveTo(7, 2);
+      ctx.lineTo(11, 4);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-3, 9);
+      ctx.lineTo(-6, 13);
+      ctx.moveTo(3, 9);
+      ctx.lineTo(6, 13);
+      ctx.stroke();
+
+      drawCarryDots();
+    }
+    else if (skin === "rick"){
+      ctx.beginPath();
+      ctx.arc(0, -6, 5, 0, Math.PI*2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-4, -11);
+      ctx.lineTo(-2, -14);
+      ctx.moveTo(-1, -11);
+      ctx.lineTo(1, -15);
+      ctx.moveTo(2, -11);
+      ctx.lineTo(4, -14);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.rect(-4, -9, 3, 3);
+      ctx.rect(1, -9, 3, 3);
+      ctx.moveTo(-1, -7.5);
+      ctx.lineTo(1, -7.5);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, -1);
+      ctx.lineTo(0, 9);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-6, 2);
+      ctx.lineTo(6, 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 9);
+      ctx.lineTo(-6, 15);
+      ctx.moveTo(0, 9);
+      ctx.lineTo(6, 15);
+      ctx.stroke();
+
+      drawCarryDots();
+    }
+    else if (skin === "robot"){
+      ctx.beginPath();
+      ctx.rect(-5, -12, 10, 10);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -12);
+      ctx.lineTo(0, -16);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, -17, 1.2, 0, Math.PI*2);
+      ctx.fillStyle = "#ffd166";
+      ctx.fill();
+
+      ctx.strokeStyle = strokeBase;
+
+      ctx.beginPath();
+      ctx.moveTo(0, -2);
+      ctx.lineTo(0, 10);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-7, 2);
+      ctx.lineTo(7, 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 10);
+      ctx.lineTo(-6, 16);
+      ctx.moveTo(0, 10);
+      ctx.lineTo(6, 16);
+      ctx.stroke();
+
+      drawCarryDots();
+    }
+    else {
+      ctx.beginPath();
+      ctx.arc(0, -6, 5, 0, Math.PI*2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, -1);
+      ctx.lineTo(0, 9);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-6, 2);
+      ctx.lineTo(6, 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 9);
+      ctx.lineTo(-6, 15);
+      ctx.moveTo(0, 9);
+      ctx.lineTo(6, 15);
+      ctx.stroke();
+
+      drawCarryDots();
     }
 
     if (game.bonusActive){
@@ -2385,22 +2844,24 @@
   }
 
   function loop(){
-    // 🌳 Tree scheduler tick
-    if (!game.treeSpawnedThisLevel && !game.treeActive){
-      game.treeSpawnDelay = Math.max(0, game.treeSpawnDelay - 1);
-      if (game.treeSpawnDelay === 0){
-        spawnTreeNow();
-      }
-    }
+    const freezeTree = !!game.pendingMonster;
 
-    // 🌳 Tree phase timers
-    if (game.treeActive){
-      game.treePhaseTimer = Math.max(0, game.treePhaseTimer - 1);
-      if (game.treePhaseTimer === 0){
-        if (game.treePhase === "visible"){
-          startTreeBlinking();
-        } else if (game.treePhase === "blinking"){
-          endTree();
+    if (!freezeTree){
+      if (!game.treeSpawnedThisLevel && !game.treeActive){
+        game.treeSpawnDelay = Math.max(0, game.treeSpawnDelay - 1);
+        if (game.treeSpawnDelay === 0){
+          spawnTreeNow();
+        }
+      }
+
+      if (game.treeActive){
+        game.treePhaseTimer = Math.max(0, game.treePhaseTimer - 1);
+        if (game.treePhaseTimer === 0){
+          if (game.treePhase === "visible"){
+            startTreeBlinking();
+          } else if (game.treePhase === "blinking"){
+            endTree();
+          }
         }
       }
     }
@@ -2423,7 +2884,8 @@
     drawPlayer();
     drawSparks();
     drawHUD();
-    requestAnimationFrame(loop);
+
+    rafId = requestAnimationFrame(loop);
   }
 
   function keyHandler(e){
@@ -2431,6 +2893,15 @@
     const inName  = ui.nameOverlay.style.display === "flex";
     const inOver  = ui.gameOverOverlay.style.display === "flex";
     const inWin   = ui.winOverlay.style.display === "flex";
+    const inPause = ui.pauseOverlay.style.display === "flex";
+
+    if (inPause){
+      if (e.key === "Escape" || e.key === "Enter" || e.key === " "){
+        e.preventDefault();
+        resumeGame();
+      }
+      return;
+    }
 
     if (inName){
       if (e.key === "Enter"){ e.preventDefault(); startFromNameInput(); }
@@ -2440,6 +2911,13 @@
         closeNameModal();
         newGame(true);
       }
+      return;
+    }
+
+    // allow esc/p to pause even if not in overlays (true pause)
+    if (!inInfo && !inOver && !inWin && (e.key === "Escape" || e.key.toLowerCase() === "p")){
+      e.preventDefault();
+      togglePause();
       return;
     }
 
@@ -2463,35 +2941,41 @@
     else if (e.key.toLowerCase() === "s"){ e.preventDefault(); saveGame(); }
     else if (e.key.toLowerCase() === "l"){ e.preventDefault(); loadGame(); }
   }
+  document.addEventListener("keydown", keyHandler);
 
   /* ---- Button handlers ---- */
   ui.btnRoll.addEventListener("click", async () => {
     await unlockAudio();
+    if (paused) return;
     if (game.pendingMonster){ resolveMonsterRoll(); return; }
+    if (game.bonusActive) ui.btnRoll.classList.remove("flashRoll");
     doRoll();
   });
 
-  ui.btnUse.addEventListener("click", async () => { await unlockAudio(); pickOrDrop(); });
-  ui.btnNew.addEventListener("click", async () => { await unlockAudio(); showNameModal(); });
+  ui.btnUse.addEventListener("click", async () => { await unlockAudio(); if (paused) return; pickOrDrop(); });
+  ui.btnNew.addEventListener("click", async () => { await unlockAudio(); if (paused) return; showNameModal(); });
 
-  ui.btnClear.addEventListener("click", async () => {
-    await unlockAudio();
-    localStorage.removeItem(LS_LEADERBOARD);
-    renderLeaderboard([]);
-    logEvent("neutral","Stats cleared.");
-    setHud("Stats cleared.");
+  ui.btnPause.addEventListener("click", async () => { await unlockAudio(); togglePause(); });
+  ui.btnPauseClose.addEventListener("click", async () => { await unlockAudio(); resumeGame(); });
+
+  ui.pauseOverlay.addEventListener("click", (e) => {
+    if (e.target === ui.pauseOverlay){
+      resumeGame();
+    }
   });
 
-  ui.btnSave.addEventListener("click", async () => { await unlockAudio(); saveGame(); });
-  ui.btnLoad.addEventListener("click", async () => { await unlockAudio(); loadGame(); });
+  ui.btnSave.addEventListener("click", async () => { await unlockAudio(); if (paused) return; saveGame(); });
+  ui.btnLoad.addEventListener("click", async () => { await unlockAudio(); if (paused) return; loadGame(); });
 
   ui.btnMusic.addEventListener("click", async () => {
     await unlockAudio();
+    if (paused) return;
+
     if (!musicOn){
       musicOn = true;
       ui.btnMusic.textContent = "Music: ON";
       startMusic();
-      chord([262,330,392],0.18,0.05);
+      chord([262,330,392],0.18,0.05,"triangle");
       logEvent("neutral","Music ON.");
     } else {
       musicOn = false;
@@ -2499,76 +2983,84 @@
       stopMusic();
       stopMonsterDoom();
       celebrationUntil = 0;
+      doomUntil = 0;
       beep(196,0.10,"triangle",0.05);
       logEvent("neutral","Music OFF.");
     }
   });
 
-  ui.btnUp.addEventListener("click", async () => { await unlockAudio(); move(0,-1); });
-  ui.btnDown.addEventListener("click", async () => { await unlockAudio(); move(0,1); });
-  ui.btnLeft.addEventListener("click", async () => { await unlockAudio(); move(-1,0); });
-  ui.btnRight.addEventListener("click", async () => { await unlockAudio(); move(1,0); });
+  ui.btnUp.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(0,-1); });
+  ui.btnDown.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(0,1); });
+  ui.btnLeft.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(-1,0); });
+  ui.btnRight.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(1,0); });
 
-  ui.btnInfo.addEventListener("click", async () => { await unlockAudio(); ui.infoOverlay.style.display = "flex"; game.inputLocked = true; });
-  ui.btnInfoClose.addEventListener("click", async () => { await unlockAudio(); ui.infoOverlay.style.display = "none"; game.inputLocked = false; });
-
+  ui.btnInfo.addEventListener("click", async () => {
+    await unlockAudio();
+    if (paused) return;
+    ui.infoOverlay.style.display = "flex";
+  });
+  ui.btnInfoClose.addEventListener("click", () => { ui.infoOverlay.style.display = "none"; });
   ui.infoOverlay.addEventListener("click", (e) => {
-    if (e.target === ui.infoOverlay){
-      ui.infoOverlay.style.display = "none";
-      game.inputLocked = false;
-    }
+    if (e.target === ui.infoOverlay) ui.infoOverlay.style.display = "none";
   });
 
   ui.nameStartBtn.addEventListener("click", async () => { await unlockAudio(); startFromNameInput(); });
-
   ui.nameUseP1Btn.addEventListener("click", async () => {
     await unlockAudio();
     setAndStoreName("PLAYER1");
     closeNameModal();
     newGame(true);
   });
-
-  ui.nameUseSavedBtn?.addEventListener("click", async () => {
+  ui.nameUseSavedBtn.addEventListener("click", async () => {
     await unlockAudio();
-    const saved = getSavedName() || "PLAYER1";
-    setAndStoreName(saved);
+    const saved = getSavedName();
+    setAndStoreName(saved || "PLAYER1");
     closeNameModal();
     newGame(true);
   });
 
+  ui.gameOverOverlay.addEventListener("click", (e) => {
+    if (e.target === ui.gameOverOverlay) ui.gameOverOverlay.style.display = "none";
+  });
+  ui.btnGameOverClose.addEventListener("click", () => {
+    ui.gameOverOverlay.style.display = "none";
+    game.inputLocked = false;
+  });
   ui.btnRestart.addEventListener("click", async () => {
     await unlockAudio();
-    closeGameOver();
-    showNameModal();
+    ui.gameOverOverlay.style.display = "none";
+    game.inputLocked = false;
+    newGame(true);
   });
 
+  ui.winOverlay.addEventListener("click", (e) => {
+    if (e.target === ui.winOverlay) ui.winOverlay.style.display = "none";
+  });
   ui.btnWinRestart.addEventListener("click", async () => {
     await unlockAudio();
-    closeWin();
-    showNameModal();
+    ui.winOverlay.style.display = "none";
+    game.inputLocked = false;
+    newGame(true);
   });
 
-  document.addEventListener("keydown", keyHandler);
-
-  function boot(){
-    renderLeaderboard(loadLeaderboard());
-
-    const saved = getSavedName();
-    if (saved) player.name = saved;
-    ui.player.textContent = player.name;
-
-    resetCoreState();
-    applyThemeForLevel();
+  ui.skin.addEventListener("change", () => {
+    setAndStoreSkin(ui.skin.value);
     updateUI();
-    requestAnimationFrame(loop);
+  });
 
-    showNameModal();
+  /* ---- Boot ---- */
+  renderLeaderboard(loadLeaderboard());
 
-    setTimeout(updateScrollHint, 120);
-  }
-
-  boot();
+  // start loop so canvas is alive, but force name prompt immediately (front end)
+  resetCoreState();
+  applyThemeForLevel();
+  updateUI();
+  startLoop();
+  showNameModal();
+  updateScrollHint();
 })();
 </script>
+
 </body>
 </html>
+
