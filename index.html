@@ -649,7 +649,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.38</span></div>
+          <div>STICKS <span class="badge">v2.39</span></div>
           <div class="titleBtns">
             <button id="btnSave" class="btn-save btn-mini" aria-label="Save Game" title="Save (S)">💾</button>
             <button class="btn-info btn-mini" id="btnInfo" title="Info">Info</button>
@@ -703,13 +703,14 @@
 
         <div style="margin:8px 0;"><span class="badge">Stick Monster</span>:
           some sticks are cursed. When you try to pick one up, a Stick Monster appears.
-          Press <b>ROLL</b>: roll <b>2–5</b> to keep a powered-up stick, roll <b>0–1</b> and you lose 1 life (streak resets).
+          Press <b>ROLL</b>: roll <b>2–5</b> to keep a powered-up stick, roll <b>0–1</b> and you lose 1 life.
           <div style="margin-top:6px;color:#9fb1c6;">
             <b>Streak Bonus:</b>
             <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
               <li>Each monster win in a row builds a <b>Monster streak</b>.</li>
-              <li>On your <b>3rd win in a row</b> you gain <b>+1 life</b> (max 5).</li>
-              <li>From that 3rd win onward, each new monster win makes that stick worth more: <b>2× → 3× → 4× → 5×...</b> until you lose.</li>
+              <li>The streak persists across levels and only resets when you <b>lose</b> a monster fight (roll 0–1).</li>
+              <li>On your <b>3rd consecutive win</b> you gain <b>+1 life</b> (max 5).</li>
+              <li>Monster sticks are normally <b>2×</b>. Starting on your <b>4th consecutive win</b>, they scale up: <b>3× → 4× → 5× → ...</b> until you lose.</li>
             </ul>
           </div>
         </div>
@@ -818,18 +819,6 @@
 
   const TILE = 24, GRID_W = 24, GRID_H = 24;
   const CANVAS_W = GRID_W * TILE, CANVAS_H = GRID_H * TILE;
-
-  const ZERO_CHANCE_L1  = 0.00;
-  const ZERO_CHANCE_INC = 0.015;
-  const ZERO_CHANCE_CAP = 0.18;
-
-  const CURSE_CHANCE_L1  = 0.08;
-  const CURSE_CHANCE_INC = 0.015;
-  const CURSE_CHANCE_CAP = 0.16;
-
-  const BONUS_CHANCE_L1  = 0.10;
-  const BONUS_CHANCE_INC = 0.01;
-  const BONUS_CHANCE_CAP = 0.22;
 
   const LOG_MAX_LINES = 12;
 
@@ -1547,7 +1536,7 @@
   function scheduleTreeForLevel(){
     clearTree();
     game.treeSpawnedThisLevel = false;
-    game.treeSpawnDelay = 60 * randInt(60, 300);
+    game.treeSpawnDelay = 60 * randInt(60, 300); // 1–5 minutes
   }
 
   function spawnTreeNow(){
@@ -1577,7 +1566,6 @@
   }
 
   function showNameModal(){
-    // front-end start: name required
     game.inputLocked = true;
     ui.nameOverlay.style.display = "flex";
     ui.nameInput.value = "";
@@ -1642,7 +1630,7 @@
     doomStep = 0;
 
     game.pendingMonster = null;
-    game.monsterWinStreak = 0;
+    game.monsterWinStreak = 0; // ✅ only reset on NEW GAME
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
     stopMonsterDoom();
@@ -1710,7 +1698,7 @@
     doomStep = 0;
 
     game.pendingMonster = null;
-    game.monsterWinStreak = 0;
+    // ✅ IMPORTANT: DO NOT reset monsterWinStreak on new level (streak persists across levels)
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
     stopMonsterDoom();
@@ -1913,6 +1901,14 @@
     return true;
   }
 
+  // ✅ Monster value scaling helper:
+  // streak 1–3 => 2×
+  // streak 4 => 3×, 5 => 4×, 6 => 5×...
+  function monsterStickValueForStreak(streak){
+    if (streak <= 3) return 2;
+    return Math.min(12, (streak - 1));
+  }
+
   function resolveMonsterRoll(){
     const pending = game.pendingMonster;
     if (!pending) return;
@@ -1942,7 +1938,7 @@
 
         game.monsterWinStreak = 0;
 
-        logEvent("monster","Monster wins! Lost 1 life.");
+        logEvent("monster","Monster wins! Lost 1 life. (Streak reset)");
         setHud("MONSTER WINS! -1 LIFE");
 
         startDoomMusic(6500);
@@ -1957,20 +1953,23 @@
           return;
         }
       } else {
+        // ✅ WIN: streak increments and persists across levels
+        game.monsterWinStreak++;
+        const streak = game.monsterWinStreak;
+        const mult = monsterStickValueForStreak(streak);
+
         if (s){
           game.sticks.splice(index,1);
-          game.carry.push({ color: s.color, value: 2, fromMonster:true });
+          game.carry.push({ color: s.color, value: mult, fromMonster:true, streakAtWin: streak });
         }
-        logEvent("bonus","You beat the monster! Stick is worth 2×.");
-        setHud("MONSTER BEATEN! 2× STICK");
-        sfxPickup();
 
+        logEvent("bonus",`You beat the monster! Stick is worth ${mult}×. (Streak ${streak})`);
+        setHud(`MONSTER BEATEN! ${mult}× STICK`);
+        sfxPickup();
         startCelebrationMusic(6500);
 
-        game.monsterWinStreak++;
-
-        if (game.monsterWinStreak >= 3){
-          game.monsterWinStreak = 0;
+        // ✅ +1 life exactly at streak 3 (do NOT reset streak)
+        if (streak === 3){
           if (game.lives < 5){
             game.lives++;
             logEvent("bonus","3× Monster streak! +1 life.");
@@ -2098,7 +2097,8 @@
 
         ui.diceFace.textContent = "?";
         ui.diceLabel.textContent = "Monster Roll (0–5)";
-        ui.monsterEventText.textContent = "Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a 2× stick. Roll 0–1 and you lose 1 life.";
+        ui.monsterEventText.textContent =
+          `Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a powered stick. Roll 0–1 and you lose 1 life. (Win streak carries across levels; resets only on a loss.)`;
         ui.monsterEvent.style.display = "flex";
         ui.btnRoll.classList.add("flashRoll");
 
@@ -2316,7 +2316,7 @@
     game.holeY = clamp(Number(g.holeY)||12, 0, GRID_H-1);
 
     game.lifeTileX = clamp(Number(g.lifeTileX)||-1, -1, GRID_W-1);
-    game.lifeTileY = clamp(Number(g.lifeTileY)||-1, -1, GRID_H-1);
+    game.lifeTileY = clamp(Number(g.lifeTileY)||-1, -1, GRID_W-1);
     game.lifeTileUsed = !!g.lifeTileUsed;
 
     game.treeX = clamp(Number(g.treeX)||-1, -1, GRID_W-1);
@@ -2615,6 +2615,31 @@
       }
     };
 
+    const drawClassicBody = () => {
+      ctx.beginPath();
+      ctx.arc(0, -6, 5, 0, Math.PI*2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, -1);
+      ctx.lineTo(0, 9);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-6, 2);
+      ctx.lineTo(6, 2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(0, 9);
+      ctx.lineTo(-6, 15);
+      ctx.moveTo(0, 9);
+      ctx.lineTo(6, 15);
+      ctx.stroke();
+
+      drawCarryDots();
+    };
+
     if (skin === "alien"){
       ctx.beginPath();
       ctx.arc(0, -7, 7, 0, Math.PI*2);
@@ -2761,28 +2786,7 @@
       drawCarryDots();
     }
     else {
-      ctx.beginPath();
-      ctx.arc(0, -6, 5, 0, Math.PI*2);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(0, -1);
-      ctx.lineTo(0, 9);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(-6, 2);
-      ctx.lineTo(6, 2);
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.moveTo(0, 9);
-      ctx.lineTo(-6, 15);
-      ctx.moveTo(0, 9);
-      ctx.lineTo(6, 15);
-      ctx.stroke();
-
-      drawCarryDots();
+      drawClassicBody();
     }
 
     if (game.bonusActive){
@@ -2914,7 +2918,6 @@
       return;
     }
 
-    // allow esc/p to pause even if not in overlays (true pause)
     if (!inInfo && !inOver && !inWin && (e.key === "Escape" || e.key.toLowerCase() === "p")){
       e.preventDefault();
       togglePause();
@@ -2997,20 +3000,23 @@
   ui.btnInfo.addEventListener("click", async () => {
     await unlockAudio();
     if (paused) return;
+    if (game.pendingMonster) { sfxError(); setHud("Finish monster fight first!"); return; }
     ui.infoOverlay.style.display = "flex";
+    game.inputLocked = true;
   });
-  ui.btnInfoClose.addEventListener("click", () => { ui.infoOverlay.style.display = "none"; });
+  ui.btnInfoClose.addEventListener("click", async () => {
+    await unlockAudio();
+    ui.infoOverlay.style.display = "none";
+    game.inputLocked = false;
+  });
   ui.infoOverlay.addEventListener("click", (e) => {
-    if (e.target === ui.infoOverlay) ui.infoOverlay.style.display = "none";
+    if (e.target === ui.infoOverlay){
+      ui.infoOverlay.style.display = "none";
+      game.inputLocked = false;
+    }
   });
 
   ui.nameStartBtn.addEventListener("click", async () => { await unlockAudio(); startFromNameInput(); });
-  ui.nameUseP1Btn.addEventListener("click", async () => {
-    await unlockAudio();
-    setAndStoreName("PLAYER1");
-    closeNameModal();
-    newGame(true);
-  });
   ui.nameUseSavedBtn.addEventListener("click", async () => {
     await unlockAudio();
     const saved = getSavedName();
@@ -3018,49 +3024,51 @@
     closeNameModal();
     newGame(true);
   });
+  ui.nameUseP1Btn.addEventListener("click", async () => {
+    await unlockAudio();
+    setAndStoreName("PLAYER1");
+    closeNameModal();
+    newGame(true);
+  });
 
   ui.gameOverOverlay.addEventListener("click", (e) => {
-    if (e.target === ui.gameOverOverlay) ui.gameOverOverlay.style.display = "none";
+    if (e.target === ui.gameOverOverlay){
+      ui.gameOverOverlay.style.display = "none";
+      game.inputLocked = false;
+    }
   });
-  ui.btnGameOverClose.addEventListener("click", () => {
+  ui.btnGameOverClose.addEventListener("click", async () => {
+    await unlockAudio();
     ui.gameOverOverlay.style.display = "none";
     game.inputLocked = false;
   });
   ui.btnRestart.addEventListener("click", async () => {
     await unlockAudio();
     ui.gameOverOverlay.style.display = "none";
-    game.inputLocked = false;
-    newGame(true);
+    showNameModal();
   });
 
-  ui.winOverlay.addEventListener("click", (e) => {
-    if (e.target === ui.winOverlay) ui.winOverlay.style.display = "none";
-  });
   ui.btnWinRestart.addEventListener("click", async () => {
     await unlockAudio();
     ui.winOverlay.style.display = "none";
-    game.inputLocked = false;
-    newGame(true);
+    showNameModal();
   });
 
   ui.skin.addEventListener("change", () => {
     setAndStoreSkin(ui.skin.value);
-    updateUI();
   });
 
-  /* ---- Boot ---- */
+  /* ---- Init ---- */
   renderLeaderboard(loadLeaderboard());
+  setAndStoreSkin(getSavedSkin());
 
-  // start loop so canvas is alive, but force name prompt immediately (front end)
+  // Show a "ready" board and ask for name immediately.
   resetCoreState();
   applyThemeForLevel();
   updateUI();
   startLoop();
   showNameModal();
-  updateScrollHint();
 })();
 </script>
-
 </body>
 </html>
-
