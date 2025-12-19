@@ -376,6 +376,7 @@
       display:flex;
       flex-direction:column;
       overflow:hidden;
+      position:relative;
     }
     .modalTitle{ font-weight:1000; letter-spacing:.8px; font-size:18px; }
     .modalText{
@@ -386,6 +387,7 @@
       overflow:auto;
       -webkit-overflow-scrolling: touch;
       padding-right: 6px;
+      white-space: pre-wrap;
     }
     .modalActions{
       display:flex;
@@ -406,6 +408,69 @@
       color:#e6edf3;
       font-weight:1000;
       box-shadow:none;
+    }
+
+    /* ✅ Win/Lose presentation */
+    .endBanner{
+      margin-top:10px;
+      border-radius:14px;
+      border:1px solid #2b3a4c;
+      background: linear-gradient(180deg,#0b1220,#070c16);
+      padding:12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      overflow:hidden;
+      position:relative;
+    }
+    .endBanner .bigIcon{
+      font-size:34px;
+      filter: drop-shadow(0 0 10px rgba(255,255,255,0.12));
+      animation: pop 0.9s ease-in-out infinite alternate;
+      user-select:none;
+    }
+    @keyframes pop { from{ transform: translateY(0) scale(1); } to{ transform: translateY(-2px) scale(1.04); } }
+
+    .endBanner .endHeadline{
+      font-weight:1000;
+      letter-spacing:.8px;
+      text-transform:uppercase;
+      font-size:14px;
+    }
+    .endBanner .endSub{
+      color:#9fb1c6;
+      font-size:12px;
+      margin-top:4px;
+      line-height:1.25;
+    }
+
+    .fx{
+      position:absolute;
+      inset:0;
+      pointer-events:none;
+      overflow:hidden;
+    }
+    .fx span{
+      position:absolute;
+      font-size:14px;
+      opacity:0.9;
+      animation: drift 1.6s linear forwards;
+      filter: drop-shadow(0 0 10px rgba(255,255,255,0.10));
+      user-select:none;
+    }
+    @keyframes drift{
+      from{ transform: translateY(0) rotate(0deg); opacity:0.95; }
+      to{ transform: translateY(140px) rotate(180deg); opacity:0; }
+    }
+
+    .winBanner{
+      border-color: rgba(194,123,255,0.65);
+      background: radial-gradient(340px 140px at 35% 25%, rgba(194,123,255,0.22) 0%, rgba(7,12,22,1) 65%);
+    }
+    .loseBanner{
+      border-color: rgba(255,90,106,0.7);
+      background: radial-gradient(340px 140px at 35% 25%, rgba(255,31,58,0.20) 0%, rgba(7,12,22,1) 65%);
     }
 
     #nameOverlay input{
@@ -649,7 +714,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.39</span></div>
+          <div>STICKS <span class="badge">v2.40</span></div>
           <div class="titleBtns">
             <button id="btnSave" class="btn-save btn-mini" aria-label="Save Game" title="Save (S)">💾</button>
             <button class="btn-info btn-mini" id="btnInfo" title="Info">Info</button>
@@ -689,6 +754,7 @@
           each level hides <b>one secret tile</b>.
           The tile only hints/pulses when you are <b>standing on it</b> while <b>carrying a stick</b>.
           If you <b>drop</b> a stick on that square, you gain <b>+1 life</b> (the stick is used up).
+          <b>If you are already at max lives</b>, you get <b>bonus points</b> instead.
         </div>
 
         <div style="margin:8px 0;"><span class="badge">Tree (Life + Magic Load)</span>:
@@ -696,8 +762,9 @@
           <b>(Tree timer freezes during Stick Monster battles.)</b>
           While standing on it:
           <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li><b>If carrying sticks:</b> press <b>Pick/Drop</b> to feed <b>1 stick</b> for <b>+1 life</b> (1 stick = 1 life).</li>
+            <li><b>If carrying sticks:</b> press <b>Pick/Drop</b> to feed <b>1 stick</b> for <b>+1 life</b>. <b>If already max lives</b>, that stick becomes <b>bonus points</b>.</li>
             <li><b>If carrying 0 sticks:</b> press <b>Pick/Drop</b> to instantly get a <b>full load</b> (fills to your carry limit for that level).</li>
+            <li><b>Tree balance:</b> after you successfully <b>gain a life</b> from the tree, it <b>disappears</b>. If there are <b>no sticks left on the ground</b> and you use the tree to get a <b>full load</b>, it also <b>disappears</b>.</li>
           </ul>
         </div>
 
@@ -761,6 +828,16 @@
   <div id="gameOverOverlay">
     <div class="modalBox" role="dialog" aria-modal="true">
       <div class="modalTitle">GAME OVER</div>
+
+      <div class="endBanner loseBanner">
+        <div>
+          <div class="endHeadline">The sticks won this round</div>
+          <div class="endSub">No shame. Just… stick disrespect.</div>
+        </div>
+        <div class="bigIcon">💀</div>
+        <div class="fx" id="loseFx"></div>
+      </div>
+
       <div class="modalText" id="gameOverText">The sticks won this time.</div>
       <div class="modalActions">
         <button class="modalClose" id="btnGameOverClose">Close</button>
@@ -772,6 +849,16 @@
   <div id="winOverlay">
     <div class="modalBox" role="dialog" aria-modal="true">
       <div class="modalTitle">YOU WIN</div>
+
+      <div class="endBanner winBanner">
+        <div>
+          <div class="endHeadline">Victory Stick cleared</div>
+          <div class="endSub">Fanfare engaged. Ego permitted.</div>
+        </div>
+        <div class="bigIcon">🏆</div>
+        <div class="fx" id="winFx"></div>
+      </div>
+
       <div class="modalText" id="winText">You cleared the sticks. The hole is satisfied (for now).</div>
       <div class="modalActions">
         <button class="modalClose" id="btnWinRestart">Play Again</button>
@@ -806,9 +893,15 @@
     { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
     { name:"Leaf Stick",    bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
     { name:"Spell Stick",   bg:"#0c0418", grid:"#1a0b33", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.46)", accentShadow:"rgba(194,123,255,.30)" },
-    { name:"Ice Stick",     bg:"#f7fbff", grid:"#cfe8ff", border:"#ffffff", accent:"#ffffff", accentGlow:"rgba(255,255,255,.62)", accentShadow:"rgba(120,170,210,.22)" },
-    { name:"Glow Stick",    bg:"#09060f", grid:"#1a1026", border:"#ff7a18", accent:"#ffd166", accentGlow:"rgba(255,122,24,.40)", accentShadow:"rgba(255,209,102,.24)" },
-    { name:"Victory Stick", bg:"#0b0f14", grid:"#161f2b", border:"#f3f4f6", accent:"#ffffff", accentGlow:"rgba(255,255,255,.45)", accentShadow:"rgba(255,255,255,.22)" }
+
+    /* ✅ ICE: neon baby-blue outline + grid, still white-ish background */
+    { name:"Ice Stick",     bg:"#f7fbff", grid:"#8be9fd", border:"#7dd3fc", accent:"#ffffff", accentGlow:"rgba(125,211,252,.52)", accentShadow:"rgba(125,211,252,.28)" },
+
+    /* ✅ GLOW: neon-ish orange grid to match outline (Sun Stick vibe, but orange) */
+    { name:"Glow Stick",    bg:"#09060f", grid:"#ff7a18", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.46)", accentShadow:"rgba(255,122,24,.28)" },
+
+    /* ✅ VICTORY: neon purple grid like Music button */
+    { name:"Victory Stick", bg:"#070315", grid:"#c27bff", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.55)", accentShadow:"rgba(194,123,255,.30)" }
   ];
 
   const STICK_COLORS = [
@@ -821,6 +914,11 @@
   const CANVAS_W = GRID_W * TILE, CANVAS_H = GRID_H * TILE;
 
   const LOG_MAX_LINES = 12;
+
+  /* ---- Max life bonus points (when a life reward is blocked) ---- */
+  const MAX_LIVES = 5;
+  const LIFE_TILE_MAX_POINTS = 12;   // when you "pay" a stick on secret tile but are already max lives
+  const TREE_FEED_MAX_POINTS = 8;    // when you "pay" a stick to tree but are already max lives
 
   /* ---- Music ---- */
   const MUSIC_STEP_MS = 245;
@@ -873,23 +971,30 @@
   ];
 
   const MUSIC_CELEB = [
-    { chord:[523,659,784], bass:131, dur:0.18, gain:0.050 },
-    { lead:784, bass:131, dur:0.14, gain:0.048 },
-    { lead:988, bass:131, dur:0.14, gain:0.048 },
-    { chord:[659,784,988], bass:147, dur:0.18, gain:0.050 },
-    { lead:1175, bass:147, dur:0.14, gain:0.048 },
-    { lead:988, bass:147, dur:0.14, gain:0.046 },
-    { chord:[587,740,880], bass:110, dur:0.18, gain:0.048 },
-    { lead:880, bass:110, dur:0.14, gain:0.046 },
+    { chord:[523,659,784], bass:131, dur:0.18, gain:0.052 },
+    { lead:784, bass:131, dur:0.14, gain:0.050 },
+    { lead:988, bass:131, dur:0.14, gain:0.050 },
+    { chord:[659,784,988], bass:147, dur:0.18, gain:0.052 },
+    { lead:1175, bass:147, dur:0.14, gain:0.050 },
+    { lead:988, bass:147, dur:0.14, gain:0.048 },
+    { chord:[587,740,880], bass:110, dur:0.18, gain:0.050 },
+    { lead:880, bass:110, dur:0.14, gain:0.048 },
+    { lead:988, bass:110, dur:0.14, gain:0.048 },
+    { chord:[659,784,988], bass:131, dur:0.18, gain:0.052 },
     { lead:0 }
   ];
 
+  /* ✅ Doom: pac-man-ish "death" vibe (original notes, just that classic falling feel) */
   const MUSIC_DOOM = [
-    { chord:[65,78,98], bass:49,  dur:0.22, gain:0.070, type:"sawtooth" },
-    { lead:55,  bass:41, dur:0.18, gain:0.070, type:"sawtooth" },
-    { chord:[73,87,110], bass:55, dur:0.22, gain:0.072, type:"sawtooth" },
-    { lead:49,  bass:37, dur:0.18, gain:0.072, type:"sawtooth" },
-    { chord:[62,74,93],  bass:46, dur:0.22, gain:0.070, type:"sawtooth" },
+    { lead:988, dur:0.14, gain:0.080, type:"square" },
+    { lead:932, dur:0.14, gain:0.080, type:"square" },
+    { lead:880, dur:0.14, gain:0.080, type:"square" },
+    { lead:784, dur:0.16, gain:0.082, type:"square" },
+    { lead:698, dur:0.18, gain:0.082, type:"square" },
+    { lead:622, dur:0.20, gain:0.082, type:"square" },
+    { lead:554, dur:0.22, gain:0.082, type:"square" },
+    { lead:466, dur:0.24, gain:0.082, type:"square" },
+    { lead:392, dur:0.28, gain:0.082, type:"square" },
     { lead:0 }
   ];
 
@@ -995,6 +1100,9 @@
 
     monsterEvent: document.getElementById("monsterEvent"),
     monsterEventText: document.getElementById("monsterEventText"),
+
+    winFx: document.getElementById("winFx"),
+    loseFx: document.getElementById("loseFx"),
   };
 
   const LOG_STYLE = {
@@ -1237,10 +1345,16 @@
     rafId = requestAnimationFrame(loop);
   }
 
+  function stopMonsterDoom(){
+    if (monsterDoomStingTimer){
+      clearTimeout(monsterDoomStingTimer);
+      monsterDoomStingTimer = null;
+    }
+  }
+
   function pauseGame(){
     if (paused) return;
 
-    // don't pause during name entry (already blocked on purpose)
     if (ui.nameOverlay.style.display === "flex") return;
 
     paused = true;
@@ -1296,12 +1410,7 @@
 
   /* ---- Stick Monster: doom sting (battle intro) ---- */
   let monsterDoomStingTimer = null;
-  function stopMonsterDoom(){
-    if (monsterDoomStingTimer){
-      clearTimeout(monsterDoomStingTimer);
-      monsterDoomStingTimer = null;
-    }
-  }
+
   function playMonsterDoomSting(){
     if (!musicOn) return;
     ensureAudio();
@@ -1322,6 +1431,21 @@
       if (i >= seq.length) return;
       seq[i++]();
       monsterDoomStingTimer = gameSetTimeout(step, 480);
+    };
+    step();
+  }
+
+  /* ✅ pac-man-ish death sting for monster WIN */
+  function playPacmanDeathSting(){
+    if (!musicOn) return;
+    ensureAudio();
+    const notes = [988, 932, 880, 784, 698, 622, 554, 466, 392];
+    let i = 0;
+    const step = () => {
+      if (!musicOn) return;
+      if (i >= notes.length) return;
+      beep(notes[i++], 0.11 + i*0.01, "square", 0.095);
+      gameSetTimeout(step, 90);
     };
     step();
   }
@@ -1630,7 +1754,7 @@
     doomStep = 0;
 
     game.pendingMonster = null;
-    game.monsterWinStreak = 0; // ✅ only reset on NEW GAME
+    game.monsterWinStreak = 0;
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
     stopMonsterDoom();
@@ -1653,9 +1777,28 @@
     upsertLeaderboardEntry(player.name, game.score, game.level);
   }
 
+  /* ✅ overlay FX */
+  function burstFx(el, emoji, count=26){
+    if (!el) return;
+    el.innerHTML = "";
+    const w = el.clientWidth || 680;
+    for (let i=0;i<count;i++){
+      const s = document.createElement("span");
+      s.textContent = emoji;
+      s.style.left = randInt(0, w) + "px";
+      s.style.top  = randInt(-20, 30) + "px";
+      s.style.animationDuration = (1.2 + Math.random()*0.9) + "s";
+      s.style.transform = `translateY(0) rotate(${randInt(0,180)}deg)`;
+      el.appendChild(s);
+    }
+  }
+
   function winGame(){
     commitScoreToLeaderboard();
-    ui.winText.textContent = `YOU WIN — ${player.name} • Score ${game.score}. The sticks have been humbled.`;
+
+    burstFx(ui.winFx, "✨", 34);
+
+    ui.winText.textContent = `YOU WIN — ${player.name}\nScore: ${game.score}\n\nThe sticks have been humbled. The hole is satisfied (for now).`;
     ui.winOverlay.style.display = "flex";
     game.inputLocked = true;
 
@@ -1666,8 +1809,12 @@
     setHud("VICTORY STICK!");
     logEvent("win","Victory Stick cleared. You win.");
 
+    // extra fanfare sparks
+    spawnSparks(game.holeX, game.holeY, 46, false);
+    spawnSparks(game.playerX, game.playerY, 22, false);
+
     sfxWin();
-    startCelebrationMusic(7500);
+    startCelebrationMusic(8500);
   }
 
   function newLevel(){
@@ -1698,7 +1845,6 @@
     doomStep = 0;
 
     game.pendingMonster = null;
-    // ✅ IMPORTANT: DO NOT reset monsterWinStreak on new level (streak persists across levels)
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
     stopMonsterDoom();
@@ -1901,9 +2047,6 @@
     return true;
   }
 
-  // ✅ Monster value scaling helper:
-  // streak 1–3 => 2×
-  // streak 4 => 3×, 5 => 4×, 6 => 5×...
   function monsterStickValueForStreak(streak){
     if (streak <= 3) return 2;
     return Math.min(12, (streak - 1));
@@ -1941,7 +2084,8 @@
         logEvent("monster","Monster wins! Lost 1 life. (Streak reset)");
         setHud("MONSTER WINS! -1 LIFE");
 
-        startDoomMusic(6500);
+        // ✅ new vibe: pac-man-ish death sting (instead of old doom)
+        playPacmanDeathSting();
 
         if (game.lives <= 0){
           ui.monsterEvent.style.display = "none";
@@ -1953,7 +2097,6 @@
           return;
         }
       } else {
-        // ✅ WIN: streak increments and persists across levels
         game.monsterWinStreak++;
         const streak = game.monsterWinStreak;
         const mult = monsterStickValueForStreak(streak);
@@ -1968,9 +2111,8 @@
         sfxPickup();
         startCelebrationMusic(6500);
 
-        // ✅ +1 life exactly at streak 3 (do NOT reset streak)
         if (streak === 3){
-          if (game.lives < 5){
+          if (game.lives < MAX_LIVES){
             game.lives++;
             logEvent("bonus","3× Monster streak! +1 life.");
             setHud("+1 LIFE (3× STREAK)");
@@ -2006,6 +2148,7 @@
     if (!spendAction()) return;
 
     if (isTreeTile(game.playerX, game.playerY)){
+      // ✅ Tree magic load (only disappears if NO ground sticks)
       if (game.carry.length === 0){
         const cap = carryCap();
         for (let i=0;i<cap;i++){
@@ -2015,25 +2158,38 @@
         logEvent("bonus",`Tree magic! Instantly filled to ${cap}.`);
         setHud(`TREE LOAD (${cap})`);
         sfxPickup();
+
+        // ✅ NEW: if there are NO sticks left on the ground, tree goes away after giving full load
+        if (game.sticks.length === 0){
+          endTree();
+        }
+
         updateUI();
         return;
       }
 
-      // feed tree: consume 1 carried stick
+      // ✅ feed tree: consume 1 carried stick
       game.carry.pop();
-      if (game.lives < 5){
+
+      if (game.lives < MAX_LIVES){
         game.lives++;
         logEvent("bonus","Fed the tree. +1 life.");
         setHud("+1 LIFE (TREE)");
         sfxExtraLife();
         startCelebrationMusic(6500);
       } else {
-        logEvent("bonus","Fed the tree (max lives).");
-        setHud("TREE FED (MAX)");
+        // ✅ NEW: max lives => bonus points since the life is blocked
+        game.score += TREE_FEED_MAX_POINTS;
+        logEvent("bonus",`Fed the tree (max lives). +${TREE_FEED_MAX_POINTS} points.`);
+        setHud(`TREE FED (+${TREE_FEED_MAX_POINTS})`);
         sfxPickup();
+        commitScoreToLeaderboard();
       }
 
-      // ✅ BUG FIX: if feeding the tree used the *last stick overall*, advance immediately
+      // ✅ NEW: Tree disappears after you successfully feed it for a life (or points).
+      endTree();
+
+      // ✅ If feeding the tree used the *last stick overall*, advance immediately
       if (game.sticks.length === 0 && game.carry.length === 0){
         logEvent("level","Cleared the field!");
         newLevel();
@@ -2141,17 +2297,22 @@
         game.carry.pop();
         game.lifeTileUsed = true;
 
-        if (game.lives < 5){
+        if (game.lives < MAX_LIVES){
           game.lives++;
           logEvent("bonus","Secret life tile! +1 life.");
           setHud("+1 LIFE");
           sfxExtraLife();
           startCelebrationMusic(6500);
         } else {
-          logEvent("bonus","Life tile found (already at max lives).");
-          setHud("Life tile (MAX LIVES)");
+          // ✅ NEW: max lives => bonus points
+          game.score += LIFE_TILE_MAX_POINTS;
+          logEvent("bonus",`Life tile found (max lives). +${LIFE_TILE_MAX_POINTS} points.`);
+          setHud(`LIFE TILE (+${LIFE_TILE_MAX_POINTS})`);
           sfxPickup();
+          commitScoreToLeaderboard();
         }
+
+        spawnSparks(game.playerX, game.playerY, 18, false);
         updateUI();
         return;
       }
@@ -2172,6 +2333,8 @@
   function gameOver(){
     commitScoreToLeaderboard();
 
+    burstFx(ui.loseFx, "🪵", 30);
+
     const taunts = [
       "The Stick Monster claps slowly. Loudly. Rudely.",
       "The sticks whisper: 'Skill issue.'",
@@ -2180,7 +2343,7 @@
     ];
     const t = taunts[randInt(0, taunts.length-1)];
 
-    ui.gameOverText.textContent = `GAME OVER — ${player.name} • Score ${game.score} • Level ${game.level}.\n\n${t}`;
+    ui.gameOverText.textContent = `GAME OVER — ${player.name}\nScore: ${game.score} • Level: ${game.level}\n\n${t}`;
     ui.gameOverOverlay.style.display = "flex";
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
@@ -2190,6 +2353,11 @@
     logEvent("bad", `Game Over. ${t}`);
     setHud("GAME OVER");
 
+    // ✅ extra visual punch
+    spawnSparks(game.playerX, game.playerY, 26, true);
+    spawnSparks(game.holeX, game.holeY, 16, true);
+
+    // keep doom bed for game over (now pac-man-ish)
     startDoomMusic(8500);
   }
 
@@ -2291,7 +2459,7 @@
 
     const g = obj.game;
     game.level = clamp(Number(g.level)||1, 1, 9);
-    game.lives = clamp(Number(g.lives)||3, 0, 5);
+    game.lives = clamp(Number(g.lives)||3, 0, MAX_LIVES);
     game.score = Math.max(0, Number(g.score)||0);
     game.actions = Math.max(0, Number(g.actions)||0);
 
@@ -2399,11 +2567,39 @@
     ctx.fillStyle = theme.bg;
     ctx.fillRect(0,0,CANVAS_W,CANVAS_H);
 
+    // base grid stroke
     ctx.strokeStyle = theme.grid;
     ctx.lineWidth = 1;
 
-    ctx.globalAlpha = (theme.name === "Ice Stick") ? 0.45 : 0.55;
+    // opacity tuning
+    if (theme.name === "Ice Stick") ctx.globalAlpha = 0.58;
+    else if (theme.name === "Glow Stick" || theme.name === "Victory Stick") ctx.globalAlpha = 0.62;
+    else ctx.globalAlpha = 0.55;
 
+    // ✅ neon glow pass for Glow/Victory/Ice
+    const wantsNeon = (theme.name === "Glow Stick" || theme.name === "Victory Stick" || theme.name === "Ice Stick");
+    if (wantsNeon){
+      ctx.save();
+      ctx.shadowColor = theme.grid;
+      ctx.shadowBlur = (theme.name === "Ice Stick") ? 6 : 10;
+      ctx.globalAlpha = (theme.name === "Ice Stick") ? 0.16 : 0.18;
+      ctx.lineWidth = 2;
+      for (let x=0;x<=GRID_W;x++){
+        ctx.beginPath();
+        ctx.moveTo(x*TILE + 0.5, 0);
+        ctx.lineTo(x*TILE + 0.5, CANVAS_H);
+        ctx.stroke();
+      }
+      for (let y=0;y<=GRID_H;y++){
+        ctx.beginPath();
+        ctx.moveTo(0, y*TILE + 0.5);
+        ctx.lineTo(CANVAS_W, y*TILE + 0.5);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // crisp pass
     for (let x=0;x<=GRID_W;x++){
       ctx.beginPath();
       ctx.moveTo(x*TILE + 0.5, 0);
@@ -2870,13 +3066,14 @@
       }
     }
 
+    // ✅ Victory level pulse now purple (not white)
     if (game.level === 9){
       const t = (performance.now()||Date.now())/1000;
       const pulse = (Math.sin(t*2.2)+1)/2;
-      const border = `rgba(243,244,246,${0.75 + pulse*0.25})`;
+      const border = `rgba(122,53,255,${0.70 + pulse*0.30})`;
       document.documentElement.style.setProperty("--lvlBorder", border);
-      document.documentElement.style.setProperty("--lvlAccentGlow", `rgba(255,255,255,${0.30 + pulse*0.25})`);
-      document.documentElement.style.setProperty("--lvlAccentShadow", `rgba(255,255,255,${0.18 + pulse*0.12})`);
+      document.documentElement.style.setProperty("--lvlAccentGlow", `rgba(194,123,255,${0.34 + pulse*0.30})`);
+      document.documentElement.style.setProperty("--lvlAccentShadow", `rgba(194,123,255,${0.18 + pulse*0.18})`);
     }
 
     const theme = currentLevelTheme();
@@ -2958,116 +3155,109 @@
   ui.btnUse.addEventListener("click", async () => { await unlockAudio(); if (paused) return; pickOrDrop(); });
   ui.btnNew.addEventListener("click", async () => { await unlockAudio(); if (paused) return; showNameModal(); });
 
-  ui.btnPause.addEventListener("click", async () => { await unlockAudio(); togglePause(); });
-  ui.btnPauseClose.addEventListener("click", async () => { await unlockAudio(); resumeGame(); });
-
-  ui.pauseOverlay.addEventListener("click", (e) => {
-    if (e.target === ui.pauseOverlay){
-      resumeGame();
-    }
+  ui.btnPause.addEventListener("click", async () => {
+    await unlockAudio();
+    togglePause();
   });
-
-  ui.btnSave.addEventListener("click", async () => { await unlockAudio(); if (paused) return; saveGame(); });
-  ui.btnLoad.addEventListener("click", async () => { await unlockAudio(); if (paused) return; loadGame(); });
+  ui.btnPauseClose.addEventListener("click", async () => {
+    await unlockAudio();
+    if (paused) resumeGame();
+  });
 
   ui.btnMusic.addEventListener("click", async () => {
     await unlockAudio();
     if (paused) return;
 
-    if (!musicOn){
-      musicOn = true;
-      ui.btnMusic.textContent = "Music: ON";
+    musicOn = !musicOn;
+    ui.btnMusic.textContent = `Music: ${musicOn ? "ON" : "OFF"}`;
+
+    if (musicOn){
       startMusic();
-      chord([262,330,392],0.18,0.05,"triangle");
       logEvent("neutral","Music ON.");
+      setHud("MUSIC ON");
     } else {
-      musicOn = false;
-      ui.btnMusic.textContent = "Music: OFF";
       stopMusic();
-      stopMonsterDoom();
       celebrationUntil = 0;
       doomUntil = 0;
-      beep(196,0.10,"triangle",0.05);
       logEvent("neutral","Music OFF.");
+      setHud("MUSIC OFF");
     }
   });
-
-  ui.btnUp.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(0,-1); });
-  ui.btnDown.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(0,1); });
-  ui.btnLeft.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(-1,0); });
-  ui.btnRight.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(1,0); });
 
   ui.btnInfo.addEventListener("click", async () => {
     await unlockAudio();
     if (paused) return;
-    if (game.pendingMonster) { sfxError(); setHud("Finish monster fight first!"); return; }
     ui.infoOverlay.style.display = "flex";
-    game.inputLocked = true;
   });
   ui.btnInfoClose.addEventListener("click", async () => {
     await unlockAudio();
     ui.infoOverlay.style.display = "none";
-    game.inputLocked = false;
-  });
-  ui.infoOverlay.addEventListener("click", (e) => {
-    if (e.target === ui.infoOverlay){
-      ui.infoOverlay.style.display = "none";
-      game.inputLocked = false;
-    }
   });
 
   ui.nameStartBtn.addEventListener("click", async () => { await unlockAudio(); startFromNameInput(); });
-  ui.nameUseSavedBtn.addEventListener("click", async () => {
-    await unlockAudio();
-    const saved = getSavedName();
-    setAndStoreName(saved || "PLAYER1");
-    closeNameModal();
-    newGame(true);
-  });
   ui.nameUseP1Btn.addEventListener("click", async () => {
     await unlockAudio();
     setAndStoreName("PLAYER1");
     closeNameModal();
     newGame(true);
   });
+  ui.nameUseSavedBtn.addEventListener("click", async () => {
+    await unlockAudio();
+    const saved = getSavedName() || "PLAYER1";
+    setAndStoreName(saved);
+    closeNameModal();
+    newGame(true);
+  });
 
-  ui.gameOverOverlay.addEventListener("click", (e) => {
-    if (e.target === ui.gameOverOverlay){
-      ui.gameOverOverlay.style.display = "none";
-      game.inputLocked = false;
-    }
+  ui.btnRestart.addEventListener("click", async () => {
+    await unlockAudio();
+    ui.gameOverOverlay.style.display = "none";
+    game.inputLocked = false;
+    showNameModal();
   });
   ui.btnGameOverClose.addEventListener("click", async () => {
     await unlockAudio();
     ui.gameOverOverlay.style.display = "none";
-    game.inputLocked = false;
-  });
-  ui.btnRestart.addEventListener("click", async () => {
-    await unlockAudio();
-    ui.gameOverOverlay.style.display = "none";
-    showNameModal();
+    // stays locked until restart/new game, by design
   });
 
   ui.btnWinRestart.addEventListener("click", async () => {
     await unlockAudio();
     ui.winOverlay.style.display = "none";
+    game.inputLocked = false;
     showNameModal();
   });
 
+  ui.btnSave.addEventListener("click", async () => { await unlockAudio(); if (paused) return; saveGame(); });
+  ui.btnLoad.addEventListener("click", async () => { await unlockAudio(); if (paused) return; loadGame(); });
+
+  ui.btnUp.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(0,-1); });
+  ui.btnDown.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(0,1); });
+  ui.btnLeft.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(-1,0); });
+  ui.btnRight.addEventListener("click", async () => { await unlockAudio(); if (paused) return; move(1,0); });
+
   ui.skin.addEventListener("change", () => {
     setAndStoreSkin(ui.skin.value);
+    setHud("SKIN SET");
+    logEvent("neutral", `Stick figure: ${ui.skin.value.toUpperCase()}`);
   });
 
-  /* ---- Init ---- */
+  // click outside overlay closes info only (not name/pause/gameover/win)
+  ui.infoOverlay.addEventListener("click", (e) => {
+    if (e.target === ui.infoOverlay) ui.infoOverlay.style.display = "none";
+  });
+
+  // init
   renderLeaderboard(loadLeaderboard());
   setAndStoreSkin(getSavedSkin());
 
-  // Show a "ready" board and ask for name immediately.
+  // get the board drawn immediately, then ask for name on open (front-end start)
   resetCoreState();
   applyThemeForLevel();
   updateUI();
   startLoop();
   showNameModal();
+
 })();
 </script>
 </body>
