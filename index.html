@@ -897,26 +897,14 @@
 
   /* ---- Level Themes + Stick Names ---- */
   const LEVELS = [
-    { name:"Night Stick",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
     { name:"Sun Stick",     bg:"#140a03", grid:"#4a3a06", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
     { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
-    { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
-    { name:"Snake Stick",    bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
+    { name:"Sea Stick",     bg:"#0a1a2e", grid:"#1e3a5f", border:"#00d9ff", accent:"#00d9ff", accentGlow:"rgba(0,217,255,.46)", accentShadow:"rgba(0,217,255,.30)" },
     { name:"Spell Stick",   bg:"#180414", grid:"#330b2a", border:"#ff69b4", accent:"#ff69ff", accentGlow:"rgba(255,105,255,.46)", accentShadow:"rgba(255,105,180,.30)" },
-
-    /* ✅ ICE refresh:
-       - still "bright", but not pure white
-       - soft icy gradient + subtle "frost sheen"
-       - border slightly stronger than grid so it reads like other levels */
-    { name:"Ice Stick",     bg:"#eaf6ff", grid:"#8be9fd", border:"#38bdf8", accent:"#ffffff", accentGlow:"rgba(56,189,248,.42)", accentShadow:"rgba(56,189,248,.22)" },
-
-    /* ✅ GLOW refresh:
-       - grid != border now (fixes that "same color" feel)
-       - grid is softer + pulses */
+    { name:"Snake Stick",   bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
     { name:"Glow Stick",    bg:"#09060f", grid:"#ffb347", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.46)", accentShadow:"rgba(255,122,24,.22)" },
-
-    /* ✅ VICTORY refresh:
-       - keep the purple vibe, but grid is softened + pulsing so it matches earlier level "mood" */
+    { name:"Ice Stick",     bg:"#c8e6ff", grid:"#ffffff", border:"#ffffff", accent:"#ffffff", accentGlow:"rgba(255,255,255,.42)", accentShadow:"rgba(255,255,255,.22)" },
+    { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
     { name:"Victory Stick", bg:"#070315", grid:"#c27bff", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.55)", accentShadow:"rgba(194,123,255,.30)" }
   ];
 
@@ -929,47 +917,7 @@
   const TILE = 24, GRID_W = 24, GRID_H = 24;
   const CANVAS_W = GRID_W * TILE, CANVAS_H = GRID_H * TILE;
 
-  // Snowflakes for Ice Stick theme
-  let snowflakes = [];
-  
-  function initSnowflakes(){
-    snowflakes = [];
-    for (let i = 0; i < 40; i++){
-      snowflakes.push({
-        x: Math.random() * CANVAS_W,
-        y: Math.random() * CANVAS_H,
-        size: 1.5 + Math.random() * 2.5,
-        speed: 0.4 + Math.random() * 0.8,
-        drift: (Math.random() - 0.5) * 0.4
-      });
-    }
-  }
-  
-  function updateSnowflakes(){
-    for (let flake of snowflakes){
-      flake.y += flake.speed;
-      flake.x += flake.drift;
-      if (flake.y > CANVAS_H){
-        flake.y = -5;
-        flake.x = Math.random() * CANVAS_W;
-      }
-      if (flake.x < 0) flake.x = CANVAS_W;
-      if (flake.x > CANVAS_W) flake.x = 0;
-    }
-  }
-  
-  function drawSnowflakes(){
-    ctx.save();
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.shadowColor = "rgba(200,230,255,0.4)";
-    ctx.shadowBlur = 3;
-    for (let flake of snowflakes){
-      ctx.beginPath();
-      ctx.arc(flake.x, flake.y, flake.size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
+
 
 
 
@@ -977,6 +925,369 @@
   let fireTiles = [];
   let fireWarningTimer = 0;
   const FIRE_WARNING_TIME = 300; // 5 seconds to escape
+  // Freeze zones for Ice Stick (like fire hazards!)
+  let freezeTiles = [];
+  let freezeWarningTimer = 0;
+  const FREEZE_WARNING_TIME = 300; // 5 seconds like fire
+  
+  function initFreezeTiles(){
+    freezeTiles = [];
+    // Create 6-9 random freeze tiles
+    const numFreeze = randInt(6, 9);
+    for (let i = 0; i < numFreeze; i++){
+      const x = randInt(0, GRID_W - 1);
+      const y = randInt(0, GRID_H - 1);
+      freezeTiles.push({
+        x, y,
+        shimmer: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  
+  function updateFreezeTiles(){
+    // Animate shimmer
+    for (let freeze of freezeTiles){
+      freeze.shimmer = (freeze.shimmer + 0.08) % (Math.PI * 2);
+    }
+    
+    // Check if player is on freeze tile
+    const onFreeze = freezeTiles.some(f => f.x === game.playerX && f.y === game.playerY);
+    if (onFreeze){
+      freezeWarningTimer++;
+      if (freezeWarningTimer >= FREEZE_WARNING_TIME){
+        // Player stayed too long - freeze and lose life!
+        // HOLE IS SACRED - no damage if on hole
+        if (game.playerX === game.holeX && game.playerY === game.holeY){
+          freezeWarningTimer = 0;
+        } else if (activeShield > 0){
+          freezeWarningTimer = 0;
+          logEvent("info", "Shield protected you from freezing!");
+          setHud("SHIELD SAVED YOU!");
+        } else {
+          game.lives--;
+          game.holeLostLife = true;
+          freezeWarningTimer = 0;
+          logEvent("bad", "Frozen solid! -1 life");
+          setHud("FROZEN!");
+          playFreezeSound();
+          sfxLoseLife();
+          spawnSparks(game.playerX, game.playerY, 22, true);
+          if (game.lives <= 0) endGame();
+          else updateUI();
+        }
+      } else if (freezeWarningTimer === 60){
+        // Warning at 1 second
+        playFreezeWarningSound();
+        logEvent("warn", "Freezing! Move or lose a life!");
+        setHud("FREEZING!");
+      } else if (freezeWarningTimer === 150 || freezeWarningTimer === 240){
+        // Additional warnings
+        playFreezeWarningSound();
+      }
+    } else {
+      freezeWarningTimer = 0;
+    }
+  }
+  
+  function drawFreezeTiles(){
+    ctx.save();
+    for (let freeze of freezeTiles){
+      const x = freeze.x * TILE + TILE / 2;
+      const y = freeze.y * TILE + TILE / 2;
+      
+      const shimmer = Math.sin(freeze.shimmer) * 0.5 + 0.5;
+      
+      // Ice crystal base (light blue)
+      const iceGrad = ctx.createRadialGradient(x, y, 0, x, y, TILE / 2 + 4);
+      iceGrad.addColorStop(0, 'rgba(200,230,255,' + (0.6 + shimmer * 0.2) + ')');
+      iceGrad.addColorStop(0.5, 'rgba(150,210,255,' + (0.4 + shimmer * 0.2) + ')');
+      iceGrad.addColorStop(1, 'rgba(100,180,230,0)');
+      ctx.fillStyle = iceGrad;
+      ctx.beginPath();
+      ctx.arc(x, y, TILE / 2 + 4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Ice crystal shape (snowflake-like)
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.7 + shimmer * 0.3) + ')';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 4 + shimmer * 4;
+      
+      // 6 pointed crystal
+      for (let i = 0; i < 6; i++){
+        const angle = (Math.PI / 3) * i + freeze.shimmer;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * 8, y + Math.sin(angle) * 8);
+        ctx.stroke();
+      }
+      
+      // Center
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.8 + shimmer * 0.2) + ')';
+      ctx.beginPath();
+      ctx.arc(x, y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Draw warning indicator if player is on freeze
+    if (freezeWarningTimer > 0){
+      const playerOnFreeze = freezeTiles.some(f => f.x === game.playerX && f.y === game.playerY);
+      if (playerOnFreeze){
+        const px = game.playerX * TILE + TILE / 2;
+        const py = game.playerY * TILE + TILE / 2;
+        const warningPulse = Math.sin(freezeWarningTimer * 0.3) * 0.5 + 0.5;
+        
+        ctx.globalAlpha = 0.4 + warningPulse * 0.4;
+        ctx.strokeStyle = '#00d9ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, TILE / 2 + 2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+    }
+    
+    ctx.restore();
+  }
+  
+  // Freeze warning sound
+  function playFreezeWarningSound(){
+    beep(400, 0.1, "sine", 0.06);
+    setTimeout(() => beep(350, 0.1, "sine", 0.06), 100);
+    setTimeout(() => beep(300, 0.1, "sine", 0.06), 200);
+  }
+  
+  // Freeze damage sound
+
+  // Victory Stick - Ultimate Challenge (all hazards!)
+  let victoryHazards = {
+    snake: null,
+    shark: null,
+    shadow: null,
+    fires: [],
+    winds: [],
+    freezes: []
+  };
+  
+  function initVictoryHazards(){
+    victoryHazards = {
+      snake: null,
+      shark: null,
+      shadow: null,
+      fires: [],
+      winds: [],
+      freezes: []
+    };
+    
+    // 1 snake
+    let sx, sy;
+    do {
+      sx = randInt(0, GRID_W - 1);
+      sy = randInt(0, GRID_H - 1);
+    } while (Math.abs(sx - game.playerX) + Math.abs(sy - game.playerY) < 5);
+    victoryHazards.snake = { x: sx, y: sy, slither: 0 };
+    
+    // 1 shark
+    victoryHazards.shark = {
+      x: randInt(2, GRID_W - 3),
+      y: randInt(2, GRID_H - 3),
+      horizontal: Math.random() > 0.5,
+      direction: Math.random() > 0.5 ? 1 : -1,
+      swim: 0
+    };
+    
+    // 1 shadow monster
+    victoryHazards.shadow = {
+      x: randInt(0, GRID_W - 1),
+      y: randInt(0, GRID_H - 1),
+      pulse: 0,
+      moveTimer: 60
+    };
+    
+    // 2 fire tiles
+    for (let i = 0; i < 2; i++){
+      victoryHazards.fires.push({
+        x: randInt(0, GRID_W - 1),
+        y: randInt(0, GRID_H - 1),
+        intensity: Math.random() * Math.PI * 2
+      });
+    }
+    
+    // 2 wind tiles
+    for (let i = 0; i < 2; i++){
+      victoryHazards.winds.push({
+        x: randInt(0, GRID_W - 1),
+        y: randInt(0, GRID_H - 1),
+        intensity: Math.random() * Math.PI * 2
+      });
+    }
+    
+    // 2 freeze tiles
+    for (let i = 0; i < 2; i++){
+      victoryHazards.freezes.push({
+        x: randInt(0, GRID_W - 1),
+        y: randInt(0, GRID_H - 1),
+        shimmer: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  
+  function updateVictoryHazards(){
+    if (game.pendingMonster) return;
+    
+    // Update snake
+    if (victoryHazards.snake){
+      victoryHazards.snake.slither = (victoryHazards.snake.slither + 0.15) % (Math.PI * 2);
+      // Move every 150 frames
+      if (!updateVictoryHazards.snakeTimer) updateVictoryHazards.snakeTimer = 0;
+      updateVictoryHazards.snakeTimer++;
+      if (updateVictoryHazards.snakeTimer >= 150){
+        updateVictoryHazards.snakeTimer = 0;
+        const dx = game.playerX - victoryHazards.snake.x;
+        const dy = game.playerY - victoryHazards.snake.y;
+        if (Math.abs(dx) > Math.abs(dy)){
+          if (dx > 0) victoryHazards.snake.x++;
+          else victoryHazards.snake.x--;
+        } else if (Math.abs(dy) > 0){
+          if (dy > 0) victoryHazards.snake.y++;
+          else victoryHazards.snake.y--;
+        }
+        victoryHazards.snake.x = clamp(victoryHazards.snake.x, 0, GRID_W - 1);
+        victoryHazards.snake.y = clamp(victoryHazards.snake.y, 0, GRID_H - 1);
+        
+        // Check collision
+        if (victoryHazards.snake.x === game.playerX && victoryHazards.snake.y === game.playerY &&
+            !(game.playerX === game.holeX && game.playerY === game.holeY) && !activeShield){
+          game.lives--;
+          logEvent("bad", "Snake bite! -1 life");
+          sfxLoseLife();
+          spawnSparks(game.playerX, game.playerY, 22, true);
+          if (game.lives <= 0) endGame();
+          else updateUI();
+          victoryHazards.snake = null;
+        }
+      }
+    }
+    
+    // Update shark
+    if (victoryHazards.shark){
+      victoryHazards.shark.swim = (victoryHazards.shark.swim + 0.2) % (Math.PI * 2);
+      if (!updateVictoryHazards.sharkTimer) updateVictoryHazards.sharkTimer = 0;
+      updateVictoryHazards.sharkTimer++;
+      if (updateVictoryHazards.sharkTimer >= 30){
+        updateVictoryHazards.sharkTimer = 0;
+        // Move and check collision (same as normal sharks)
+        if (victoryHazards.shark.x === game.playerX && victoryHazards.shark.y === game.playerY &&
+            !(game.playerX === game.holeX && game.playerY === game.holeY) && !activeShield){
+          game.lives--;
+          logEvent("bad", "Shark attack! -1 life");
+          sfxLoseLife();
+          spawnSparks(game.playerX, game.playerY, 22, true);
+          if (game.lives <= 0) endGame();
+          else updateUI();
+        }
+        if (victoryHazards.shark.horizontal){
+          victoryHazards.shark.x += victoryHazards.shark.direction;
+          if (victoryHazards.shark.x <= 0 || victoryHazards.shark.x >= GRID_W - 1){
+            victoryHazards.shark.direction *= -1;
+            victoryHazards.shark.x = clamp(victoryHazards.shark.x, 0, GRID_W - 1);
+          }
+        } else {
+          victoryHazards.shark.y += victoryHazards.shark.direction;
+          if (victoryHazards.shark.y <= 0 || victoryHazards.shark.y >= GRID_H - 1){
+            victoryHazards.shark.direction *= -1;
+            victoryHazards.shark.y = clamp(victoryHazards.shark.y, 0, GRID_H - 1);
+          }
+        }
+      }
+    }
+    
+    // Update shadow
+    if (victoryHazards.shadow){
+      victoryHazards.shadow.pulse = (victoryHazards.shadow.pulse + 0.1) % (Math.PI * 2);
+      victoryHazards.shadow.moveTimer--;
+      if (victoryHazards.shadow.moveTimer <= 0){
+        victoryHazards.shadow.moveTimer = 60;
+        const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+        const dir = dirs[randInt(0, 3)];
+        victoryHazards.shadow.x = clamp(victoryHazards.shadow.x + dir.dx, 0, GRID_W - 1);
+        victoryHazards.shadow.y = clamp(victoryHazards.shadow.y + dir.dy, 0, GRID_H - 1);
+      }
+      if (victoryHazards.shadow.x === game.playerX && victoryHazards.shadow.y === game.playerY &&
+          !(game.playerX === game.holeX && game.playerY === game.holeY) && !activeShield){
+        game.lives--;
+        logEvent("bad", "Shadow attack! -1 life");
+        sfxLoseLife();
+        spawnSparks(game.playerX, game.playerY, 22, true);
+        if (game.lives <= 0) endGame();
+        else updateUI();
+        victoryHazards.shadow = null;
+      }
+    }
+    
+    // Animate fires, winds, freezes
+    for (let f of victoryHazards.fires) f.intensity = (f.intensity + 0.08) % (Math.PI * 2);
+    for (let w of victoryHazards.winds) w.intensity = (w.intensity + 0.12) % (Math.PI * 2);
+    for (let z of victoryHazards.freezes) z.shimmer = (z.shimmer + 0.08) % (Math.PI * 2);
+  }
+  
+  function drawVictoryHazards(){
+    // Use existing draw functions with victory hazards data
+    if (victoryHazards.snake){
+      snakes = [victoryHazards.snake];
+      drawSnakes();
+      snakes = [];
+    }
+    if (victoryHazards.shark){
+      sharks = [victoryHazards.shark];
+      drawSharks();
+      sharks = [];
+    }
+    if (victoryHazards.shadow){
+      shadowMonsters = [victoryHazards.shadow];
+      // Draw with purple eyes for Victory theme
+      const temp = shadowMonsters[0];
+      const x = temp.x * TILE + TILE / 2;
+      const y = temp.y * TILE + TILE / 2;
+      const pulse = Math.sin(temp.pulse) * 0.5 + 0.5;
+      ctx.save();
+      ctx.globalAlpha = 0.4 + pulse * 0.3;
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, 10);
+      gradient.addColorStop(0, 'rgba(100,50,150,0.8)');
+      gradient.addColorStop(1, 'rgba(50,20,80,0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.7 + pulse * 0.3;
+      ctx.fillStyle = '#c27bff';
+      ctx.shadowColor = '#c27bff';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(x - 3, y - 2, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + 3, y - 2, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      shadowMonsters = [];
+    }
+    fireTiles = victoryHazards.fires;
+    drawFireTiles();
+    fireTiles = [];
+    windTiles = victoryHazards.winds;
+    drawWindTiles();
+    windTiles = [];
+    freezeTiles = victoryHazards.freezes;
+    drawFreezeTiles();
+    freezeTiles = [];
+  }
+  function playFreezeSound(){
+    beep(300, 0.15, "sine", 0.1);
+    setTimeout(() => beep(250, 0.15, "sine", 0.1), 150);
+    setTimeout(() => beep(200, 0.2, "sine", 0.12), 300);
+  }
+
   // Wind/tornado tiles for Sky Stick theme
   let windTiles = [];
   let windWarningTimer = 0;
@@ -1013,6 +1324,9 @@
   }
   
   function updateSnakes(){
+    // Pause during monster battles
+    if (game.pendingMonster) return;
+    
     // Animate slither
     for (let snake of snakes){
       snake.slither = (snake.slither + 0.15) % (Math.PI * 2);
@@ -1026,8 +1340,9 @@
       for (let i = snakes.length - 1; i >= 0; i--){
         const snake = snakes[i];
         
-        // Check if snake caught player
-        if (snake.x === game.playerX && snake.y === game.playerY){
+        // Check if snake caught player (NOT in hole!)
+        const playerInHole = (game.playerX === game.holeX && game.playerY === game.holeY);
+        if (!playerInHole && snake.x === game.playerX && snake.y === game.playerY){
           if (activeShield > 0){
             logEvent("info", "Shield protected you from snake bite!");
             setHud("SHIELD SAVED YOU!");
@@ -1081,39 +1396,44 @@
       
       const slitherOffset = Math.sin(snake.slither) * 2;
       
-      // Snake body (green with dark outline)
+      // Longer serpentine body (S-curve)
       ctx.strokeStyle = '#0a2414';
-      ctx.lineWidth = 7;
+      ctx.lineWidth = 6;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(x - 6, y + slitherOffset);
-      ctx.quadraticCurveTo(x, y - slitherOffset, x + 6, y + slitherOffset);
+      ctx.moveTo(x - 10, y + slitherOffset);
+      ctx.quadraticCurveTo(x - 5, y - slitherOffset * 2, x, y + slitherOffset);
+      ctx.quadraticCurveTo(x + 5, y - slitherOffset, x + 10, y + slitherOffset * 1.5);
       ctx.stroke();
       
       // Snake body fill (bright green)
       ctx.strokeStyle = '#39ff95';
-      ctx.lineWidth = 5;
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.moveTo(x - 6, y + slitherOffset);
-      ctx.quadraticCurveTo(x, y - slitherOffset, x + 6, y + slitherOffset);
+      ctx.moveTo(x - 10, y + slitherOffset);
+      ctx.quadraticCurveTo(x - 5, y - slitherOffset * 2, x, y + slitherOffset);
+      ctx.quadraticCurveTo(x + 5, y - slitherOffset, x + 10, y + slitherOffset * 1.5);
       ctx.stroke();
       
-      // Snake head (circle)
+      // Snake head (triangle shape)
       ctx.fillStyle = '#39ff95';
       ctx.strokeStyle = '#0a2414';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(x + 6, y + slitherOffset, 4, 0, Math.PI * 2);
+      ctx.moveTo(x + 10, y + slitherOffset * 1.5 - 3);
+      ctx.lineTo(x + 14, y + slitherOffset * 1.5);
+      ctx.lineTo(x + 10, y + slitherOffset * 1.5 + 3);
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
       
       // Eyes (tiny red dots)
       ctx.fillStyle = '#ff1f3a';
       ctx.beginPath();
-      ctx.arc(x + 5, y + slitherOffset - 1, 0.8, 0, Math.PI * 2);
+      ctx.arc(x + 11, y + slitherOffset * 1.5 - 1, 0.8, 0, Math.PI * 2);
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(x + 7, y + slitherOffset - 1, 0.8, 0, Math.PI * 2);
+      ctx.arc(x + 11, y + slitherOffset * 1.5 + 1, 0.8, 0, Math.PI * 2);
       ctx.fill();
       
       // Forked tongue (flicks in and out)
@@ -1121,10 +1441,10 @@
         ctx.strokeStyle = '#ff5a6a';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(x + 9, y + slitherOffset);
-        ctx.lineTo(x + 11, y + slitherOffset - 1);
-        ctx.moveTo(x + 9, y + slitherOffset);
-        ctx.lineTo(x + 11, y + slitherOffset + 1);
+        ctx.moveTo(x + 14, y + slitherOffset * 1.5);
+        ctx.lineTo(x + 16, y + slitherOffset * 1.5 - 1.5);
+        ctx.moveTo(x + 14, y + slitherOffset * 1.5);
+        ctx.lineTo(x + 16, y + slitherOffset * 1.5 + 1.5);
         ctx.stroke();
       }
     }
@@ -1136,41 +1456,154 @@
   // Shadow monsters for Glow Stick (hide in darkness!)
   let shadowMonsters = [];
   
-  function spawnShadowMonstersInDarkness(){
-    // Spawn 1-2 shadow monsters in random dark tiles
-    const availableDark = darkTiles.filter(d => d.life > 60); // Only in tiles that will be dark for a while
-    if (availableDark.length === 0) return;
-    
-    const numMonsters = Math.min(randInt(1, 2), availableDark.length);
-    for (let i = 0; i < numMonsters; i++){
-      const dark = availableDark[randInt(0, availableDark.length - 1)];
-      // Don't spawn on player or hole
-      if ((dark.x === game.playerX && dark.y === game.playerY) || 
-          (dark.x === game.holeX && dark.y === game.holeY)) continue;
+
+
+  // Shadow clones for Victory Stick (final boss!)
+  let shadowClones = [];
+  let cloneMoveTimer = 0;
+  const CLONE_MOVE_INTERVAL = 120; // Clones move every 2 seconds
+  
+  function initShadowClones(){
+    shadowClones = [];
+    // Spawn 2-3 dark clones of the player
+    const numClones = randInt(2, 3);
+    for (let i = 0; i < numClones; i++){
+      let x, y;
+      let attempts = 0;
+      do {
+        x = randInt(0, GRID_W - 1);
+        y = randInt(0, GRID_H - 1);
+        attempts++;
+      } while (attempts < 50 && (
+        (x === game.playerX && y === game.playerY) ||
+        (x === game.holeX && y === game.holeY) ||
+        Math.abs(x - game.playerX) + Math.abs(y - game.playerY) < 6
+      ));
       
-      shadowMonsters.push({
-        x: dark.x,
-        y: dark.y,
-        pulse: Math.random() * Math.PI * 2
+      shadowClones.push({
+        x: x,
+        y: y,
+        glitch: Math.random() * Math.PI * 2
       });
     }
   }
   
+  function updateShadowClones(){
+    // Pause during monster battles
+    if (game.pendingMonster) return;
+    
+    for (let clone of shadowClones){
+      clone.glitch = (clone.glitch + 0.12) % (Math.PI * 2);
+    }
+    
+    // Move clones toward player
+    cloneMoveTimer++;
+    if (cloneMoveTimer >= CLONE_MOVE_INTERVAL){
+      cloneMoveTimer = 0;
+      
+      for (let i = shadowClones.length - 1; i >= 0; i--){
+        const clone = shadowClones[i];
+        
+        // Check if clone caught player (NOT in hole!)
+        const playerInHole = (game.playerX === game.holeX && game.playerY === game.holeY);
+        if (!playerInHole && clone.x === game.playerX && clone.y === game.playerY){
+          if (activeShield > 0){
+            logEvent("info", "Shield protected you from shadow clone!");
+            setHud("SHIELD SAVED YOU!");
+          } else {
+            game.lives--;
+            logEvent("bad", "Shadow clone caught you! -1 life");
+            setHud("SHADOW CLONE!");
+            playShadowMonsterSound();
+            sfxLoseLife();
+            spawnSparks(game.playerX, game.playerY, 22, true);
+            if (game.lives <= 0) endGame();
+            else updateUI();
+          }
+          shadowClones.splice(i, 1);
+          continue;
+        }
+        
+        // Move clone toward player
+        const dx = game.playerX - clone.x;
+        const dy = game.playerY - clone.y;
+        
+        if (Math.abs(dx) > Math.abs(dy)){
+          if (dx > 0) clone.x++;
+          else clone.x--;
+        } else if (Math.abs(dy) > 0){
+          if (dy > 0) clone.y++;
+          else clone.y--;
+        }
+        
+        clone.x = clamp(clone.x, 0, GRID_W - 1);
+        clone.y = clamp(clone.y, 0, GRID_H - 1);
+      }
+    }
+  }
+  
+  function drawShadowClones(){
+    ctx.save();
+    for (let clone of shadowClones){
+      const x = clone.x * TILE + TILE / 2;
+      const y = clone.y * TILE + TILE / 2;
+      
+      const glitch = Math.sin(clone.glitch) * 0.5 + 0.5;
+      
+      ctx.save();
+      ctx.translate(x, y);
+      
+      // Dark distorted player shape
+      ctx.globalAlpha = 0.7 + glitch * 0.2;
+      ctx.strokeStyle = '#7a35ff';
+      ctx.shadowColor = '#7a35ff';
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      
+      // Head (glitchy circle)
+      ctx.beginPath();
+      ctx.arc(0, -10 + glitch * 2, 6, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Body
+      ctx.beginPath();
+      ctx.moveTo(0, -4);
+      ctx.lineTo(glitch * 2, 4);
+      ctx.stroke();
+      
+      // Glowing eyes
+      ctx.fillStyle = '#c27bff';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(-2, -11, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(2, -11, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
   function updateShadowMonsters(){
     for (let i = shadowMonsters.length - 1; i >= 0; i--){
       const monster = shadowMonsters[i];
       monster.pulse = (monster.pulse + 0.1) % (Math.PI * 2);
       
-      // Check if monster's tile is still dark
-      const tileStillDark = darkTiles.some(d => d.x === monster.x && d.y === monster.y);
-      if (!tileStillDark){
-        // Monster disappears when light returns
-        shadowMonsters.splice(i, 1);
-        continue;
+      // Decrease lifetime
+      if (monster.lifetime !== undefined){
+        monster.lifetime--;
+        if (monster.lifetime <= 0){
+          shadowMonsters.splice(i, 1);
+          continue;
+        }
       }
       
-      // Check if player stepped on shadow monster
-      if (monster.x === game.playerX && monster.y === game.playerY){
+      // Check if player stepped on shadow monster (NOT in hole!)
+      const playerInHole = (game.playerX === game.holeX && game.playerY === game.holeY);
+      if (!playerInHole && monster.x === game.playerX && monster.y === game.playerY){
         if (activeShield > 0){
           logEvent("info", "Shield protected you from shadow monster!");
           setHud("SHIELD SAVED YOU!");
@@ -1199,25 +1632,21 @@
       
       const pulse = Math.sin(monster.pulse) * 0.5 + 0.5;
       
-      // Only draw if tile is dark
-      const isDark = darkTiles.some(d => d.x === monster.x && d.y === monster.y);
-      if (!isDark) continue;
-      
       // Shadow form (dark ghostly shape)
-      ctx.globalAlpha = 0.3 + pulse * 0.3;
-      const gradient = ctx.createRadialGradient(x, y, 0, x, y, 8);
-      gradient.addColorStop(0, 'rgba(100,0,150,0.8)');
-      gradient.addColorStop(1, 'rgba(50,0,80,0)');
+      ctx.globalAlpha = 0.4 + pulse * 0.3;
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, 10);
+      gradient.addColorStop(0, 'rgba(80,50,20,0.9)');
+      gradient.addColorStop(1, 'rgba(40,25,10,0)');
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
       ctx.fill();
       
-      // Glowing eyes
-      ctx.globalAlpha = 0.6 + pulse * 0.4;
-      ctx.fillStyle = '#ff5a6a';
-      ctx.shadowColor = '#ff5a6a';
-      ctx.shadowBlur = 6;
+      // Glowing ORANGE eyes (match Glow theme)
+      ctx.globalAlpha = 0.7 + pulse * 0.3;
+      ctx.fillStyle = '#ff7a18';
+      ctx.shadowColor = '#ff7a18';
+      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(x - 3, y - 2, 1.5, 0, Math.PI * 2);
       ctx.fill();
@@ -1277,8 +1706,9 @@
       sharkMoveTimer = 0;
       
       for (let shark of sharks){
-        // Check if shark chomps player BEFORE moving
-        if (shark.x === game.playerX && shark.y === game.playerY){
+        // Check if shark chomps player BEFORE moving (NOT in hole!)
+        const playerInHole = (game.playerX === game.holeX && game.playerY === game.holeY);
+        if (!playerInHole && shark.x === game.playerX && shark.y === game.playerY){
           if (activeShield > 0){
             logEvent("info", "Shield protected you from shark!");
             setHud("SHIELD SAVED YOU!");
@@ -1440,7 +1870,10 @@
       fireWarningTimer++;
       if (fireWarningTimer >= FIRE_WARNING_TIME){
         // Player stayed too long - lose a life!
-        if (activeShield > 0){
+        // HOLE IS SACRED - no damage if on hole
+        if (game.playerX === game.holeX && game.playerY === game.holeY){
+          fireWarningTimer = 0;
+        } else if (activeShield > 0){
           fireWarningTimer = 0;
           logEvent("info", "Shield protected you from fire!");
           setHud("SHIELD SAVED YOU!");
@@ -1752,36 +2185,34 @@
       }
     }
     
-    // Glow Stick: Tiles go dark periodically
+    // Glow Stick: Shadow monsters spawn randomly (no dark tiles)
     if (theme === "Glow Stick"){
-      if (darkTiles.length === 0){
-        darkTileTimer--;
-        if (darkTileTimer <= 0){
-          // Create 4-8 dark tiles
-          const numDark = randInt(4, 8);
-          for (let i = 0; i < numDark; i++){
-            darkTiles.push({
-              x: randInt(0, GRID_W - 1),
-              y: randInt(0, GRID_H - 1),
-              life: 180 + randInt(0, 120) // 3-5 seconds
-            });
-          }
-          logEvent("info", "Darkness falls... beware of shadows!");
+      darkTileTimer--;
+      if (darkTileTimer <= 0){
+        // Spawn 2-3 shadow monsters at random locations
+        const numMonsters = randInt(2, 3);
+        for (let i = 0; i < numMonsters; i++){
+          let x, y;
+          let attempts = 0;
+          do {
+            x = randInt(0, GRID_W - 1);
+            y = randInt(0, GRID_H - 1);
+            attempts++;
+          } while (attempts < 50 && (
+            (x === game.playerX && y === game.playerY) ||
+            (x === game.holeX && y === game.holeY) ||
+            shadowMonsters.some(s => s.x === x && s.y === y)
+          ));
           
-          // Spawn shadow monsters in the darkness!
-          spawnShadowMonstersInDarkness();
+          shadowMonsters.push({
+            x: x,
+            y: y,
+            pulse: Math.random() * Math.PI * 2,
+            lifetime: 300 // 5 seconds
+          });
         }
-      } else {
-        // Update existing dark tiles
-        for (let i = darkTiles.length - 1; i >= 0; i--){
-          darkTiles[i].life--;
-          if (darkTiles[i].life <= 0){
-            darkTiles.splice(i, 1);
-          }
-        }
-        if (darkTiles.length === 0){
-          darkTileTimer = randInt(180, 420); // Reset timer
-        }
+        logEvent("info", "Shadow monsters appear!");
+        darkTileTimer = randInt(240, 480); // 4-8 seconds until next spawn
       }
     }
     
@@ -3161,6 +3592,14 @@
       windWarningTimer = 0;
     }
     
+    // Initialize freeze tiles if starting on Ice Stick
+    if (currentLevelTheme().name === "Ice Stick"){
+      initFreezeTiles();
+    } else {
+      freezeTiles = [];
+      freezeWarningTimer = 0;
+    }
+    
     // Initialize snakes if starting on Snake Stick
     if (currentLevelTheme().name === "Snake Stick"){
       initSnakes();
@@ -3178,6 +3617,14 @@
     }
     
     shadowMonsters = [];
+    
+    // Initialize shadow clones if starting on Victory Stick
+    if (currentLevelTheme().name === "Victory Stick"){
+      initShadowClones();
+    } else {
+      shadowClones = [];
+      cloneMoveTimer = 0;
+    }
     
     // Initialize level hazards
     initLevelHazards();
@@ -3271,6 +3718,14 @@
       windWarningTimer = 0;
     }
     
+    // Initialize freeze tiles for Ice Stick theme
+    if (currentLevelTheme().name === "Ice Stick"){
+      initFreezeTiles();
+    } else {
+      freezeTiles = [];
+      freezeWarningTimer = 0;
+    }
+    
     // Initialize snakes for Snake Stick theme
     if (currentLevelTheme().name === "Snake Stick"){
       initSnakes();
@@ -3287,8 +3742,37 @@
       sharkMoveTimer = 0;
     }
     
-    // Clear shadow monsters
-    shadowMonsters = [];
+    // Initialize shadow monsters for Glow Stick
+    if (currentLevelTheme().name === "Glow Stick"){
+      initShadowMonsters();
+    } else {
+      if (currentLevelTheme().name === "Glow Stick"){
+      initShadowMonsters();
+    } else {
+      shadowMonsters = [];
+    }
+    
+    // Initialize Victory Stick hazards
+    if (currentLevelTheme().name === "Victory Stick"){
+      initVictoryHazards();
+    }
+    }
+    
+    // Initialize shadow clones if starting on Victory Stick
+    if (currentLevelTheme().name === "Victory Stick"){
+      initShadowClones();
+    } else {
+      shadowClones = [];
+      cloneMoveTimer = 0;
+    }
+    
+    // Initialize shadow clones for Victory Stick
+    if (currentLevelTheme().name === "Victory Stick"){
+      initShadowClones();
+    } else {
+      shadowClones = [];
+      cloneMoveTimer = 0;
+    }
     
     // Initialize level hazards
     initLevelHazards();
@@ -3995,6 +4479,8 @@ gameSetTimeout(updateScrollHint, 30);
     snakes = Array.isArray(g.snakes) ? g.snakes : [];
     sharks = Array.isArray(g.sharks) ? g.sharks : [];
     shadowMonsters = Array.isArray(g.shadowMonsters) ? g.shadowMonsters : [];
+    freezeTiles = Array.isArray(g.freezeTiles) ? g.freezeTiles : [];
+    shadowClones = Array.isArray(g.shadowClones) ? g.shadowClones : [];
     
     // If hazards are missing (old save), reinitialize them for current level
     const currentTheme = currentLevelTheme().name;
@@ -4015,6 +4501,15 @@ gameSetTimeout(updateScrollHint, 30);
     }
     if (currentTheme === "Sea Stick" && sharks.length === 0){
       initSharks();
+    }
+    if (currentTheme === "Ice Stick" && freezeTiles.length === 0){
+      initFreezeTiles();
+    }
+    if (currentTheme === "Glow Stick" && shadowMonsters.length === 0){
+      initShadowMonsters();
+    }
+    if (currentTheme === "Victory Stick" && shadowClones.length === 0){
+      initShadowClones();
     }
     game.treeSpawnDelay = Math.max(0, Number(g.treeSpawnDelay)||0);
     game.treeSpawnedThisLevel = !!g.treeSpawnedThisLevel;
@@ -4230,10 +4725,14 @@ gameSetTimeout(updateScrollHint, 30);
       holeColor = "#1a0005";
       holeStroke = "#ff5a6a";
       glowColor = "rgba(255,31,58,0.6)";
-    } else if (theme.name === "Leaf Stick") {
+    } else if (theme.name === "Leaf Stick" || theme.name === "Snake Stick") {
       holeColor = "#001a0a";
       holeStroke = "#39ff95";
       glowColor = "rgba(57,255,149,0.6)";
+    } else if (theme.name === "Sea Stick") {
+      holeColor = "#051a2e";
+      holeStroke = "#00d9ff";
+      glowColor = "rgba(0,217,255,0.6)";
     } else if (theme.name === "Spell Stick") {
       holeColor = "#1a0020";
       holeStroke = "#ff69ff";
@@ -4655,7 +5154,7 @@ gameSetTimeout(updateScrollHint, 30);
     }
     else if (skin === "rex"){
       // Rex Stick - pure simple stick dog!
-      ctx.strokeStyle = "#f3f4f6";
+      ctx.strokeStyle = "#f3f4f6";  // Same white as other stick figures
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
       
@@ -4664,7 +5163,7 @@ gameSetTimeout(updateScrollHint, 30);
       ctx.arc(0, -10, 6, 0, Math.PI * 2);
       ctx.stroke();
       
-      // BIG Ears (longer lines sticking up)
+      // BIG Ears (simple lines sticking up)
       ctx.beginPath();
       ctx.moveTo(-4, -14);
       ctx.lineTo(-5, -18);
@@ -4790,6 +5289,11 @@ gameSetTimeout(updateScrollHint, 30);
       updateFireTiles();
     }
     
+    // Update freeze tiles for Ice Stick theme
+    if (currentLevelTheme().name === "Ice Stick" && freezeTiles.length > 0){
+      updateFreezeTiles();
+    }
+    
     // Update level hazards (including wind for Sky Stick)
     updateLevelHazards();
     
@@ -4806,6 +5310,16 @@ gameSetTimeout(updateScrollHint, 30);
     // Update shadow monsters for Glow Stick theme
     if (currentLevelTheme().name === "Glow Stick" && shadowMonsters.length > 0){
       updateShadowMonsters();
+    }
+    
+    // Update Victory Stick hazards (all hazards!)
+    if (currentLevelTheme().name === "Victory Stick"){
+      updateVictoryHazards();
+    }
+    
+    // Update shadow clones for Victory Stick theme
+    if (currentLevelTheme().name === "Victory Stick" && shadowClones.length > 0){
+      updateShadowClones();
     }
 
     // draw
@@ -4842,6 +5356,11 @@ gameSetTimeout(updateScrollHint, 30);
       drawWindTiles();
     }
     
+    // Draw freeze tiles for Ice Stick theme
+    if (theme.name === "Ice Stick" && freezeTiles.length > 0){
+      drawFreezeTiles();
+    }
+    
     // Draw snakes for Snake Stick theme
     if (theme.name === "Snake Stick" && snakes.length > 0){
       drawSnakes();
@@ -4852,9 +5371,14 @@ gameSetTimeout(updateScrollHint, 30);
       drawSharks();
     }
     
-    // Draw shadow monsters for Glow Stick (in dark tiles)
+    // Draw shadow monsters for Glow Stick
     if (theme.name === "Glow Stick" && shadowMonsters.length > 0){
       drawShadowMonsters();
+    }
+    
+    // Draw shadow clones for Victory Stick
+    if (theme.name === "Victory Stick" && shadowClones.length > 0){
+      drawShadowClones();
     }
     
 
