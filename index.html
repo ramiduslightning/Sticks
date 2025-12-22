@@ -913,22 +913,11 @@
     { name:"Sun Stick",     bg:"#140a03", grid:"#4a3a06", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
     { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
     { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
-    { name:"Snake Stick",    bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
-    { name:"Spell Stick",   bg:"#180414", grid:"#330b2a", border:"#ff69b4", accent:"#ff69ff", accentGlow:"rgba(255,105,255,.46)", accentShadow:"rgba(255,105,180,.30)" },
-
-    /* ✅ ICE refresh:
-       - still "bright", but not pure white
-       - soft icy gradient + subtle "frost sheen"
-       - border slightly stronger than grid so it reads like other levels */
-    { name:"Ice Stick",     bg:"#eaf6ff", grid:"#8be9fd", border:"#38bdf8", accent:"#ffffff", accentGlow:"rgba(56,189,248,.42)", accentShadow:"rgba(56,189,248,.22)" },
-
-    /* ✅ GLOW refresh:
-       - grid != border now (fixes that "same color" feel)
-       - grid is softer + pulses */
+    { name:"Ice Stick",     bg:"#d4f1ff", grid:"#001f3f", border:"#001f3f", accent:"#ffffff", accentGlow:"rgba(56,189,248,.42)", accentShadow:"rgba(56,189,248,.22)" },
     { name:"Glow Stick",    bg:"#09060f", grid:"#ffb347", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.46)", accentShadow:"rgba(255,122,24,.22)" },
-
-    /* ✅ VICTORY refresh:
-       - keep the purple vibe, but grid is softened + pulsing so it matches earlier level "mood" */
+    { name:"Spell Stick",   bg:"#0d0010", grid:"#4a0a3a", border:"#ff1493", accent:"#ff1493", accentGlow:"rgba(255,20,147,.46)", accentShadow:"rgba(255,20,147,.30)" },
+    { name:"Sea Stick",     bg:"#001a33", grid:"#003d5c", border:"#0077be", accent:"#00bfff", accentGlow:"rgba(0,191,255,.46)", accentShadow:"rgba(0,191,255,.30)" },
+    { name:"Snake Stick",   bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
     { name:"Victory Stick", bg:"#070315", grid:"#c27bff", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.55)", accentShadow:"rgba(194,123,255,.30)" }
   ];
 
@@ -951,8 +940,8 @@
         x: Math.random() * CANVAS_W,
         y: Math.random() * CANVAS_H,
         size: 1.5 + Math.random() * 2.5,
-        speed: 0.4 + Math.random() * 0.8,
-        drift: (Math.random() - 0.5) * 0.4
+        speed: 0.8 + Math.random() * 1.2,
+        drift: (Math.random() - 0.5) * 0.6
       });
     }
   }
@@ -1004,41 +993,71 @@
     }
   }
   
+  let fireCrackleInterval = null;
+  let fireRespawnTimer = 0;
+  
   function updateFireTiles(){
     // Animate fire intensity
     for (let fire of fireTiles){
       fire.intensity = (fire.intensity + 0.08) % (Math.PI * 2);
     }
     
+    // Random respawn (pop up in new locations)
+    fireRespawnTimer++;
+    if (fireRespawnTimer >= randInt(300, 480)){ // 5-8 seconds
+      fireRespawnTimer = 0;
+      // Move 2-4 random fire tiles
+      const numToMove = randInt(2, 4);
+      for (let i = 0; i < numToMove && i < fireTiles.length; i++){
+        const fire = fireTiles[randInt(0, fireTiles.length - 1)];
+        fire.x = randInt(0, GRID_W - 1);
+        fire.y = randInt(0, GRID_H - 1);
+        spawnSparks(fire.x, fire.y, 8, false);
+      }
+      beep(200, 0.08, "sawtooth", 0.04);
+    }
+    
     // Check if player is on fire tile
     const onFire = fireTiles.some(f => f.x === game.playerX && f.y === game.playerY);
     if (onFire){
       fireWarningTimer++;
+      
+      // Start continuous crackling sound
+      if (!fireCrackleInterval){
+        fireCrackleInterval = setInterval(() => {
+          if (fireTiles.some(f => f.x === game.playerX && f.y === game.playerY)){
+            beep(80 + Math.random() * 40, 0.08, "sawtooth", 0.04);
+          }
+        }, 200);
+      }
+      
       if (fireWarningTimer >= FIRE_WARNING_TIME){
-        // Player stayed too long - lose a life!
-        if (activeShield > 0){
+        // HOLE IS SACRED
+        if (game.playerX === game.holeX && game.playerY === game.holeY){
+          fireWarningTimer = 0;
+        } else if (activeShield > 0){
           fireWarningTimer = 0;
           logEvent("info", "Shield protected you from fire!");
           setHud("SHIELD SAVED YOU!");
         } else {
           game.lives--;
-          game.holeLostLife = true;
           fireWarningTimer = 0;
           logEvent("bad", "Burned by fire! -1 life");
-          sfxLoseLife();
+          beep(100, 0.15, "sawtooth", 0.1);
           spawnSparks(game.playerX, game.playerY, 22, true);
-          if (game.lives <= 0) endGame();
+          if (game.lives <= 0) gameOver();
           else updateUI();
         }
       } else if (fireWarningTimer === 60){
-        // Warning at 1 second
-        beep(110, 0.15, "sawtooth", 0.08);
-        setTimeout(() => beep(98, 0.15, "sawtooth", 0.08), 150);
         logEvent("warn", "Fire burning! Move or lose a life!");
         setHud("BURNING!");
       }
     } else {
       fireWarningTimer = 0;
+      if (fireCrackleInterval){
+        clearInterval(fireCrackleInterval);
+        fireCrackleInterval = null;
+      }
     }
   }
   
@@ -1432,15 +1451,39 @@
     }
   }
   
+  let freezeChimeInterval = null;
+  let windSoundInterval = null;
+  
   function updateFreezeTiles(){
-    // Animate shimmer
+    // Animate shimmer + slow drift
     for (let f of freezeTiles){
       f.shimmer = (f.shimmer + 0.08) % (Math.PI * 2);
+      
+      // Slow drift
+      if (!f.driftTimer) f.driftTimer = randInt(120, 180);
+      f.driftTimer--;
+      if (f.driftTimer <= 0){
+        f.driftTimer = randInt(120, 180); // 2-3 seconds
+        const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+        const dir = dirs[randInt(0, 3)];
+        f.x = clamp(f.x + dir.dx, 0, GRID_W - 1);
+        f.y = clamp(f.y + dir.dy, 0, GRID_H - 1);
+      }
     }
     
     const onFreeze = freezeTiles.some(f => f.x === game.playerX && f.y === game.playerY);
     if (onFreeze){
       freezeWarningTimer++;
+      
+      // Start continuous chime
+      if (!freezeChimeInterval){
+        freezeChimeInterval = setInterval(() => {
+          if (freezeTiles.some(f => f.x === game.playerX && f.y === game.playerY)){
+            beep(600 + Math.random() * 200, 0.08, "sine", 0.05);
+          }
+        }, 300);
+      }
+      
       if (freezeWarningTimer >= FREEZE_WARNING_TIME){
         // HOLE IS SACRED
         if (game.playerX === game.holeX && game.playerY === game.holeY){
@@ -1454,21 +1497,39 @@
           freezeWarningTimer = 0;
           logEvent("bad", "Frozen! -1 life");
           setHud("FROZEN!");
-          beep(400, 0.1, "sine", 0.06);
+          beep(400, 0.12, "sine", 0.08);
           spawnSparks(game.playerX, game.playerY, 22, true);
           if (game.lives <= 0) gameOver();
           else updateUI();
         }
       } else if (freezeWarningTimer === 60){
-        // Warning at 1 second
-        beep(400, 0.1, "sine", 0.06);
         logEvent("warn", "Freezing! Move!");
         setHud("FREEZING!");
-      } else if (freezeWarningTimer === 120){
-        beep(450, 0.1, "sine", 0.06);
       }
     } else {
       freezeWarningTimer = 0;
+      if (freezeChimeInterval){
+        clearInterval(freezeChimeInterval);
+        freezeChimeInterval = null;
+      }
+    }
+  }
+  
+  function startIceWindSound(){
+    if (!windSoundInterval){
+      windSoundInterval = setInterval(() => {
+        if (currentLevelTheme().name === "Ice Stick"){
+          beep(40 + Math.random() * 30, 0.4, "sine", 0.04);
+          setTimeout(() => beep(50 + Math.random() * 20, 0.3, "sine", 0.03), 200);
+        }
+      }, 1500);
+    }
+  }
+  
+  function stopIceWindSound(){
+    if (windSoundInterval){
+      clearInterval(windSoundInterval);
+      windSoundInterval = null;
     }
   }
   
@@ -1623,11 +1684,275 @@
     ctx.globalAlpha = 1;
   }
 
+  // ================================================================
+  // SHARKS - Sea Stick (Frogger-style lane patrol!)
+  // ================================================================
+  let sharks = [];
+  let bubbles = [];
+  
+  function initSharks(){
+    sharks = [];
+    const numLanes = 5;
+    const laneHeight = Math.floor(GRID_H / numLanes);
+    
+    for (let i = 0; i < 5; i++){
+      const lane = Math.floor(Math.random() * numLanes);
+      const y = lane * laneHeight + Math.floor(laneHeight / 2);
+      const direction = Math.random() > 0.5 ? 1 : -1;
+      const x = direction > 0 ? randInt(0, 5) : randInt(GRID_W - 5, GRID_W - 1);
+      
+      sharks.push({
+        x, y,
+        direction,
+        speed: 0.12 + Math.random() * 0.08,
+        lane,
+        wiggle: Math.random() * Math.PI * 2
+      });
+    }
+    
+    // Init bubbles
+    bubbles = [];
+    for (let i = 0; i < 15; i++){
+      bubbles.push({
+        x: Math.random() * CANVAS_W,
+        y: Math.random() * CANVAS_H,
+        size: 1 + Math.random() * 2,
+        speed: 0.3 + Math.random() * 0.5
+      });
+    }
+  }
+  
+  function updateSharks(){
+    if (game.pendingMonster) return;
+    
+    for (let i = sharks.length - 1; i >= 0; i--){
+      const s = sharks[i];
+      s.wiggle = (s.wiggle + 0.1) % (Math.PI * 2);
+      
+      s.x += s.direction * s.speed;
+      
+      if (s.direction > 0 && s.x > GRID_W + 2){
+        s.x = -2;
+      } else if (s.direction < 0 && s.x < -2){
+        s.x = GRID_W + 2;
+      }
+      
+      // Check collision (HOLE IS SACRED)
+      const dx = Math.abs(s.x - game.playerX);
+      const dy = Math.abs(s.y - game.playerY);
+      if (dx < 1.5 && dy < 1.5 &&
+          !(game.playerX === game.holeX && game.playerY === game.holeY)){
+        if (activeShield > 0){
+          logEvent("info", "Shield blocked shark!");
+          setHud("SHIELD!");
+        } else {
+          game.lives--;
+          logEvent("bad", "Shark attack! -1 life");
+          setHud("SHARK BITE!");
+          beep(100, 0.15, "sawtooth", 0.12);
+          spawnSparks(game.playerX, game.playerY, 22, true);
+          if (game.lives <= 0) gameOver();
+          else updateUI();
+        }
+      }
+    }
+    
+    // Update bubbles
+    for (let b of bubbles){
+      b.y -= b.speed;
+      if (b.y < -10){
+        b.y = CANVAS_H + 10;
+        b.x = Math.random() * CANVAS_W;
+      }
+    }
+  }
+  
+  function drawSharks(){
+    ctx.save();
+    
+    // Water overlay
+    ctx.globalAlpha = 0.15;
+    const waterGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+    waterGrad.addColorStop(0, 'rgba(0,100,200,0.3)');
+    waterGrad.addColorStop(1, 'rgba(0,50,150,0.5)');
+    ctx.fillStyle = waterGrad;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    ctx.globalAlpha = 1;
+    
+    // Bubbles
+    ctx.fillStyle = 'rgba(200,230,255,0.4)';
+    for (let b of bubbles){
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Sharks
+    for (let s of sharks){
+      const x = s.x * TILE + TILE / 2;
+      const y = s.y * TILE + TILE / 2;
+      const wiggle = Math.sin(s.wiggle) * 2;
+      
+      ctx.save();
+      ctx.translate(x, y + wiggle);
+      if (s.direction < 0) ctx.scale(-1, 1);
+      
+      // Body
+      ctx.fillStyle = '#4a6b8a';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 14, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Fin
+      ctx.fillStyle = '#3a5b7a';
+      ctx.beginPath();
+      ctx.moveTo(-2, -6);
+      ctx.lineTo(2, -10);
+      ctx.lineTo(4, -6);
+      ctx.fill();
+      
+      // Tail
+      ctx.beginPath();
+      ctx.moveTo(-14, 0);
+      ctx.lineTo(-18, -4);
+      ctx.lineTo(-16, 0);
+      ctx.lineTo(-18, 4);
+      ctx.fill();
+      
+      // Eye
+      ctx.fillStyle = '#ff3333';
+      ctx.beginPath();
+      ctx.arc(8, -2, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Teeth
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(10, 1);
+      ctx.lineTo(12, 3);
+      ctx.moveTo(8, 1);
+      ctx.lineTo(10, 3);
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+    
+    ctx.restore();
+  }
+
+  // ================================================================
+  // SUN BURSTS - Sun Stick (steal sticks!)
+  // ================================================================
+  let sunBurstTiles = [];
+  let sunBurstWarningTimer = 0;
+  const SUNBURST_WARNING_TIME = 150; // 2.5 seconds
+  
+  function initSunBursts(){
+    sunBurstTiles = [];
+    const num = randInt(3, 4);
+    for (let i = 0; i < num; i++){
+      sunBurstTiles.push({
+        x: randInt(0, GRID_W - 1),
+        y: randInt(0, GRID_H - 1),
+        pulse: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  
+  function updateSunBursts(){
+    for (let b of sunBurstTiles){
+      b.pulse = (b.pulse + 0.08) % (Math.PI * 2);
+    }
+    
+    const onBurst = sunBurstTiles.some(b => b.x === game.playerX && b.y === game.playerY);
+    if (onBurst){
+      sunBurstWarningTimer++;
+      if (sunBurstWarningTimer >= SUNBURST_WARNING_TIME){
+        // HOLE IS SACRED
+        if (game.playerX === game.holeX && game.playerY === game.holeY){
+          sunBurstWarningTimer = 0;
+        } else if (activeShield > 0){
+          sunBurstWarningTimer = 0;
+          logEvent("info", "Shield blocked sun burst!");
+          setHud("SHIELD!");
+        } else if (game.carry.length > 0){
+          const lost = game.carry.length;
+          game.carry = [];
+          sunBurstWarningTimer = 0;
+          logEvent("bad", `Sun burst stole ${lost} sticks!`);
+          setHud("SUN BURST!");
+          beep(500, 0.12, "sine", 0.08);
+          spawnSparks(game.playerX, game.playerY, 22, true);
+          updateUI();
+        } else {
+          sunBurstWarningTimer = 0;
+        }
+      } else if (sunBurstWarningTimer === 60 || sunBurstWarningTimer === 120){
+        beep(450, 0.1, "sine", 0.06);
+        logEvent("warn", "Sun burst! Move!");
+        setHud("SUN BURST!");
+      }
+    } else {
+      sunBurstWarningTimer = 0;
+    }
+  }
+  
+  function drawSunBursts(){
+    ctx.save();
+    for (let b of sunBurstTiles){
+      const x = b.x * TILE + TILE / 2;
+      const y = b.y * TILE + TILE / 2;
+      const pulse = Math.sin(b.pulse) * 0.5 + 0.5;
+      
+      // Glowing burst
+      ctx.globalAlpha = 0.3 + pulse * 0.4;
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, TILE / 2 + 6);
+      grad.addColorStop(0, 'rgba(255,212,0,0.8)');
+      grad.addColorStop(1, 'rgba(255,180,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, TILE / 2 + 6, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Rays
+      ctx.globalAlpha = 0.6 + pulse * 0.4;
+      ctx.strokeStyle = '#ffd400';
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 8; i++){
+        const angle = (Math.PI / 4) * i + b.pulse;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * 10, y + Math.sin(angle) * 10);
+        ctx.stroke();
+      }
+    }
+    
+    // Warning indicator
+    if (sunBurstWarningTimer > 0){
+      const onBurst = sunBurstTiles.some(b => b.x === game.playerX && b.y === game.playerY);
+      if (onBurst){
+        const px = game.playerX * TILE + TILE / 2;
+        const py = game.playerY * TILE + TILE / 2;
+        const warningPulse = Math.sin(sunBurstWarningTimer * 0.3) * 0.5 + 0.5;
+        ctx.globalAlpha = 0.4 + warningPulse * 0.4;
+        ctx.strokeStyle = '#ffd400';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(px, py, TILE / 2 + 2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
   // Special power-up sticks
   let activeSpeedBoost = 0; // Remaining free moves
-  let activeShield = 0; // Remaining shield time in frames (300 = 5 seconds)
+  let activeShield = 0; // Remaining shield time in frames (1800 = 30 seconds)
   let visionRevealed = false; // Whether vision stick revealed the secret
-  let visionTimer = 0; // How long vision effect lasts
+  let visionTimer = 0; // How long vision effect lasts (1800 = 30 seconds)
   
   function pickupSpecialStick(type){
     if (type === "speed"){
@@ -1637,15 +1962,15 @@
       playSpeedStickSound();
       spawnSparks(game.playerX, game.playerY, 24, false);
     } else if (type === "shield"){
-      activeShield = 300; // 5 seconds
-      logEvent("bonus", "SHIELD STICK! Temporary immunity to hazards!");
+      activeShield = 1800; // 30 seconds
+      logEvent("bonus", "SHIELD STICK! 30 sec immunity!");
       setHud("SHIELD ACTIVE!");
       playShieldStickSound();
       spawnSparks(game.playerX, game.playerY, 24, false);
     } else if (type === "vision"){
       visionRevealed = true;
-      visionTimer = 240; // 4 seconds
-      logEvent("bonus", "VISION STICK! Secret square revealed!");
+      visionTimer = 1800; // 30 seconds
+      logEvent("bonus", "VISION STICK! 30 sec reveal!");
       setHud("VISION ACTIVATED!");
       playVisionStickSound();
       spawnSparks(game.playerX, game.playerY, 24, false);
@@ -1701,6 +2026,9 @@
   let darkTiles = [];
   let darkTileTimer = 0;
   let teleportTiles = [];
+  let teleportMoveTimer = 0;
+  let holeFlashTimer = 0;
+  let holeMoveTimer = 0;
   
   function initLevelHazards(){
     windGustTimer = 0;
@@ -1717,16 +2045,20 @@
       darkTileTimer = randInt(180, 420); // 3-7 seconds until first dark
     }
     
-    // Spell Stick: Create 5-8 teleport tiles
+    // Spell Stick: Create 5-8 MOVING teleport tiles + moving hole
     if (theme === "Spell Stick"){
       const numTeleports = randInt(5, 8);
       for (let i = 0; i < numTeleports; i++){
         teleportTiles.push({
           x: randInt(0, GRID_W - 1),
           y: randInt(0, GRID_H - 1),
-          glow: Math.random() * Math.PI * 2
+          glow: Math.random() * Math.PI * 2,
+          moveTimer: randInt(120, 300)
         });
       }
+      teleportMoveTimer = 0;
+      holeMoveTimer = randInt(600, 900); // 10-15 seconds
+      holeFlashTimer = 0;
     }
   }
   
@@ -1787,31 +2119,72 @@
       }
     }
     
-    // Spell Stick: Animate teleport tiles
+    // Spell Stick: MOVING teleport tiles + MOVING hole
     if (theme === "Spell Stick"){
+      // Animate and move teleport tiles
       for (let tile of teleportTiles){
         tile.glow = (tile.glow + 0.08) % (Math.PI * 2);
+        
+        // Move teleports
+        tile.moveTimer--;
+        if (tile.moveTimer <= 0){
+          tile.moveTimer = randInt(180, 360); // 3-6 seconds
+          const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+          const dir = dirs[randInt(0, 3)];
+          tile.x = clamp(tile.x + dir.dx, 0, GRID_W - 1);
+          tile.y = clamp(tile.y + dir.dy, 0, GRID_H - 1);
+        }
       }
       
-      // Check if player stepped on teleport
+      // Check if player stepped on teleport (flash warning 1 sec before)
       const onTeleport = teleportTiles.find(t => t.x === game.playerX && t.y === game.playerY);
-      if (onTeleport && game.actions > 0){
-        // Teleport to random location
-        let newX, newY;
+      if (onTeleport && !onTeleport.flashWarning){
+        onTeleport.flashWarning = 60; // 1 second warning
+      }
+      if (onTeleport && onTeleport.flashWarning > 0){
+        onTeleport.flashWarning--;
+        if (onTeleport.flashWarning === 0){
+          // Teleport!
+          let newX, newY;
+          do {
+            newX = randInt(0, GRID_W - 1);
+            newY = randInt(0, GRID_H - 1);
+          } while ((newX === game.holeX && newY === game.holeY) || 
+                   (newX === game.playerX && newY === game.playerY));
+          
+          spawnSparks(game.playerX, game.playerY, 18, false);
+          game.playerX = newX;
+          game.playerY = newY;
+          spawnSparks(game.playerX, game.playerY, 18, false);
+          logEvent("info", "Teleported!");
+          setHud("TELEPORT!");
+          beep(550, 0.1, "sine", 0.08);
+          delete onTeleport.flashWarning;
+        }
+      }
+      
+      // Moving hole
+      holeMoveTimer--;
+      if (holeMoveTimer <= 180 && holeMoveTimer > 0){
+        // Flash warning (last 3 seconds)
+        holeFlashTimer++;
+      }
+      if (holeMoveTimer <= 0){
+        // Move hole!
+        let newHoleX, newHoleY;
         do {
-          newX = randInt(0, GRID_W - 1);
-          newY = randInt(0, GRID_H - 1);
-        } while ((newX === game.holeX && newY === game.holeY) || 
-                 (newX === game.playerX && newY === game.playerY));
+          newHoleX = randInt(0, GRID_W - 1);
+          newHoleY = randInt(0, GRID_H - 1);
+        } while (newHoleX === game.holeX && newHoleY === game.holeY);
         
-        spawnSparks(game.playerX, game.playerY, 18, false);
-        game.playerX = newX;
-        game.playerY = newY;
-        
-        spawnSparks(game.playerX, game.playerY, 18, false);
-        logEvent("info", "Teleported by magic tile!");
-        setHud("TELEPORT!");
-        sfxBonus();
+        spawnSparks(game.holeX, game.holeY, 24, false);
+        game.holeX = newHoleX;
+        game.holeY = newHoleY;
+        spawnSparks(game.holeX, game.holeY, 24, false);
+        holeMoveTimer = randInt(600, 900);
+        holeFlashTimer = 0;
+        logEvent("info", "Hole teleported!");
+        setHud("HOLE MOVED!");
       }
     }
   }
@@ -1902,8 +2275,127 @@
     }
   }
   
+  let shootingStarTimer = randInt(180, 360);
+  
+  // Night Stick: Glowing 5-point stars on grid
+  let starGridTiles = [];
+  let playerGlowTimer = 0;
+  
+  function initStarGrid(){
+    starGridTiles = [];
+    const numStars = randInt(8, 12);
+    for (let i = 0; i < numStars; i++){
+      starGridTiles.push({
+        x: randInt(0, GRID_W - 1),
+        y: randInt(0, GRID_H - 1),
+        twinkle: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  
+  function updateStarGrid(){
+    for (let s of starGridTiles){
+      s.twinkle = (s.twinkle + 0.05) % (Math.PI * 2);
+      
+      // Check if player touched star
+      if (s.x === game.playerX && s.y === game.playerY){
+        playerGlowTimer = 180; // 3 seconds glow
+        spawnSparks(game.playerX, game.playerY, 12, false);
+        beep(800, 0.08, "sine", 0.05);
+      }
+    }
+    
+    if (playerGlowTimer > 0) playerGlowTimer--;
+  }
+  
+  function drawStarGrid(){
+    ctx.save();
+    
+    // Draw stars on grid
+    for (let s of starGridTiles){
+      const x = s.x * TILE + TILE / 2;
+      const y = s.y * TILE + TILE / 2;
+      const twinkle = Math.sin(s.twinkle) * 0.5 + 0.5;
+      
+      // Glow
+      ctx.globalAlpha = 0.2 + twinkle * 0.3;
+      const grad = ctx.createRadialGradient(x, y, 0, x, y, TILE / 2);
+      grad.addColorStop(0, 'rgba(255,220,100,0.6)');
+      grad.addColorStop(1, 'rgba(255,220,100,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, TILE / 2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // 5-point star
+      ctx.globalAlpha = 0.7 + twinkle * 0.3;
+      ctx.fillStyle = '#ffd166';
+      ctx.shadowColor = '#ffd166';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      const size = 4;
+      for (let i = 0; i < 5; i++){
+        const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+        const px = x + Math.cos(angle) * size;
+        const py = y + Math.sin(angle) * size;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+        
+        const innerAngle = angle + Math.PI / 5;
+        const ipx = x + Math.cos(innerAngle) * (size * 0.4);
+        const ipy = y + Math.sin(innerAngle) * (size * 0.4);
+        ctx.lineTo(ipx, ipy);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+    
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+  
+  function drawPlayerGlow(){
+    if (playerGlowTimer <= 0) return;
+    
+    const px = game.playerX * TILE + TILE / 2;
+    const py = game.playerY * TILE + TILE / 2;
+    const pulse = Math.sin(playerGlowTimer * 0.2) * 0.5 + 0.5;
+    
+    ctx.save();
+    ctx.globalAlpha = 0.3 + pulse * 0.4;
+    const grad = ctx.createRadialGradient(px, py, 0, px, py, TILE);
+    grad.addColorStop(0, 'rgba(255,220,100,0.8)');
+    grad.addColorStop(1, 'rgba(255,220,100,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(px, py, TILE, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  } // 3-6 seconds (more frequent!)
+  
   function updateAmbientParticles(){
     const theme = currentLevelTheme().name;
+    
+    // Shooting stars for Night Stick
+    if (theme === "Night Stick"){
+      shootingStarTimer--;
+      if (shootingStarTimer <= 0){
+        shootingStarTimer = randInt(600, 1200);
+        ambientParticles.push({
+          type: 'shootingStar',
+          x: Math.random() * CANVAS_W,
+          y: Math.random() * (CANVAS_H / 2),
+          vx: 2 + Math.random() * 2,
+          vy: 0.8 + Math.random() * 1,
+          life: 60 + Math.random() * 40
+        });
+      }
+    }
+    
+    // Remove dead shooting stars
+    ambientParticles = ambientParticles.filter(p => p.type !== 'shootingStar' || p.life > 0);
     
     for (let p of ambientParticles){
       if (p.type === 'sunray'){
@@ -1914,6 +2406,10 @@
         }
       } else if (p.type === 'star'){
         p.twinkle += p.twinkleSpeed;
+      } else if (p.type === 'shootingStar'){
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
       }
     }
   }
@@ -1922,6 +2418,9 @@
     const theme = currentLevelTheme().name;
     
     ctx.save();
+    
+    // Remove dead shooting stars
+    ambientParticles = ambientParticles.filter(p => p.type !== 'shootingStar' || p.life > 0);
     
     for (let p of ambientParticles){
       if (p.type === 'sunray'){
@@ -1964,6 +2463,29 @@
           ctx.lineTo(p.x, p.y + p.size * 2);
           ctx.stroke();
         }
+      } else if (p.type === 'shootingStar'){
+        const alpha = p.life / 60;
+        ctx.globalAlpha = alpha * 0.9;
+        
+        // Shooting star trail
+        const grad = ctx.createLinearGradient(p.x, p.y, p.x - p.vx * 5, p.y - p.vy * 5);
+        grad.addColorStop(0, 'rgba(255,255,200,0.9)');
+        grad.addColorStop(1, 'rgba(200,220,255,0)');
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x - p.vx * 5, p.y - p.vy * 5);
+        ctx.stroke();
+        
+        // Star head
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
       }
     }
     
@@ -2922,6 +3444,11 @@
 
     logEvent("bonus","A tree appears... (15s)");
     setHud("TREE APPEARS!");
+    
+    // Tree chime!
+    setTimeout(() => beep(523, 0.12, "sine", 0.08), 0);
+    setTimeout(() => beep(659, 0.12, "sine", 0.08), 120);
+    setTimeout(() => beep(784, 0.15, "sine", 0.10), 240);
   }
 
   function startTreeBlinking(){
@@ -3053,6 +3580,59 @@
       shadowMonsters = [];
     }
     
+    // Init sharks for Sea Stick
+    if (currentLevelTheme().name === "Sea Stick"){
+      initSharks();
+    } else {
+      sharks = [];
+      bubbles = [];
+    }
+    
+    // Init sun bursts for Sun Stick
+    if (currentLevelTheme().name === "Sun Stick"){
+      initSunBursts();
+    } else {
+      sunBurstTiles = [];
+      sunBurstWarningTimer = 0;
+    }
+    
+    // Init star grid for Night Stick
+    if (currentLevelTheme().name === "Night Stick"){
+      initStarGrid();
+    } else {
+      starGridTiles = [];
+      playerGlowTimer = 0;
+    }
+    
+    // Init Spell Stick - moving teleports + moving hole
+    if (currentLevelTheme().name === "Spell Stick"){
+      const numTeleports = randInt(5, 8);
+      teleportTiles = [];
+      for (let i = 0; i < numTeleports; i++){
+        teleportTiles.push({
+          x: randInt(0, GRID_W - 1),
+          y: randInt(0, GRID_H - 1),
+          glow: Math.random() * Math.PI * 2,
+          moveTimer: randInt(120, 300)
+        });
+      }
+      teleportMoveTimer = 0;
+      holeMoveTimer = randInt(600, 900);
+      holeFlashTimer = 0;
+    } else if (currentLevelTheme().name !== "Victory Stick") {
+      teleportTiles = [];
+      teleportMoveTimer = 0;
+      holeMoveTimer = 0;
+      holeFlashTimer = 0;
+    }
+    
+    // Init Ice Stick wind sound
+    if (currentLevelTheme().name === "Ice Stick"){
+      startIceWindSound();
+    } else {
+      stopIceWindSound();
+    }
+    
     // Victory Stick - ALL HAZARDS!
     if (currentLevelTheme().name === "Victory Stick"){
       windTiles = [];
@@ -3073,6 +3653,23 @@
       
       initShadowMonsters();
       shadowMonsters = shadowMonsters.slice(0,1);
+      
+      initSharks();
+      sharks = sharks.slice(0,2); // 2 sharks for Victory
+      
+      initSunBursts();
+      sunBurstTiles = sunBurstTiles.slice(0,3); // 3 sun bursts
+      
+      // Moving hole + teleports for Victory!
+      teleportTiles = [];
+      for(let i=0;i<4;i++) teleportTiles.push({
+        x:randInt(0,GRID_W-1),
+        y:randInt(0,GRID_H-1),
+        glow:Math.random()*Math.PI*2,
+        moveTimer:randInt(120,300)
+      });
+      holeMoveTimer = randInt(600,900);
+      holeFlashTimer = 0;
     }
     
     // Initialize snowflakes if starting on Ice Stick
@@ -3200,6 +3797,59 @@
       shadowMonsters = [];
     }
     
+    // Initialize sharks for Sea Stick
+    if (currentLevelTheme().name === "Sea Stick"){
+      initSharks();
+    } else {
+      sharks = [];
+      bubbles = [];
+    }
+    
+    // Initialize sun bursts for Sun Stick
+    if (currentLevelTheme().name === "Sun Stick"){
+      initSunBursts();
+    } else {
+      sunBurstTiles = [];
+      sunBurstWarningTimer = 0;
+    }
+    
+    // Initialize star grid for Night Stick
+    if (currentLevelTheme().name === "Night Stick"){
+      initStarGrid();
+    } else {
+      starGridTiles = [];
+      playerGlowTimer = 0;
+    }
+    
+    // Initialize Spell Stick - moving teleports + moving hole
+    if (currentLevelTheme().name === "Spell Stick"){
+      const numTeleports = randInt(5, 8);
+      teleportTiles = [];
+      for (let i = 0; i < numTeleports; i++){
+        teleportTiles.push({
+          x: randInt(0, GRID_W - 1),
+          y: randInt(0, GRID_H - 1),
+          glow: Math.random() * Math.PI * 2,
+          moveTimer: randInt(120, 300)
+        });
+      }
+      teleportMoveTimer = 0;
+      holeMoveTimer = randInt(600, 900);
+      holeFlashTimer = 0;
+    } else if (currentLevelTheme().name !== "Victory Stick") {
+      teleportTiles = [];
+      teleportMoveTimer = 0;
+      holeMoveTimer = 0;
+      holeFlashTimer = 0;
+    }
+    
+    // Ice Stick wind sound
+    if (currentLevelTheme().name === "Ice Stick"){
+      startIceWindSound();
+    } else {
+      stopIceWindSound();
+    }
+    
     // Victory Stick - ALL HAZARDS!
     if (currentLevelTheme().name === "Victory Stick"){
       windTiles = [];
@@ -3220,6 +3870,23 @@
       
       initShadowMonsters();
       shadowMonsters = shadowMonsters.slice(0,1);
+      
+      initSharks();
+      sharks = sharks.slice(0,2); // 2 sharks for Victory
+      
+      initSunBursts();
+      sunBurstTiles = sunBurstTiles.slice(0,3); // 3 sun bursts
+      
+      // Moving hole + teleports for Victory!
+      teleportTiles = [];
+      for(let i=0;i<4;i++) teleportTiles.push({
+        x:randInt(0,GRID_W-1),
+        y:randInt(0,GRID_H-1),
+        glow:Math.random()*Math.PI*2,
+        moveTimer:randInt(120,300)
+      });
+      holeMoveTimer = randInt(600,900);
+      holeFlashTimer = 0;
     }
     
     // Initialize fire tiles for Fire Stick theme
@@ -3378,6 +4045,19 @@
   }
 
   function handleZeroPenalty(){
+    // HOLE IS SACRED - bonus points if in hole!
+    if (game.playerX === game.holeX && game.playerY === game.holeY){
+      const bonus = 5;
+      game.score += bonus;
+      logEvent("bonus", `Zero in hole! +${bonus} bonus points!`);
+      setHud(`HOLE BONUS +${bonus}!`);
+      game.holePulse = 1.0;
+      beep(550, 0.12, "triangle", 0.08);
+      spawnSparks(game.holeX, game.holeY, 18, false);
+      commitScoreToLeaderboard();
+      return;
+    }
+    
     if (game.carry.length > 0){
       const dropped = game.carry.splice(0, game.carry.length);
       dropped.forEach(st => {
@@ -3646,6 +4326,17 @@ gameSetTimeout(updateScrollHint, 30);
       }
       game.score += pts;
       game.carry = [];
+      
+      // Expire power-ups on deposit
+      if (activeShield > 0){
+        activeShield = 0;
+        logEvent("info", "Shield expired.");
+      }
+      if (visionRevealed){
+        visionRevealed = false;
+        visionTimer = 0;
+        logEvent("info", "Vision expired.");
+      }
 
       logEvent("deposit",`Deposited ${n} stick(s) (+${pts}).`);
       sfxDeposit();
@@ -3998,6 +4689,33 @@ gameSetTimeout(updateScrollHint, 30);
       initSnakes(); snakes = snakes.slice(0,1);
       initFreezeTiles(); freezeTiles = freezeTiles.slice(0,2);
       initShadowMonsters(); shadowMonsters = shadowMonsters.slice(0,1);
+      initSharks(); sharks = sharks.slice(0,2);
+      initSunBursts(); sunBurstTiles = sunBurstTiles.slice(0,3);
+      teleportTiles = [];
+      for(let i=0;i<4;i++) teleportTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),glow:Math.random()*Math.PI*2,moveTimer:randInt(120,300)});
+      holeMoveTimer = randInt(600,900);
+    }
+    
+    if (loadedTheme === "Sea Stick"){
+      initSharks();
+    } else if (loadedTheme !== "Victory Stick"){
+      sharks = [];
+    }
+    
+    if (loadedTheme === "Sun Stick"){
+      initSunBursts();
+    } else if (loadedTheme !== "Victory Stick"){
+      sunBurstTiles = [];
+    }
+    
+    if (loadedTheme === "Night Stick"){
+      initStarGrid();
+    } else {
+      starGridTiles = [];
+    }
+    
+    if (loadedTheme === "Ice Stick"){
+      startIceWindSound();
     }
     
     updateUI();
@@ -4622,7 +5340,7 @@ gameSetTimeout(updateScrollHint, 30);
     }
     else if (skin === "rex"){
       // Rex Stick - pure simple stick dog!
-      ctx.strokeStyle = "#f3f4f6";
+      // Uses strokeBase (dark on Ice Stick, white elsewhere)
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
       
@@ -4777,6 +5495,24 @@ gameSetTimeout(updateScrollHint, 30);
       updateShadowMonsters();
     }
     
+    // Update ambient particles (shooting stars, etc)
+    updateAmbientParticles();
+    
+    // Update sharks for Sea Stick
+    if (currentLevelTheme().name === "Sea Stick" && sharks.length > 0){
+      updateSharks();
+    }
+    
+    // Update sun bursts for Sun Stick
+    if (currentLevelTheme().name === "Sun Stick" && sunBurstTiles.length > 0){
+      updateSunBursts();
+    }
+    
+    // Update star grid for Night Stick
+    if (currentLevelTheme().name === "Night Stick" && starGridTiles.length > 0){
+      updateStarGrid();
+    }
+    
     // Victory Stick - update ALL hazards
     if (currentLevelTheme().name === "Victory Stick"){
       if (windTiles.length > 0) updateWindTiles();
@@ -4784,6 +5520,8 @@ gameSetTimeout(updateScrollHint, 30);
       if (snakes.length > 0) updateSnakes();
       if (freezeTiles.length > 0) updateFreezeTiles();
       if (shadowMonsters.length > 0) updateShadowMonsters();
+      if (sharks.length > 0) updateSharks();
+      if (sunBurstTiles.length > 0) updateSunBursts();
     }
 
     // draw
@@ -4792,11 +5530,19 @@ gameSetTimeout(updateScrollHint, 30);
     drawLifeHint(theme);
     drawTree(theme);
 
+    // Star grid (draw BEFORE sticks for layering)
+    if (theme.name === "Night Stick" && starGridTiles.length > 0){
+      drawStarGrid();
+    }
+
     // sticks
     for (const s of game.sticks) drawStick(s);
 
-    // hole + player
+    // hole + player glow (behind player)
     drawHole(theme);
+    if (theme.name === "Night Stick"){
+      drawPlayerGlow();
+    }
     drawPlayer();
     
     // Draw wind tiles
@@ -4819,6 +5565,16 @@ gameSetTimeout(updateScrollHint, 30);
       drawShadowMonsters();
     }
     
+    // Draw sharks for Sea Stick
+    if (theme.name === "Sea Stick" && sharks.length > 0){
+      drawSharks();
+    }
+    
+    // Draw sun bursts for Sun Stick
+    if (theme.name === "Sun Stick" && sunBurstTiles.length > 0){
+      drawSunBursts();
+    }
+    
     // Victory Stick - draw ALL hazards
     if (theme.name === "Victory Stick"){
       if (windTiles.length > 0) drawWindTiles();
@@ -4826,6 +5582,8 @@ gameSetTimeout(updateScrollHint, 30);
       if (snakes.length > 0) drawSnakes();
       if (freezeTiles.length > 0) drawFreezeTiles();
       if (shadowMonsters.length > 0) drawShadowMonsters();
+      if (sharks.length > 0) drawSharks();
+      if (sunBurstTiles.length > 0) drawSunBursts();
     }
 
     drawSparks();
