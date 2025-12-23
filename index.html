@@ -216,6 +216,14 @@
     button:disabled{ opacity:.55; cursor:not-allowed; filter:none; }
 
     .btn-roll { background: linear-gradient(180deg,#3aa7ff,#1172ff); color:#061018; }
+    .btn-roll.ready-to-roll {
+      animation: glowRoll 2s ease-in-out infinite;
+      position: relative;
+    }
+    @keyframes glowRoll {
+      0%, 100% { box-shadow: 0 0 0 1px rgba(58,167,255,0.5), 0 0 8px rgba(58,167,255,0.3), 0 6px 18px rgba(0,0,0,.25); }
+      50% { box-shadow: 0 0 0 1px rgba(58,167,255,0.9), 0 0 16px rgba(58,167,255,0.6), 0 6px 20px rgba(0,0,0,.3); }
+    }
     .btn-use  { background: linear-gradient(180deg,#39ff95,#08c46b); color:#061018; }
     .btn-new  { background: linear-gradient(180deg,#ffb347,#ff7a18); color:#1a0f00; }
     .btn-clear{ background: linear-gradient(180deg,#ff5a6a,#ff1f3a); color:#200007; }
@@ -1012,9 +1020,9 @@
         const fire = fireTiles[randInt(0, fireTiles.length - 1)];
         fire.x = randInt(0, GRID_W - 1);
         fire.y = randInt(0, GRID_H - 1);
-        spawnSparks(fire.x, fire.y, 8, false);
+        spawnSparks(fire.x, fire.y, 12, false);
       }
-      beep(200, 0.08, "sawtooth", 0.04);
+      // No sound - just visual sparks (was too cheesy)
     }
     
     // Check if player is on fire tile
@@ -1026,9 +1034,10 @@
       if (!fireCrackleInterval){
         fireCrackleInterval = setInterval(() => {
           if (fireTiles.some(f => f.x === game.playerX && f.y === game.playerY)){
-            beep(80 + Math.random() * 40, 0.08, "sawtooth", 0.04);
+            // Fire crackling
+            beep(100 + Math.random() * 80, 0.08, "sawtooth", 0.05);
           }
-        }, 200);
+        }, 300);
       }
       
       if (fireWarningTimer >= FIRE_WARNING_TIME){
@@ -1441,7 +1450,7 @@
   
   function initFreezeTiles(){
     freezeTiles = [];
-    const num = randInt(6, 9);
+    const num = randInt(10, 14);
     for (let i = 0; i < num; i++){
       freezeTiles.push({
         x: randInt(0, GRID_W - 1),
@@ -1479,9 +1488,10 @@
       if (!freezeChimeInterval){
         freezeChimeInterval = setInterval(() => {
           if (freezeTiles.some(f => f.x === game.playerX && f.y === game.playerY)){
-            beep(600 + Math.random() * 200, 0.08, "sine", 0.05);
+            // LOUD ice warning
+            beep(900, 0.15, "sine", 0.10);
           }
-        }, 300);
+        }, 350);
       }
       
       if (freezeWarningTimer >= FREEZE_WARNING_TIME){
@@ -1517,12 +1527,8 @@
   
   function startIceWindSound(){
     if (!windSoundInterval){
-      windSoundInterval = setInterval(() => {
-        if (currentLevelTheme().name === "Ice Stick"){
-          beep(40 + Math.random() * 30, 0.4, "sine", 0.04);
-          setTimeout(() => beep(50 + Math.random() * 20, 0.3, "sine", 0.03), 200);
-        }
-      }, 1500);
+      // Removed wind sound - was too distracting
+      windSoundInterval = true; // Just mark as started
     }
   }
   
@@ -1626,10 +1632,24 @@
       m.moveTimer--;
       if (m.moveTimer <= 0){
         m.moveTimer = randInt(60, 120);
-        const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
-        const dir = dirs[randInt(0, 3)];
-        m.x = clamp(m.x + dir.dx, 0, GRID_W - 1);
-        m.y = clamp(m.y + dir.dy, 0, GRID_H - 1);
+        
+        // 60% chance to chase player, 40% random movement
+        if (Math.random() < 0.6){
+          // Chase player
+          const dx = game.playerX - m.x;
+          const dy = game.playerY - m.y;
+          if (Math.abs(dx) > Math.abs(dy)){
+            m.x = clamp(m.x + Math.sign(dx), 0, GRID_W - 1);
+          } else {
+            m.y = clamp(m.y + Math.sign(dy), 0, GRID_H - 1);
+          }
+        } else {
+          // Random roaming
+          const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+          const dir = dirs[randInt(0, 3)];
+          m.x = clamp(m.x + dir.dx, 0, GRID_W - 1);
+          m.y = clamp(m.y + dir.dy, 0, GRID_H - 1);
+        }
       }
       
       if (m.x === game.playerX && m.y === game.playerY &&
@@ -1642,7 +1662,10 @@
           game.lives--;
           logEvent("bad", "Shadow monster! -1 life");
           setHud("SHADOW KILL!");
-          beep(80, 0.15, "sawtooth", 0.1);
+          // Scary death sound
+          beep(100, 0.15, "sawtooth", 0.12);
+          setTimeout(() => beep(60, 0.20, "sawtooth", 0.15), 80);
+          setTimeout(() => beep(40, 0.25, "sawtooth", 0.18), 160);
           spawnSparks(game.playerX, game.playerY, 22, true);
           if (game.lives <= 0) gameOver();
           else updateUI();
@@ -1704,7 +1727,7 @@
       sharks.push({
         x, y,
         direction,
-        speed: 0.12 + Math.random() * 0.08,
+        speed: 0.08 + Math.random() * 0.06,
         lane,
         wiggle: Math.random() * Math.PI * 2
       });
@@ -1737,14 +1760,15 @@
         s.x = GRID_W + 2;
       }
       
-      // Check collision (HOLE IS SACRED)
+      // Check collision (HOLE IS SACRED) - must be on exact same tile
       const dx = Math.abs(s.x - game.playerX);
       const dy = Math.abs(s.y - game.playerY);
-      if (dx < 1.5 && dy < 1.5 &&
+      if (dx < 0.8 && dy < 0.8 &&
           !(game.playerX === game.holeX && game.playerY === game.holeY)){
         if (activeShield > 0){
           logEvent("info", "Shield blocked shark!");
           setHud("SHIELD!");
+          sharks.splice(i, 1); // Remove shark after shield block
         } else {
           game.lives--;
           logEvent("bad", "Shark attack! -1 life");
@@ -1753,6 +1777,13 @@
           spawnSparks(game.playerX, game.playerY, 22, true);
           if (game.lives <= 0) gameOver();
           else updateUI();
+          
+          // Give brief invincibility (1 second) after hit
+          game.inputLocked = true;
+          setTimeout(() => { game.inputLocked = false; }, 1000);
+          
+          // Remove this shark after hitting
+          sharks.splice(i, 1);
         }
       }
     }
@@ -4497,7 +4528,15 @@ gameSetTimeout(updateScrollHint, 30);
   }
 
   function updateRollButtonState(){
-    ui.btnRoll.disabled = (game.inputLocked && !game.pendingMonster) || (game.actions !== 0 && !game.pendingMonster);
+    const canRoll = !((game.inputLocked && !game.pendingMonster) || (game.actions !== 0 && !game.pendingMonster));
+    ui.btnRoll.disabled = !canRoll;
+    
+    // Add visual highlight when ready to roll
+    if (canRoll){
+      ui.btnRoll.classList.add('ready-to-roll');
+    } else {
+      ui.btnRoll.classList.remove('ready-to-roll');
+    }
   }
 
   function updateUI(){
@@ -4687,7 +4726,7 @@ gameSetTimeout(updateScrollHint, 30);
       fireTiles = [];
       for(let i=0;i<2;i++) fireTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()});
       initSnakes(); snakes = snakes.slice(0,1);
-      initFreezeTiles(); freezeTiles = freezeTiles.slice(0,2);
+      initFreezeTiles(); freezeTiles = freezeTiles.slice(0,4);
       initShadowMonsters(); shadowMonsters = shadowMonsters.slice(0,1);
       initSharks(); sharks = sharks.slice(0,2);
       initSunBursts(); sunBurstTiles = sunBurstTiles.slice(0,3);
@@ -4907,6 +4946,10 @@ gameSetTimeout(updateScrollHint, 30);
       holeColor = "#2a1a00";
       holeStroke = "#ffd400";
       glowColor = "rgba(255,212,0,0.6)";
+    } else if (theme.name === "Sea Stick") {
+      holeColor = "#001a33";
+      holeStroke = "#00bfff";
+      glowColor = "rgba(0,191,255,0.6)";
     } else if (theme.name === "Sky Stick") {
       holeColor = "#051a3a";
       holeStroke = "#3aa7ff";
@@ -5513,6 +5556,11 @@ gameSetTimeout(updateScrollHint, 30);
       updateStarGrid();
     }
     
+    // Update Spell Stick hazards (moving teleports + hole)
+    if (currentLevelTheme().name === "Spell Stick"){
+      updateLevelHazards();
+    }
+    
     // Victory Stick - update ALL hazards
     if (currentLevelTheme().name === "Victory Stick"){
       if (windTiles.length > 0) updateWindTiles();
@@ -5522,6 +5570,7 @@ gameSetTimeout(updateScrollHint, 30);
       if (shadowMonsters.length > 0) updateShadowMonsters();
       if (sharks.length > 0) updateSharks();
       if (sunBurstTiles.length > 0) updateSunBursts();
+      if (teleportTiles.length > 0) updateLevelHazards(); // Moving hole + teleports
     }
 
     // draw
@@ -5573,6 +5622,11 @@ gameSetTimeout(updateScrollHint, 30);
     // Draw sun bursts for Sun Stick
     if (theme.name === "Sun Stick" && sunBurstTiles.length > 0){
       drawSunBursts();
+    }
+    
+    // Draw Spell Stick teleports and hole flash
+    if (theme.name === "Spell Stick" && teleportTiles.length > 0){
+      drawLevelHazards();
     }
     
     // Victory Stick - draw ALL hazards
@@ -5697,6 +5751,67 @@ gameSetTimeout(updateScrollHint, 30);
   });
 
   document.addEventListener("keydown", (e) => {
+    // SECRET LEVEL SKIP: Shift + L then number (1-9, 0 for level 10)
+    if (e.shiftKey && (e.key === 'L' || e.key === 'l')){
+      e.preventDefault();
+      // Show prompt for level number
+      const input = prompt("Skip to level (1-10):");
+      if (input){
+        const num = parseInt(input);
+        if (!isNaN(num) && num >= 1 && num <= 10){
+        e.preventDefault();
+          game.level = num;
+          applyThemeForLevel();
+          
+          // Clear current level
+          game.sticks = [];
+          game.carry = [];
+          spawnHole();
+          spawnSticksForLevel(game.level);
+          spawnLifeTile();
+          scheduleTreeForLevel();
+          
+          // Init hazards for target level
+          const theme = currentLevelTheme().name;
+          if (theme === "Sky Stick"){ initWindTiles(); } else { windTiles = []; }
+          if (theme === "Fire Stick"){ initFireTiles(); } else { fireTiles = []; }
+          if (theme === "Ice Stick"){ initFreezeTiles(); startIceWindSound(); } else { freezeTiles = []; stopIceWindSound(); }
+          if (theme === "Snake Stick"){ initSnakes(); } else { snakes = []; }
+          if (theme === "Spell Stick"){
+            const numTeleports = randInt(5, 8);
+            teleportTiles = [];
+            for (let i = 0; i < numTeleports; i++){
+              teleportTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),glow:Math.random()*Math.PI*2,moveTimer:randInt(120,300)});
+            }
+            holeMoveTimer = randInt(600,900);
+          } else if (theme !== "Victory Stick") { teleportTiles = []; }
+          if (theme === "Glow Stick"){ initShadowMonsters(); } else { shadowMonsters = []; }
+          if (theme === "Sea Stick"){ initSharks(); } else { sharks = []; }
+          if (theme === "Sun Stick"){ initSunBursts(); } else { sunBurstTiles = []; }
+          if (theme === "Night Stick"){ initStarGrid(); } else { starGridTiles = []; }
+          if (theme === "Victory Stick"){
+            windTiles = []; for(let i=0;i<2;i++) windTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()*Math.PI*2});
+            fireTiles = []; for(let i=0;i<2;i++) fireTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()});
+            initSnakes(); snakes = snakes.slice(0,1);
+            initFreezeTiles(); freezeTiles = freezeTiles.slice(0,4);
+            initShadowMonsters(); shadowMonsters = shadowMonsters.slice(0,1);
+            initSharks(); sharks = sharks.slice(0,2);
+            initSunBursts(); sunBurstTiles = sunBurstTiles.slice(0,3);
+            teleportTiles = []; for(let i=0;i<4;i++) teleportTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),glow:Math.random()*Math.PI*2,moveTimer:randInt(120,300)});
+            holeMoveTimer = randInt(600,900);
+          }
+          
+          initLevelHazards();
+          initAmbientParticles();
+          
+          logEvent("level", `Skipped to Level ${targetLevel} (${theme})`);
+          setHud(`LEVEL ${targetLevel}!`);
+          updateUI();
+        }
+      }
+      return;
+    }
+    
     // overlays first
     if (ui.nameOverlay.style.display === "flex"){
       if (e.key === "Escape"){
