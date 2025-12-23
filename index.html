@@ -740,85 +740,91 @@
     <div class="modalBox" role="dialog" aria-modal="true">
       <div class="modalTitle">How to Play</div>
       <div class="modalText">
-        <div style="margin:12px 0; font-size:14px; color:#cdd9e5;">
+        <!-- Intro -->
+        <div style="margin:14px 0 12px 0; font-size:14px; color:#cdd9e5; line-height:1.5;">
           <b>THE BASICS:</b> Collect sticks and deposit them in the hole to score points. Roll the dice to get actions, spend actions to move and interact, survive 10 levels of increasing difficulty!
         </div>
 
         <div class="hr"></div>
 
-        <div style="margin:10px 0;"><b style="color:#3aa7ff;">🎲 THE DICE</b></div>
-        <div style="margin:8px 0;">Each roll gives you <b>0-5 actions</b> (standard 6-sided die, but 0 instead of 6).</div>
-        <div style="margin:8px 0;"><span class="badge">Roll 0</span> If carrying sticks, you drop them and they scatter. If carrying none, the hole spits out a stick nearby.</div>
-        <div style="margin:8px 0;">You must <b>spend all actions</b> before rolling again.</div>
+        <!-- Dice Section -->
+        <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎲 THE DICE</b></div>
+        <div style="margin:6px 0; line-height:1.5;">Each roll gives you <b>0-5 actions</b> (standard 6-sided die, but 0 instead of 6).</div>
+        <div style="margin:6px 0; line-height:1.5;"><span class="badge">Roll 0</span> If carrying sticks, you drop them and they scatter. If carrying none, the hole spits out a stick nearby.</div>
+        <div style="margin:6px 0 10px 0; line-height:1.5;">You must <b>spend all actions</b> before rolling again.</div>
 
         <div class="hr"></div>
 
-        <div style="margin:10px 0;"><b style="color:#3aa7ff;">🎮 ACTIONS</b></div>
-        <div style="margin:8px 0;"><span class="badge">Move</span> Costs 1 action per tile (Arrow Keys or D-Pad)</div>
-        <div style="margin:8px 0;"><span class="badge">Pick/Drop</span> Costs 1 action:
-          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li>Pick up a stick if standing on one</li>
-            <li>Drop one stick onto an empty tile</li>
-            <li>Deposit all carried sticks into the hole for points</li>
+        <!-- Actions Section -->
+        <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎮 ACTIONS</b></div>
+        <div style="margin:6px 0; line-height:1.5;"><span class="badge">Move</span> Costs 1 action per tile (Arrow Keys or D-Pad)</div>
+        <div style="margin:6px 0 10px 0; line-height:1.5;"><span class="badge">Pick/Drop</span> Costs 1 action:
+          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
+            <li style="margin:3px 0;">Pick up a stick if standing on one</li>
+            <li style="margin:3px 0;">Drop one stick onto an empty tile</li>
+            <li style="margin:3px 0;">Deposit all carried sticks into the hole for points</li>
           </ul>
         </div>
 
         <div class="hr"></div>
 
-        <div style="margin:10px 0;"><b style="color:#3aa7ff;">🎁 SPECIAL FEATURES</b></div>
+        <!-- Special Features Section -->
+        <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎁 SPECIAL FEATURES</b></div>
         
-        <div style="margin:8px 0;"><span class="badge">Bonus Sticks</span> 
-
-          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li>Actions remaining are <b>doubled</b></li>
-            <li>When actions hit 0, get a <b>Bonus Roll</b> (2-12 with double dice)</li>
-            <li>During Bonus mode, deposits are worth <b>2×</b> points</li>
-            <li>Roll 12 for another bonus roll!</li>
+        <div style="margin:10px 0;"><span class="badge">Bonus Sticks</span> (Yellow glow - multiple per level)
+          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
+            <li style="margin:3px 0;">Look for sticks with a <b>subtle yellow glow</b> around them</li>
+            <li style="margin:3px 0;">When picked up, your remaining actions are <b>doubled</b></li>
+            <li style="margin:3px 0;">When actions hit 0, get a <b>Bonus Roll</b> (2-12 with double dice)</li>
+            <li style="margin:3px 0;">During Bonus mode, deposits are worth <b>2×</b> points</li>
+            <li style="margin:3px 0;">Roll 12 for another bonus roll!</li>
           </ul>
         </div>
 
-        <div style="margin:8px 0;"><span class="badge">Secret Life Tile</span> (Pulses when you stand on it with sticks)
-          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li>Drop a stick on this square to gain <b>+1 life</b></li>
-            <li>If already at max lives, get bonus points instead</li>
-            <li>One per level - find it!</li>
+        <div style="margin:10px 0;"><span class="badge">Secret Life Tile</span> (Pulses when you stand on it with sticks)
+          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
+            <li style="margin:3px 0;">Drop a stick on this square to gain <b>+1 life</b></li>
+            <li style="margin:3px 0;">If already at max lives, get bonus points instead</li>
+            <li style="margin:3px 0;">One per level - find it!</li>
           </ul>
         </div>
 
-        <div style="margin:8px 0;"><span class="badge">Power Sticks</span> (Rare special pickups)
-          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li><b>Speed:</b> Next 10 moves are free (no action cost)</li>
-            <li><b>Shield:</b> 30 seconds of invincibility to hazards</li>
-            <li><b>Vision:</b> Reveals secret life tile for 30 seconds</li>
+        <div style="margin:10px 0;"><span class="badge">Power Sticks</span> (Rare special pickups)
+          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
+            <li style="margin:3px 0;"><b>Speed:</b> Next 10 moves are free (no action cost)</li>
+            <li style="margin:3px 0;"><b>Shield:</b> 30 seconds of invincibility to hazards</li>
+            <li style="margin:3px 0;"><b>Vision:</b> Reveals secret life tile for 30 seconds</li>
           </ul>
         </div>
 
-        <div style="margin:8px 0;"><span class="badge">Mystery Tree</span> (Appears randomly during levels)
-          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li>Standing on tree with sticks? Feed 1 stick for <b>+1 life</b></li>
-            <li>Standing on tree with no sticks? Get a <b>full load</b> instantly</li>
-            <li>Tree disappears after granting a life or full load</li>
+        <div style="margin:10px 0;"><span class="badge">Mystery Tree</span> (Appears randomly during levels)
+          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
+            <li style="margin:3px 0;">Standing on tree with sticks? Feed 1 stick for <b>+1 life</b></li>
+            <li style="margin:3px 0;">Standing on tree with no sticks? Get a <b>full load</b> instantly</li>
+            <li style="margin:3px 0;">Tree disappears after granting a life or full load</li>
           </ul>
         </div>
 
-        <div style="margin:8px 0;"><span class="badge">Stick Monster</span> (Cursed sticks)
-          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li>Some sticks are cursed! Picking one triggers a monster battle</li>
-            <li>Roll 2-5 = WIN (keep a powered-up 2× stick)</li>
-            <li>Roll 0-1 = LOSE (lose 1 life)</li>
-            <li><b>Streak bonus:</b> Win 3 in a row for +1 life. Keep winning for 3×, 4×, 5× sticks!</li>
+        <div style="margin:10px 0 12px 0;"><span class="badge">Stick Monster</span> (Cursed sticks)
+          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
+            <li style="margin:3px 0;">Some sticks are cursed! Picking one triggers a monster battle</li>
+            <li style="margin:3px 0;">Roll 2-5 = WIN (keep a powered-up 2× stick)</li>
+            <li style="margin:3px 0;">Roll 0-1 = LOSE (lose 1 life)</li>
+            <li style="margin:3px 0;"><b>Streak bonus:</b> Win 3 in a row for +1 life. Keep winning for 3×, 4×, 5× sticks!</li>
           </ul>
         </div>
 
         <div class="hr"></div>
 
-        <div style="margin:10px 0;"><b style="color:#3aa7ff;">🎯 GOAL</b></div>
-        <div style="margin:8px 0;">Progress through <b>10 themed levels</b>, each with unique hazards. Collect sticks, survive, and rack up the highest score!</div>
-        <div style="margin:8px 0; color:#9fb1c6;"><b>Sacred Rule:</b> The hole is always safe - no hazards can harm you while standing on it.</div>
+        <!-- Goal Section -->
+        <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎯 GOAL</b></div>
+        <div style="margin:6px 0; line-height:1.5;">Progress through <b>10 themed levels</b>, each with unique hazards. Collect sticks, survive, and rack up the highest score!</div>
+        <div style="margin:6px 0 12px 0; line-height:1.5; color:#9fb1c6;"><b>Zero in the Hole:</b> Roll a zero while standing in hole and get extra points.</div>
 
         <div class="hr"></div>
 
-        <div style="margin:8px 0; color:#9fb1c6; font-size:12px;">
+        <!-- Controls -->
+        <div style="margin:10px 0; color:#9fb1c6; font-size:12px; line-height:1.6;">
           <b>Controls:</b> Arrow Keys or D-Pad to move • Space = Pick/Drop • Esc or P = Pause<br/>
           <b>Save/Load:</b> Progress saves automatically on this device
         </div>
@@ -1713,6 +1719,116 @@
     }
     ctx.restore();
     ctx.globalAlpha = 1;
+  }
+
+  // ================================================================
+  // SNOWMAN - Ice Stick chasing enemy
+  // ================================================================
+  let snowman = null;
+  
+  function initSnowman(){
+    let x, y;
+    do {
+      x = randInt(0, GRID_W - 1);
+      y = randInt(0, GRID_H - 1);
+    } while ((x === game.playerX && y === game.playerY) || (x === game.holeX && y === game.holeY));
+    snowman = { x, y, moveTimer: 90, bobTimer: 0 };
+  }
+  
+  function updateSnowman(){
+    if (!snowman || game.pendingMonster) return;
+    snowman.bobTimer = (snowman.bobTimer + 0.1) % (Math.PI * 2);
+    snowman.moveTimer--;
+    if (snowman.moveTimer <= 0){
+      snowman.moveTimer = 90;
+      const dx = game.playerX - snowman.x;
+      const dy = game.playerY - snowman.y;
+      if (Math.abs(dx) > Math.abs(dy)){
+        snowman.x = clamp(snowman.x + Math.sign(dx), 0, GRID_W - 1);
+      } else {
+        snowman.y = clamp(snowman.y + Math.sign(dy), 0, GRID_H - 1);
+      }
+    }
+    if (snowman.x === game.playerX && snowman.y === game.playerY && !(game.playerX === game.holeX && game.playerY === game.holeY)){
+      if (activeShield > 0){
+        logEvent("info", "Shield melted snowman!");
+        setHud("SHIELD!");
+        snowman = null;
+        initSnowman();
+      } else if (game.carry.length > 0){
+        const stolen = game.carry.length;
+        game.carry = [];
+        logEvent("bad", "Snowman stole " + stolen + " sticks!");
+        setHud("SNOWMAN!");
+        beep(300, 0.12, "sine", 0.08);
+        spawnSparks(game.playerX, game.playerY, 18, true);
+        updateUI();
+        snowman = null;
+        initSnowman();
+      } else {
+        game.lives--;
+        logEvent("bad", "Frozen by snowman! -1 life");
+        setHud("SNOWMAN!");
+        beep(250, 0.15, "sine", 0.10);
+        spawnSparks(game.playerX, game.playerY, 22, true);
+        if (game.lives <= 0) gameOver();
+        else updateUI();
+        snowman = null;
+        initSnowman();
+      }
+    }
+  }
+  
+  function drawSnowman(){
+    if (!snowman) return;
+    const x = snowman.x * TILE + TILE / 2;
+    const y = snowman.y * TILE + TILE / 2;
+    const bob = Math.sin(snowman.bobTimer) * 1;
+    ctx.save();
+    ctx.translate(x, y + bob);
+    ctx.globalAlpha = 0.2;
+    ctx.fillStyle = "#001f3f";
+    ctx.beginPath();
+    ctx.ellipse(0, 10, 6, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = "#d0e8ff";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(0, 4, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, -2, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, -7, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#1a1a1a";
+    ctx.beginPath();
+    ctx.arc(-1.5, -7.5, 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(1.5, -7.5, 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ff6b35";
+    ctx.beginPath();
+    ctx.moveTo(0, -6.5);
+    ctx.lineTo(2.5, -6);
+    ctx.lineTo(0, -5.5);
+    ctx.fill();
+    ctx.strokeStyle = "#8b4513";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-3.5, -1);
+    ctx.lineTo(-6, -3);
+    ctx.moveTo(3.5, -1);
+    ctx.lineTo(6, -3);
+    ctx.stroke();
+    ctx.restore();
   }
 
   // ================================================================
@@ -3665,11 +3781,13 @@
       holeFlashTimer = 0;
     }
     
-    // Init Ice Stick wind sound
+    // Init Ice Stick wind sound and snowman
     if (currentLevelTheme().name === "Ice Stick"){
       startIceWindSound();
+      initSnowman();
     } else {
       stopIceWindSound();
+      snowman = null;
     }
     
     // Victory Stick - ALL HAZARDS!
@@ -3882,11 +4000,13 @@
       holeFlashTimer = 0;
     }
     
-    // Ice Stick wind sound
+    // Ice Stick wind sound and snowman
     if (currentLevelTheme().name === "Ice Stick"){
       startIceWindSound();
+      initSnowman();
     } else {
       stopIceWindSound();
+      snowman = null;
     }
     
     // Victory Stick - ALL HAZARDS!
@@ -4763,6 +4883,9 @@ gameSetTimeout(updateScrollHint, 30);
     
     if (loadedTheme === "Ice Stick"){
       startIceWindSound();
+      initSnowman();
+    } else {
+      snowman = null;
     }
     
     updateUI();
@@ -5569,6 +5692,11 @@ gameSetTimeout(updateScrollHint, 30);
       updateLevelHazards();
     }
     
+    // Update snowman for Ice Stick
+    if (currentLevelTheme().name === "Ice Stick" && snowman){
+      updateSnowman();
+    }
+    
     // Victory Stick - update ALL hazards
     if (currentLevelTheme().name === "Victory Stick"){
       if (windTiles.length > 0) updateWindTiles();
@@ -5578,7 +5706,8 @@ gameSetTimeout(updateScrollHint, 30);
       if (shadowMonsters.length > 0) updateShadowMonsters();
       if (sharks.length > 0) updateSharks();
       if (sunBurstTiles.length > 0) updateSunBursts();
-      if (teleportTiles.length > 0) updateLevelHazards(); // Moving hole + teleports
+      if (teleportTiles.length > 0) updateLevelHazards();
+      if (snowman) updateSnowman(); // Moving hole + teleports
     }
 
     // draw
@@ -5637,6 +5766,11 @@ gameSetTimeout(updateScrollHint, 30);
       drawLevelHazards();
     }
     
+    // Draw snowman for Ice Stick
+    if (theme.name === "Ice Stick" && snowman){
+      drawSnowman();
+    }
+    
     // Victory Stick - draw ALL hazards
     if (theme.name === "Victory Stick"){
       if (windTiles.length > 0) drawWindTiles();
@@ -5646,6 +5780,7 @@ gameSetTimeout(updateScrollHint, 30);
       if (shadowMonsters.length > 0) drawShadowMonsters();
       if (sharks.length > 0) drawSharks();
       if (sunBurstTiles.length > 0) drawSunBursts();
+      if (snowman) drawSnowman();
     }
 
     drawSparks();
@@ -5891,4 +6026,3 @@ gameSetTimeout(updateScrollHint, 30);
 </script>
 </body>
 </html>
-
