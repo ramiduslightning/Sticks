@@ -738,69 +738,90 @@
 
   <div id="infoOverlay">
     <div class="modalBox" role="dialog" aria-modal="true">
-      <div class="modalTitle">How to Play (Quick)</div>
+      <div class="modalTitle">How to Play</div>
       <div class="modalText">
-        <div style="margin:8px 0;"><span class="badge">Roll</span> gives Actions. You must spend Actions before rolling again.</div>
-        <div style="margin:8px 0;"><span class="badge">Move</span> costs 1 Action per step (Arrow Keys or D-Pad).</div>
-        <div style="margin:8px 0;"><span class="badge">Pick/Drop</span> costs 1 Action:
-          pick a stick if on one, <b>place 1 carried stick</b> onto an empty tile, or deposit into the hole.
-        </div>
-        <div style="margin:8px 0;"><span class="badge">Zero</span>:
-          if carrying sticks, you drop and they scatter. If carrying none, the hole gets angry and spits out a stick.
+        <div style="margin:12px 0; font-size:14px; color:#cdd9e5;">
+          <b>THE BASICS:</b> Collect sticks and deposit them in the hole to score points. Roll the dice to get actions, spend actions to move and interact, survive 10 levels of increasing difficulty!
         </div>
 
-        <div style="margin:8px 0;"><span class="badge">Bonus Stick</span>:
-          a secret Bonus stick pays out in 2 parts:
-          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li><b>If you have Actions left</b> after picking it up, your remaining Actions are <b>doubled</b>.</li>
-            <li><b>After Actions hit 0</b>, you get a <b>Bonus Roll</b> (double dice <b>2–12</b>).</li>
-            <li><b>If you hit 0 Actions immediately</b> after picking it up, the <b>Bonus Roll happens right away</b>.</li>
-          </ul>
-          During Bonus Roll mode: deposits are <b>2×</b>. Roll <b>12</b> to earn <b>one extra Bonus roll</b> (after Actions hit 0).
-        </div>
+        <div class="hr"></div>
 
-        <div style="margin:8px 0;"><span class="badge">Extra Life (Secret Tile)</span>:
-          each level hides <b>one secret tile</b>.
-          The tile only hints/pulses when you are <b>standing on it</b> while <b>carrying a stick</b>.
-          If you <b>drop</b> a stick on that square, you gain <b>+1 life</b> (the stick is used up).
-          <b>If you are already at max lives</b>, you get <b>bonus points</b> instead.
-        </div>
+        <div style="margin:10px 0;"><b style="color:#3aa7ff;">🎲 THE DICE</b></div>
+        <div style="margin:8px 0;">Each roll gives you <b>0-5 actions</b> (standard 6-sided die, but 0 instead of 6).</div>
+        <div style="margin:8px 0;"><span class="badge">Roll 0</span> If carrying sticks, you drop them and they scatter. If carrying none, the hole spits out a stick nearby.</div>
+        <div style="margin:8px 0;">You must <b>spend all actions</b> before rolling again.</div>
 
-        <div style="margin:8px 0;"><span class="badge">Special Power Sticks</span>:
-          rarely, you may find special sticks with unique powers:
-          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li><b>Speed:</b> Next 10 moves don't consume actions!</li>
-            <li><b>Shield:</b> Temporary immunity to environmental hazards and fire!</li>
-            <li><b>Vision:</b> Reveals the secret square location for a few seconds!</li>
+        <div class="hr"></div>
+
+        <div style="margin:10px 0;"><b style="color:#3aa7ff;">🎮 ACTIONS</b></div>
+        <div style="margin:8px 0;"><span class="badge">Move</span> Costs 1 action per tile (Arrow Keys or D-Pad)</div>
+        <div style="margin:8px 0;"><span class="badge">Pick/Drop</span> Costs 1 action:
+          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
+            <li>Pick up a stick if standing on one</li>
+            <li>Drop one stick onto an empty tile</li>
+            <li>Deposit all carried sticks into the hole for points</li>
           </ul>
         </div>
 
-        <div style="margin:8px 0;"><span class="badge">Mystery Tree</span>:
-          a tree may appear during a level. <b>(Tree timer freezes during Stick Monster battles.)</b>
-          While standing on it:
-          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
-            <li><b>If carrying sticks:</b> press <b>Pick/Drop</b> to feed <b>1 stick</b> for <b>+1 life</b>. <b>If already max lives</b>, that stick becomes <b>bonus points</b>.</li>
-            <li><b>If carrying 0 sticks:</b> press <b>Pick/Drop</b> to instantly get a <b>full load</b> (fills to your carry limit for that level).</li>
-            <li><b>Tree balance:</b> after you successfully <b>gain a life</b> from the tree, it <b>disappears</b>. If there are <b>no sticks left on the ground</b> and you use the tree to get a <b>full load</b>, it also <b>disappears</b>.</li>
+        <div class="hr"></div>
+
+        <div style="margin:10px 0;"><b style="color:#3aa7ff;">🎁 SPECIAL FEATURES</b></div>
+        
+        <div style="margin:8px 0;"><span class="badge">Bonus Stick</span> (Gold)
+          One hidden bonus stick per level! When picked up:
+          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
+            <li>Actions remaining are <b>doubled</b></li>
+            <li>When actions hit 0, get a <b>Bonus Roll</b> (2-12 with double dice)</li>
+            <li>During Bonus mode, deposits are worth <b>2×</b> points</li>
+            <li>Roll 12 for another bonus roll!</li>
           </ul>
         </div>
 
-        <div style="margin:8px 0;"><span class="badge">Stick Monster</span>:
-          some sticks are cursed. When you try to pick one up, a Stick Monster appears.
-          Press <b>ROLL</b>: roll <b>2–5</b> to keep a powered-up stick, roll <b>0–1</b> and you lose 1 life.
-          <div style="margin-top:6px;color:#9fb1c6;">
-            <b>Streak Bonus:</b>
-            <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5;">
-              <li>Each monster win in a row builds a <b>Monster streak</b>.</li>
-              <li>The streak persists across levels and only resets when you <b>lose</b> a monster fight (roll 0–1).</li>
-              <li>On your <b>3rd consecutive win</b> you gain <b>+1 life</b> (max 5).</li>
-              <li>Monster sticks are normally <b>2×</b>. Starting on your <b>4th consecutive win</b>, they scale up: <b>3× → 4× → 5× → ...</b> until you lose.</li>
-            </ul>
-          </div>
+        <div style="margin:8px 0;"><span class="badge">Secret Life Tile</span> (Pulses when you stand on it with sticks)
+          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
+            <li>Drop a stick on this square to gain <b>+1 life</b></li>
+            <li>If already at max lives, get bonus points instead</li>
+            <li>One per level - find it!</li>
+          </ul>
         </div>
 
-        <div style="margin:8px 0; color:#9fb1c6;">Controls: Arrow Keys or D-Pad • Space = Pick/Drop • Esc or P = Pause</div>
-        <div style="margin:10px 0; color:#9fb1c6;"><b>Save/Load:</b> saves only on this device (local browser storage).</div>
+        <div style="margin:8px 0;"><span class="badge">Power Sticks</span> (Rare special pickups)
+          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
+            <li><b>Speed:</b> Next 10 moves are free (no action cost)</li>
+            <li><b>Shield:</b> 30 seconds of invincibility to hazards</li>
+            <li><b>Vision:</b> Reveals secret life tile for 30 seconds</li>
+          </ul>
+        </div>
+
+        <div style="margin:8px 0;"><span class="badge">Mystery Tree</span> (Appears randomly during levels)
+          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
+            <li>Standing on tree with sticks? Feed 1 stick for <b>+1 life</b></li>
+            <li>Standing on tree with no sticks? Get a <b>full load</b> instantly</li>
+            <li>Tree disappears after granting a life or full load</li>
+          </ul>
+        </div>
+
+        <div style="margin:8px 0;"><span class="badge">Stick Monster</span> (Cursed sticks)
+          <ul style="margin:4px 0 0 18px; padding:0; color:#cdd9e5;">
+            <li>Some sticks are cursed! Picking one triggers a monster battle</li>
+            <li>Roll 2-5 = WIN (keep a powered-up 2× stick)</li>
+            <li>Roll 0-1 = LOSE (lose 1 life)</li>
+            <li><b>Streak bonus:</b> Win 3 in a row for +1 life. Keep winning for 3×, 4×, 5× sticks!</li>
+          </ul>
+        </div>
+
+        <div class="hr"></div>
+
+        <div style="margin:10px 0;"><b style="color:#3aa7ff;">🎯 GOAL</b></div>
+        <div style="margin:8px 0;">Progress through <b>10 themed levels</b>, each with unique hazards. Collect sticks, survive, and rack up the highest score!</div>
+        <div style="margin:8px 0; color:#9fb1c6;"><b>Sacred Rule:</b> The hole is always safe - no hazards can harm you while standing on it.</div>
+
+        <div class="hr"></div>
+
+        <div style="margin:8px 0; color:#9fb1c6; font-size:12px;">
+          <b>Controls:</b> Arrow Keys or D-Pad to move • Space = Pick/Drop • Esc or P = Pause<br/>
+          <b>Save/Load:</b> Progress saves automatically on this device
+        </div>
       </div>
       <div class="modalActions">
         <button class="modalClose" id="btnInfoClose">Close</button>
@@ -5870,4 +5891,3 @@ gameSetTimeout(updateScrollHint, 30);
 </script>
 </body>
 </html>
-
