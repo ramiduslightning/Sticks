@@ -731,6 +731,12 @@
           </div>
         </div>
         <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
+        <div style="text-align:center; margin:10px 0; padding:10px 0; border-top:1px solid #1f2a37;">
+          <div style="font-size:11px; color:#9fb1c6; line-height:1.5;">
+            <div style="font-weight:700; letter-spacing:0.5px; margin-bottom:2px;">RAMIDUS, INC.</div>
+            <div style="font-size:10px;">A Casey T. Duncan Enterprise</div>
+          </div>
+        </div>
         <div class="hr"></div>
       </div>
     </div>
@@ -939,6 +945,7 @@
     { name:"Glow Stick",    bg:"#09060f", grid:"#ffb347", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.46)", accentShadow:"rgba(255,122,24,.22)" },
     { name:"Spell Stick",   bg:"#0d0010", grid:"#4a0a3a", border:"#ff1493", accent:"#ff1493", accentGlow:"rgba(255,20,147,.46)", accentShadow:"rgba(255,20,147,.30)" },
     { name:"Sea Stick",     bg:"#001a33", grid:"#003d5c", border:"#0077be", accent:"#00bfff", accentGlow:"rgba(0,191,255,.46)", accentShadow:"rgba(0,191,255,.30)" },
+    { name:"Spider Stick",  bg:"#0d0a12", grid:"#1a1520", border:"#2d2335", accent:"#8b5cf6", accentGlow:"rgba(139,92,246,.46)", accentShadow:"rgba(139,92,246,.30)" },
     { name:"Snake Stick",   bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
     { name:"Victory Stick", bg:"#070315", grid:"#c27bff", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.55)", accentShadow:"rgba(194,123,255,.30)" }
   ];
@@ -1769,8 +1776,22 @@
         game.lives--;
         logEvent("bad", "Frozen by snowman! -1 life");
         setHud("SNOWMAN!");
-        beep(250, 0.15, "sine", 0.10);
-        spawnSparks(game.playerX, game.playerY, 22, true);
+        
+        // Dramatic frozen death sound - descending doom
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.6);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.6);
+        
+        spawnSparks(game.playerX, game.playerY, 30, true);
         if (game.lives <= 0) gameOver();
         else updateUI();
         snowman = null;
@@ -1783,52 +1804,591 @@
     if (!snowman) return;
     const x = snowman.x * TILE + TILE / 2;
     const y = snowman.y * TILE + TILE / 2;
-    const bob = Math.sin(snowman.bobTimer) * 1;
+    const bob = Math.sin(snowman.bobTimer) * 1.5;
     ctx.save();
     ctx.translate(x, y + bob);
     ctx.globalAlpha = 0.2;
     ctx.fillStyle = "#001f3f";
     ctx.beginPath();
-    ctx.ellipse(0, 10, 6, 2, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 15, 9, 3, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
     ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = "#d0e8ff";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(0, 4, 5, 0, Math.PI * 2);
+    ctx.arc(0, 6, 7.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(0, -2, 4, 0, Math.PI * 2);
+    ctx.arc(0, -3, 6, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(0, -7, 3, 0, Math.PI * 2);
+    ctx.arc(0, -10.5, 4.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "#1a1a1a";
     ctx.beginPath();
-    ctx.arc(-1.5, -7.5, 0.8, 0, Math.PI * 2);
+    ctx.arc(-2.2, -11.2, 1.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(1.5, -7.5, 0.8, 0, Math.PI * 2);
+    ctx.arc(2.2, -11.2, 1.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#ff6b35";
     ctx.beginPath();
-    ctx.moveTo(0, -6.5);
-    ctx.lineTo(2.5, -6);
-    ctx.lineTo(0, -5.5);
+    ctx.moveTo(0, -9.7);
+    ctx.lineTo(3.8, -9);
+    ctx.lineTo(0, -8.2);
     ctx.fill();
     ctx.strokeStyle = "#8b4513";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(-3.5, -1);
-    ctx.lineTo(-6, -3);
-    ctx.moveTo(3.5, -1);
-    ctx.lineTo(6, -3);
+    ctx.moveTo(-5.2, -1.5);
+    ctx.lineTo(-9, -4.5);
+    ctx.moveTo(5.2, -1.5);
+    ctx.lineTo(9, -4.5);
     ctx.stroke();
     ctx.restore();
+  }
+
+  // ================================================================
+  // SPIDER WEBS - Spider Stick (sticky traps)
+  // ================================================================
+  let spiderWebs = [];
+  
+  function initSpiderWebs(){
+    spiderWebs = [];
+    const num = randInt(4, 6);
+    for (let i = 0; i < num; i++){
+      spiderWebs.push({
+        x: randInt(0, GRID_W - 1),
+        y: randInt(0, GRID_H - 1),
+        pulse: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  
+  function updateSpiderWebs(){
+    for (let i = spiderWebs.length - 1; i >= 0; i--){
+      const web = spiderWebs[i];
+      web.pulse = (web.pulse + 0.05) % (Math.PI * 2);
+      
+      if (web.x === game.playerX && web.y === game.playerY && 
+          !(game.playerX === game.holeX && game.playerY === game.holeY)){
+        if (activeShield > 0){
+          logEvent("info", "Shield broke through web!");
+          setHud("SHIELD!");
+          spiderWebs.splice(i, 1); // Remove web
+        } else if (!game.webbed){
+          // Lose all remaining actions immediately
+          const lostActions = game.actions;
+          game.actions = 0;
+          game.webbed = true;
+          
+          if (lostActions > 0){
+            logEvent("bad", `TRAPPED IN WEB! Lost ${lostActions} actions. Next roll will be halved!`);
+            setHud("WEB TRAP!");
+            beep(200, 0.10, "sawtooth", 0.06);
+          } else {
+            logEvent("bad", "Stuck in web! Next roll will be halved!");
+            setHud("WEBBED!");
+            beep(200, 0.10, "sawtooth", 0.06);
+          }
+          
+          // REMOVE the web after it traps you (single use)
+          spiderWebs.splice(i, 1);
+          
+          updateUI();
+        }
+      }
+    }
+  }
+  
+  function drawSpiderWebs(){
+    for (let web of spiderWebs){
+      const x = web.x * TILE + TILE / 2;
+      const y = web.y * TILE + TILE / 2;
+      const pulse = Math.sin(web.pulse) * 0.3 + 0.7;
+      
+      ctx.save();
+      ctx.globalAlpha = 0.4 + pulse * 0.2;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      
+      for (let i = 0; i < 8; i++){
+        const angle = (Math.PI * 2 / 8) * i;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * 10, y + Math.sin(angle) * 10);
+        ctx.stroke();
+      }
+      
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+  }
+  
+  // ================================================================
+  // SPIDERS - Spider Stick (fast chasers)
+  // ================================================================
+  let spiders = [];
+  
+  function initSpiders(){
+    spiders = [];
+    const num = randInt(2, 3);
+    for (let i = 0; i < num; i++){
+      let x, y;
+      do {
+        x = randInt(0, GRID_W - 1);
+        y = randInt(0, GRID_H - 1);
+      } while ((x === game.playerX && y === game.playerY) || 
+               (x === game.holeX && y === game.holeY) ||
+               (snowman && x === snowman.x && y === snowman.y));
+      spiders.push({ x, y, moveTimer: 90, legTimer: 0 });
+    }
+  }
+  
+  function updateSpiders(){
+    if (game.pendingMonster) return;
+    
+    for (let i = spiders.length - 1; i >= 0; i--){
+      const spider = spiders[i];
+      spider.legTimer = (spider.legTimer + 0.2) % (Math.PI * 2);
+      spider.moveTimer--;
+      
+      if (spider.moveTimer <= 0){
+        spider.moveTimer = 90;
+        const dx = game.playerX - spider.x;
+        const dy = game.playerY - spider.y;
+        if (Math.abs(dx) > Math.abs(dy)){
+          spider.x = clamp(spider.x + Math.sign(dx), 0, GRID_W - 1);
+        } else {
+          spider.y = clamp(spider.y + Math.sign(dy), 0, GRID_W - 1);
+        }
+      }
+      
+      if (spider.x === game.playerX && spider.y === game.playerY &&
+          !(game.playerX === game.holeX && game.playerY === game.holeY)){
+        if (activeShield > 0){
+          logEvent("info", "Shield crushed spider!");
+          setHud("SHIELD!");
+          spiders.splice(i, 1);
+          if (spiders.length === 0) initSpiders();
+        } else if (game.carry.length > 0){
+          const stolen = game.carry.length;
+          game.carry = [];
+          logEvent("bad", "Spider wrapped " + stolen + " sticks!");
+          setHud("SPIDER!");
+          
+          // Spider wrapping sound - quick descending buzz
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = "sawtooth";
+          osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.25);
+          gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+          osc.start(audioCtx.currentTime);
+          osc.stop(audioCtx.currentTime + 0.25);
+          
+          spawnSparks(game.playerX, game.playerY, 25, true);
+          updateUI();
+          spiders.splice(i, 1);
+          if (spiders.length === 0) initSpiders();
+        } else {
+          game.lives--;
+          logEvent("bad", "Spider bite! -1 life");
+          setHud("SPIDER BITE!");
+          
+          // Dramatic spider death sound - multi-tone doom chord
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          
+          // Low ominous tone
+          const osc1 = audioCtx.createOscillator();
+          const gain1 = audioCtx.createGain();
+          osc1.connect(gain1);
+          gain1.connect(audioCtx.destination);
+          osc1.type = "sawtooth";
+          osc1.frequency.setValueAtTime(80, audioCtx.currentTime);
+          osc1.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+          gain1.gain.setValueAtTime(0.2, audioCtx.currentTime);
+          gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+          
+          // Mid creepy tone
+          const osc2 = audioCtx.createOscillator();
+          const gain2 = audioCtx.createGain();
+          osc2.connect(gain2);
+          gain2.connect(audioCtx.destination);
+          osc2.type = "square";
+          osc2.frequency.setValueAtTime(200, audioCtx.currentTime);
+          osc2.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
+          gain2.gain.setValueAtTime(0.15, audioCtx.currentTime);
+          gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+          
+          // High screech
+          const osc3 = audioCtx.createOscillator();
+          const gain3 = audioCtx.createGain();
+          osc3.connect(gain3);
+          gain3.connect(audioCtx.destination);
+          osc3.type = "sine";
+          osc3.frequency.setValueAtTime(800, audioCtx.currentTime);
+          osc3.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.3);
+          gain3.gain.setValueAtTime(0.12, audioCtx.currentTime);
+          gain3.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+          
+          osc1.start(audioCtx.currentTime);
+          osc1.stop(audioCtx.currentTime + 0.5);
+          osc2.start(audioCtx.currentTime);
+          osc2.stop(audioCtx.currentTime + 0.5);
+          osc3.start(audioCtx.currentTime);
+          osc3.stop(audioCtx.currentTime + 0.3);
+          
+          spawnSparks(game.playerX, game.playerY, 30, true);
+          if (game.lives <= 0) gameOver();
+          else updateUI();
+          spiders.splice(i, 1);
+          if (spiders.length === 0) initSpiders();
+        }
+      }
+    }
+  }
+  
+  function drawSpiders(){
+    for (let spider of spiders){
+      const x = spider.x * TILE + TILE / 2;
+      const y = spider.y * TILE + TILE / 2;
+      const legWave = Math.sin(spider.legTimer);
+      
+      ctx.save();
+      ctx.translate(x, y);
+      
+      // 8 animated legs (4 pairs)
+      ctx.strokeStyle = "#f0f0f0";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      for (let i = 0; i < 4; i++){
+        // Alternate leg movement for walking effect
+        const leftPhase = legWave + (i * Math.PI / 2);
+        const rightPhase = legWave + (i * Math.PI / 2) + Math.PI;
+        const leftWiggle = Math.sin(leftPhase) * 2;
+        const rightWiggle = Math.sin(rightPhase) * 2;
+        
+        // Left legs (bent at joint)
+        ctx.beginPath();
+        ctx.moveTo(-3, -1 + i);
+        ctx.lineTo(-6, -3 + i * 2 + leftWiggle);
+        ctx.lineTo(-10, -1 + i * 2.5);
+        ctx.stroke();
+        
+        // Right legs (bent at joint)
+        ctx.beginPath();
+        ctx.moveTo(3, -1 + i);
+        ctx.lineTo(6, -3 + i * 2 + rightWiggle);
+        ctx.lineTo(10, -1 + i * 2.5);
+        ctx.stroke();
+      }
+      
+      // Body (round, hairy spider)
+      ctx.fillStyle = "#1a0d24";
+      ctx.strokeStyle = "#8b5cf6";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Add some hair texture
+      ctx.strokeStyle = "#4c1d95";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 8; i++){
+        const angle = (Math.PI * 2 / 8) * i;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * 3, Math.sin(angle) * 3);
+        ctx.lineTo(Math.cos(angle) * 5, Math.sin(angle) * 5);
+        ctx.stroke();
+      }
+      
+      // Head (smaller segment)
+      ctx.fillStyle = "#2d1a3d";
+      ctx.strokeStyle = "#8b5cf6";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(0, -6, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Multiple red eyes (spider-like)
+      ctx.fillStyle = "#ff0000";
+      ctx.shadowColor = "#ff0000";
+      ctx.shadowBlur = 3;
+      // Top eyes
+      ctx.beginPath();
+      ctx.arc(-1.5, -7, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(1.5, -7, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      // Bottom eyes (smaller)
+      ctx.beginPath();
+      ctx.arc(-1, -5.5, 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(1, -5.5, 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      
+      ctx.restore();
+    }
+  }
+  
+  // ================================================================
+  // SKUNKS + STINK CLOUDS - Skunk Stick
+  // ================================================================
+  let skunks = [];
+  let stinkClouds = [];
+  
+  function initSkunks(){
+    skunks = [];
+    const num = randInt(2, 3);
+    for (let i = 0; i < num; i++){
+      let x, y;
+      do {
+        x = randInt(0, GRID_W - 1);
+        y = randInt(0, GRID_H - 1);
+      } while ((x === game.playerX && y === game.playerY) || 
+               (x === game.holeX && y === game.holeY));
+      skunks.push({ x, y, moveTimer: 80, sprayTimer: 180, waddle: 0 });
+    }
+  }
+  
+  function updateSkunks(){
+    if (game.pendingMonster) return;
+    
+    for (let skunk of skunks){
+      skunk.waddle = (skunk.waddle + 0.15) % (Math.PI * 2);
+      skunk.moveTimer--;
+      skunk.sprayTimer--;
+      
+      if (skunk.moveTimer <= 0){
+        skunk.moveTimer = 80;
+        const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+        const dir = dirs[randInt(0, 3)];
+        skunk.x = clamp(skunk.x + dir.dx, 0, GRID_W - 1);
+        skunk.y = clamp(skunk.y + dir.dy, 0, GRID_H - 1);
+      }
+      
+      const dx = Math.abs(skunk.x - game.playerX);
+      const dy = Math.abs(skunk.y - game.playerY);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < 4 && skunk.sprayTimer <= 0){
+        skunk.sprayTimer = 180;
+        stinkClouds.push({
+          x: skunk.x, y: skunk.y,
+          radius: 0, maxRadius: 3,
+          lifetime: 300, pulse: 0, damageTimer: 0
+        });
+        logEvent("info", "Skunk sprayed! Avoid the cloud!");
+        setHud("SKUNK SPRAY!");
+        beep(150, 0.08, "sawtooth", 0.05);
+      }
+    }
+    
+    for (let i = stinkClouds.length - 1; i >= 0; i--){
+      const cloud = stinkClouds[i];
+      cloud.pulse = (cloud.pulse + 0.1) % (Math.PI * 2);
+      cloud.lifetime--;
+      
+      if (cloud.radius < cloud.maxRadius){
+        cloud.radius += 0.15;
+      }
+      
+      const dx = Math.abs(cloud.x - game.playerX);
+      const dy = Math.abs(cloud.y - game.playerY);
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      
+      if (dist < cloud.radius && !(game.playerX === game.holeX && game.playerY === game.holeY)){
+        cloud.damageTimer++;
+        if (cloud.damageTimer % 30 === 0){
+          beep(300, 0.06, "sine", 0.04);
+        }
+        if (cloud.damageTimer > 180){
+          if (activeShield > 0){
+            logEvent("info", "Shield blocked stink!");
+            setHud("SHIELD!");
+          } else {
+            game.lives--;
+            logEvent("bad", "Poisoned by stink! -1 life");
+            setHud("POISONED!");
+            beep(250, 0.15, "sine", 0.10);
+            spawnSparks(game.playerX, game.playerY, 22, true);
+            if (game.lives <= 0) gameOver();
+            else updateUI();
+          }
+          cloud.damageTimer = 0;
+        }
+      } else {
+        cloud.damageTimer = 0;
+      }
+      
+      if (cloud.lifetime <= 0){
+        stinkClouds.splice(i, 1);
+      }
+    }
+  }
+  
+  function drawSkunks(){
+    for (let skunk of skunks){
+      const x = skunk.x * TILE + TILE / 2;
+      const y = skunk.y * TILE + TILE / 2;
+      const waddle = Math.sin(skunk.waddle) * 1;
+      
+      ctx.save();
+      ctx.translate(x, y + waddle);
+      
+      // Tail (big and fluffy, held up)
+      ctx.fillStyle = "#1a1a1a";
+      ctx.beginPath();
+      ctx.ellipse(-2, -8, 4, 6, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // White stripe on tail
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.ellipse(-2, -8, 2, 5, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Body (fat oval)
+      ctx.fillStyle = "#000000";
+      ctx.beginPath();
+      ctx.ellipse(0, 1, 7, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Two white stripes from head to tail (classic skunk pattern)
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(-2, -2);
+      ctx.lineTo(-3, 1);
+      ctx.lineTo(-2.5, 4);
+      ctx.lineTo(-1.5, 4);
+      ctx.lineTo(-1, 1);
+      ctx.lineTo(-1.5, -2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.moveTo(2, -2);
+      ctx.lineTo(3, 1);
+      ctx.lineTo(2.5, 4);
+      ctx.lineTo(1.5, 4);
+      ctx.lineTo(1, 1);
+      ctx.lineTo(1.5, -2);
+      ctx.fill();
+      
+      // Head (small, pointed)
+      ctx.fillStyle = "#1a1a1a";
+      ctx.beginPath();
+      ctx.arc(6, -1, 3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // White face stripe
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(6, -3);
+      ctx.lineTo(5.5, 1);
+      ctx.lineTo(6.5, 1);
+      ctx.lineTo(6, -3);
+      ctx.fill();
+      
+      // Nose
+      ctx.fillStyle = "#ff69b4";
+      ctx.beginPath();
+      ctx.arc(8, -1, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Eyes (small black dots)
+      ctx.fillStyle = "#1a1a1a";
+      ctx.beginPath();
+      ctx.arc(7, -2, 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(7, 0, 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Feet (tiny)
+      ctx.fillStyle = "#1a1a1a";
+      ctx.fillRect(-4, 3, 2, 1);
+      ctx.fillRect(2, 3, 2, 1);
+      
+      ctx.restore();
+    }
+  }
+  
+  function drawStinkClouds(){
+    for (let cloud of stinkClouds){
+      const x = cloud.x * TILE + TILE / 2;
+      const y = cloud.y * TILE + TILE / 2;
+      const pulse = Math.sin(cloud.pulse) * 0.2 + 0.8;
+      const radius = cloud.radius * TILE;
+      
+      ctx.save();
+      
+      // Multiple overlapping smoke puffs for realistic smog
+      const puffs = 8;
+      for (let i = 0; i < puffs; i++){
+        const angle = (Math.PI * 2 / puffs) * i + cloud.pulse;
+        const dist = (radius * 0.4) + Math.sin(cloud.pulse + i) * (radius * 0.2);
+        const puffX = x + Math.cos(angle) * dist;
+        const puffY = y + Math.sin(angle) * dist;
+        const puffSize = radius * 0.5 + Math.sin(cloud.pulse * 2 + i) * (radius * 0.1);
+        
+        ctx.globalAlpha = 0.15 + pulse * 0.1;
+        const grad = ctx.createRadialGradient(puffX, puffY, 0, puffX, puffY, puffSize);
+        grad.addColorStop(0, 'rgba(150,200,30,0.6)');
+        grad.addColorStop(0.4, 'rgba(132,204,22,0.4)');
+        grad.addColorStop(1, 'rgba(100,150,10,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(puffX, puffY, puffSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Center dense cloud
+      ctx.globalAlpha = 0.25 + pulse * 0.15;
+      const centerGrad = ctx.createRadialGradient(x, y, 0, x, y, radius * 0.6);
+      centerGrad.addColorStop(0, 'rgba(180,220,40,0.7)');
+      centerGrad.addColorStop(0.5, 'rgba(132,204,22,0.5)');
+      centerGrad.addColorStop(1, 'rgba(100,150,10,0)');
+      ctx.fillStyle = centerGrad;
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add some swirly wisps
+      ctx.globalAlpha = 0.3;
+      ctx.strokeStyle = "#a8d944";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      for (let i = 0; i < 3; i++){
+        const angle = (Math.PI * 2 / 3) * i + cloud.pulse * 0.5;
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(angle) * radius * 0.3, 
+                y + Math.sin(angle) * radius * 0.3, 
+                radius * 0.4, angle, angle + Math.PI);
+        ctx.stroke();
+      }
+      
+      ctx.restore();
+    }
   }
 
   // ================================================================
@@ -1897,8 +2457,51 @@
           game.lives--;
           logEvent("bad", "Shark attack! -1 life");
           setHud("SHARK BITE!");
-          beep(100, 0.15, "sawtooth", 0.12);
-          spawnSparks(game.playerX, game.playerY, 22, true);
+          
+          // Dramatic shark attack sound - deep underwater doom
+          const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          
+          // Deep rumbling bass (shark approaching)
+          const bass = audioCtx.createOscillator();
+          const bassGain = audioCtx.createGain();
+          bass.connect(bassGain);
+          bassGain.connect(audioCtx.destination);
+          bass.type = "sawtooth";
+          bass.frequency.setValueAtTime(60, audioCtx.currentTime);
+          bass.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.6);
+          bassGain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+          bassGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+          
+          // Bite crunch (harsh impact)
+          const crunch = audioCtx.createOscillator();
+          const crunchGain = audioCtx.createGain();
+          crunch.connect(crunchGain);
+          crunchGain.connect(audioCtx.destination);
+          crunch.type = "square";
+          crunch.frequency.setValueAtTime(150, audioCtx.currentTime + 0.15);
+          crunch.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.35);
+          crunchGain.gain.setValueAtTime(0.2, audioCtx.currentTime + 0.15);
+          crunchGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+          
+          // High screech (fear/pain)
+          const screech = audioCtx.createOscillator();
+          const screechGain = audioCtx.createGain();
+          screech.connect(screechGain);
+          screechGain.connect(audioCtx.destination);
+          screech.type = "sine";
+          screech.frequency.setValueAtTime(900, audioCtx.currentTime + 0.15);
+          screech.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.45);
+          screechGain.gain.setValueAtTime(0.15, audioCtx.currentTime + 0.15);
+          screechGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.45);
+          
+          bass.start(audioCtx.currentTime);
+          bass.stop(audioCtx.currentTime + 0.6);
+          crunch.start(audioCtx.currentTime + 0.15);
+          crunch.stop(audioCtx.currentTime + 0.35);
+          screech.start(audioCtx.currentTime + 0.15);
+          screech.stop(audioCtx.currentTime + 0.45);
+          
+          spawnSparks(game.playerX, game.playerY, 35, true);
           if (game.lives <= 0) gameOver();
           else updateUI();
           
@@ -3790,6 +4393,23 @@
       snowman = null;
     }
     
+    // Init Spider Stick
+    if (currentLevelTheme().name === "Spider Stick"){
+      initSpiderWebs();
+      initSpiders();
+    } else {
+      spiderWebs = [];
+      spiders = [];
+    }
+    
+    // Init Skunk Stick
+    if (currentLevelTheme().name === "Skunk Stick"){
+      initSkunks();
+    } else {
+      skunks = [];
+      stinkClouds = [];
+    }
+    
     // Victory Stick - ALL HAZARDS!
     if (currentLevelTheme().name === "Victory Stick"){
       windTiles = [];
@@ -3816,6 +4436,14 @@
       
       initSunBursts();
       sunBurstTiles = sunBurstTiles.slice(0,3); // 3 sun bursts
+      
+      initSnowman();
+      
+      initSpiderWebs();
+      spiderWebs = spiderWebs.slice(0,3);
+      
+      initSpiders();
+      spiders = spiders.slice(0,2); // 2 spiders for Victory
       
       // Moving hole + teleports for Victory!
       teleportTiles = [];
@@ -3904,7 +4532,7 @@
   }
 
   function newLevel(){
-    if (game.level >= 9){
+    if (game.level > 11){
       winGame();
       updateUI();
       return;
@@ -3952,6 +4580,21 @@
       initShadowMonsters();
     } else {
       shadowMonsters = [];
+    }
+    
+    if (currentLevelTheme().name === "Spider Stick"){
+      initSpiderWebs();
+      initSpiders();
+    } else {
+      spiderWebs = [];
+      spiders = [];
+    }
+    
+    if (currentLevelTheme().name === "Skunk Stick"){
+      initSkunks();
+    } else {
+      skunks = [];
+      stinkClouds = [];
     }
     
     // Initialize sharks for Sea Stick
@@ -4035,6 +4678,14 @@
       
       initSunBursts();
       sunBurstTiles = sunBurstTiles.slice(0,3); // 3 sun bursts
+      
+      initSnowman();
+      
+      initSpiderWebs();
+      spiderWebs = spiderWebs.slice(0,3);
+      
+      initSpiders();
+      spiders = spiders.slice(0,2); // 2 spiders for Victory
       
       // Moving hole + teleports for Victory!
       teleportTiles = [];
@@ -4180,6 +4831,17 @@
           game.actions = 0;
         } else {
           game.actions = r;
+          
+          // Spider web effect - halve the roll
+          if (game.webbed){
+            const before = game.actions;
+            game.actions = Math.floor(game.actions / 2);
+            logEvent("bad", `WEB TRAPPED! Roll halved: ${before} → ${game.actions}`);
+            setHud("WEBBED!");
+            beep(300, 0.15, "sawtooth", 0.08);
+            game.webbed = false;
+          }
+          
           logEvent("roll",`Rolled ${r}.`);
         }
       }
@@ -5105,6 +5767,10 @@ gameSetTimeout(updateScrollHint, 30);
       holeColor = "#2a1500";
       holeStroke = "#ffb347";
       glowColor = "rgba(255,179,71,0.6)";
+    } else if (theme.name === "Spider Stick") {
+      holeColor = "#0d0a12";
+      holeStroke = "#8b5cf6";
+      glowColor = "rgba(139,92,246,0.6)";
     } else if (theme.name === "Victory Stick") {
       holeColor = "#0a0015";
       holeStroke = "#c27bff";
@@ -5697,6 +6363,11 @@ gameSetTimeout(updateScrollHint, 30);
       updateSnowman();
     }
     
+    if (currentLevelTheme().name === "Spider Stick"){
+      if (spiderWebs.length > 0) updateSpiderWebs();
+      if (spiders.length > 0) updateSpiders();
+    }
+    
     // Victory Stick - update ALL hazards
     if (currentLevelTheme().name === "Victory Stick"){
       if (windTiles.length > 0) updateWindTiles();
@@ -5707,7 +6378,9 @@ gameSetTimeout(updateScrollHint, 30);
       if (sharks.length > 0) updateSharks();
       if (sunBurstTiles.length > 0) updateSunBursts();
       if (teleportTiles.length > 0) updateLevelHazards();
-      if (snowman) updateSnowman(); // Moving hole + teleports
+      if (snowman) updateSnowman();
+      if (spiderWebs.length > 0) updateSpiderWebs();
+      if (spiders.length > 0) updateSpiders();
     }
 
     // draw
@@ -5771,6 +6444,11 @@ gameSetTimeout(updateScrollHint, 30);
       drawSnowman();
     }
     
+    if (theme.name === "Spider Stick"){
+      if (spiderWebs.length > 0) drawSpiderWebs();
+      if (spiders.length > 0) drawSpiders();
+    }
+    
     // Victory Stick - draw ALL hazards
     if (theme.name === "Victory Stick"){
       if (windTiles.length > 0) drawWindTiles();
@@ -5781,6 +6459,8 @@ gameSetTimeout(updateScrollHint, 30);
       if (sharks.length > 0) drawSharks();
       if (sunBurstTiles.length > 0) drawSunBursts();
       if (snowman) drawSnowman();
+          if (spiderWebs.length > 0) drawSpiderWebs();
+      if (spiders.length > 0) drawSpiders();
     }
 
     drawSparks();
@@ -5894,68 +6574,7 @@ gameSetTimeout(updateScrollHint, 30);
   });
 
   document.addEventListener("keydown", (e) => {
-    // SECRET LEVEL SKIP: Shift + L then number (1-9, 0 for level 10)
-    if (e.shiftKey && (e.key === 'L' || e.key === 'l')){
-      e.preventDefault();
-      // Show prompt for level number
-      const input = prompt("Skip to level (1-10):");
-      if (input){
-        const num = parseInt(input);
-        if (!isNaN(num) && num >= 1 && num <= 10){
-        e.preventDefault();
-          game.level = num;
-          applyThemeForLevel();
-          
-          // Clear current level
-          game.sticks = [];
-          game.carry = [];
-          spawnHole();
-          spawnSticksForLevel(game.level);
-          spawnLifeTile();
-          scheduleTreeForLevel();
-          
-          // Init hazards for target level
-          const theme = currentLevelTheme().name;
-          if (theme === "Sky Stick"){ initWindTiles(); } else { windTiles = []; }
-          if (theme === "Fire Stick"){ initFireTiles(); } else { fireTiles = []; }
-          if (theme === "Ice Stick"){ initFreezeTiles(); startIceWindSound(); } else { freezeTiles = []; stopIceWindSound(); }
-          if (theme === "Snake Stick"){ initSnakes(); } else { snakes = []; }
-          if (theme === "Spell Stick"){
-            const numTeleports = randInt(5, 8);
-            teleportTiles = [];
-            for (let i = 0; i < numTeleports; i++){
-              teleportTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),glow:Math.random()*Math.PI*2,moveTimer:randInt(120,300)});
-            }
-            holeMoveTimer = randInt(600,900);
-          } else if (theme !== "Victory Stick") { teleportTiles = []; }
-          if (theme === "Glow Stick"){ initShadowMonsters(); } else { shadowMonsters = []; }
-          if (theme === "Sea Stick"){ initSharks(); } else { sharks = []; }
-          if (theme === "Sun Stick"){ initSunBursts(); } else { sunBurstTiles = []; }
-          if (theme === "Night Stick"){ initStarGrid(); } else { starGridTiles = []; }
-          if (theme === "Victory Stick"){
-            windTiles = []; for(let i=0;i<2;i++) windTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()*Math.PI*2});
-            fireTiles = []; for(let i=0;i<2;i++) fireTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()});
-            initSnakes(); snakes = snakes.slice(0,1);
-            initFreezeTiles(); freezeTiles = freezeTiles.slice(0,4);
-            initShadowMonsters(); shadowMonsters = shadowMonsters.slice(0,1);
-            initSharks(); sharks = sharks.slice(0,2);
-            initSunBursts(); sunBurstTiles = sunBurstTiles.slice(0,3);
-            teleportTiles = []; for(let i=0;i<4;i++) teleportTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),glow:Math.random()*Math.PI*2,moveTimer:randInt(120,300)});
-            holeMoveTimer = randInt(600,900);
-          }
-          
-          initLevelHazards();
-          initAmbientParticles();
-          
-          logEvent("level", `Skipped to Level ${targetLevel} (${theme})`);
-          setHud(`LEVEL ${targetLevel}!`);
-          updateUI();
-        }
-      }
-      return;
-    }
-    
-    // overlays first
+    // Check overlays FIRST - don't allow level skip during modals
     if (ui.nameOverlay.style.display === "flex"){
       if (e.key === "Escape"){
         e.preventDefault();
@@ -5996,6 +6615,82 @@ gameSetTimeout(updateScrollHint, 30);
     if ((e.key === "l" || e.key === "L") && (e.ctrlKey || e.metaKey)){
       e.preventDefault();
       loadGame();
+      return;
+    }
+    
+    // SECRET LEVEL SKIP: Shift + L (only during gameplay, not during modals)
+    if (e.shiftKey && (e.key === 'L' || e.key === 'l')){
+      e.preventDefault();
+      const input = prompt("Skip to level (1-11):");
+      if (input){
+        const num = parseInt(input);
+        if (!isNaN(num) && num >= 1 && num <= 11){
+          game.level = num;
+          applyThemeForLevel();
+          game.sticks = [];
+          game.carry = [];
+          spawnHole();
+          spawnSticksForLevel(game.level);
+          spawnLifeTile();
+          scheduleTreeForLevel();
+          
+          const theme = currentLevelTheme().name;
+          
+          // Clear all hazards first
+          windTiles = [];
+          fireTiles = [];
+          freezeTiles = [];
+          snakes = [];
+          shadowMonsters = [];
+          sharks = [];
+          sunBurstTiles = [];
+          starGridTiles = [];
+          teleportTiles = [];
+          spiderWebs = [];
+          spiders = [];
+          skunks = [];
+          stinkClouds = [];
+          snowman = null;
+          stopIceWindSound();
+          
+          // Initialize for specific level
+          if (theme === "Sky Stick") initWindTiles();
+          if (theme === "Fire Stick") initFireTiles();
+          if (theme === "Ice Stick"){ initFreezeTiles(); startIceWindSound(); initSnowman(); }
+          if (theme === "Snake Stick") initSnakes();
+          if (theme === "Spell Stick"){
+            teleportTiles = [];
+            for(let i=0;i<randInt(5,8);i++) teleportTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),glow:Math.random()*Math.PI*2,moveTimer:randInt(120,300)});
+            holeMoveTimer = randInt(600,900);
+          }
+          if (theme === "Glow Stick") initShadowMonsters();
+          if (theme === "Sea Stick") initSharks();
+          if (theme === "Sun Stick") initSunBursts();
+          if (theme === "Night Stick") initStarGrid();
+          if (theme === "Spider Stick"){ initSpiderWebs(); initSpiders(); }
+          if (theme === "Victory Stick"){
+            windTiles = []; for(let i=0;i<2;i++) windTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()*Math.PI*2});
+            fireTiles = []; for(let i=0;i<2;i++) fireTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()});
+            initSnakes(); snakes = snakes.slice(0,1);
+            initFreezeTiles(); freezeTiles = freezeTiles.slice(0,4);
+            initShadowMonsters(); shadowMonsters = shadowMonsters.slice(0,1);
+            initSharks(); sharks = sharks.slice(0,2);
+            initSunBursts(); sunBurstTiles = sunBurstTiles.slice(0,3);
+            initSnowman();
+            initSpiderWebs(); spiderWebs = spiderWebs.slice(0,3);
+            initSpiders(); spiders = spiders.slice(0,2);
+            teleportTiles = []; for(let i=0;i<4;i++) teleportTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),glow:Math.random()*Math.PI*2,moveTimer:randInt(120,300)});
+            holeMoveTimer = randInt(600,900);
+          }
+          
+          initLevelHazards();
+          initAmbientParticles();
+          
+          logEvent("level", "Skipped to Level " + num + " (" + theme + ")");
+          setHud("LEVEL " + num + "!");
+          updateUI();
+        }
+      }
       return;
     }
 
