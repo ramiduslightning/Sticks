@@ -731,10 +731,10 @@
           </div>
         </div>
         <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
-        <div style="text-align:center; margin:10px 0; padding:10px 0; border-top:1px solid #1f2a37;">
-          <div style="font-size:11px; color:#9fb1c6; line-height:1.5;">
-            <div style="font-weight:700; letter-spacing:0.5px; margin-bottom:2px;">RAMIDUS, INC.</div>
-            <div style="font-size:10px;">A Casey T. Duncan Enterprise</div>
+        <div style="text-align:center; margin:12px 0; padding:12px 8px; background:linear-gradient(135deg, rgba(58,167,255,0.08) 0%, rgba(194,123,255,0.08) 100%); border-radius:8px; border:1px solid rgba(58,167,255,0.15); box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+          <div style="font-size:13px; line-height:1.5; font-family:Georgia, serif;">
+            <div style="font-weight:700; letter-spacing:2px; color:#3aa7ff; text-shadow:0 1px 2px rgba(0,0,0,0.2); margin-bottom:4px;">RAMIDUS, INC.</div>
+            <div style="font-size:10px; color:#9fb1c6; font-style:italic; letter-spacing:0.5px;">A Casey T. Duncan Enterprise</div>
           </div>
         </div>
         <div class="hr"></div>
@@ -941,7 +941,7 @@
     { name:"Sun Stick",     bg:"#140a03", grid:"#4a3a06", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
     { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
     { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
-    { name:"Ice Stick",     bg:"#d4f1ff", grid:"#001f3f", border:"#001f3f", accent:"#ffffff", accentGlow:"rgba(56,189,248,.42)", accentShadow:"rgba(56,189,248,.22)" },
+    { name:"Ice Stick",     bg:"#a8d8ff", grid:"#004080", border:"#0066cc", accent:"#ffffff", accentGlow:"rgba(56,189,248,.42)", accentShadow:"rgba(56,189,248,.22)" },
     { name:"Glow Stick",    bg:"#09060f", grid:"#ffb347", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.46)", accentShadow:"rgba(255,122,24,.22)" },
     { name:"Spell Stick",   bg:"#0d0010", grid:"#4a0a3a", border:"#ff1493", accent:"#ff1493", accentGlow:"rgba(255,20,147,.46)", accentShadow:"rgba(255,20,147,.30)" },
     { name:"Sea Stick",     bg:"#001a33", grid:"#003d5c", border:"#0077be", accent:"#00bfff", accentGlow:"rgba(0,191,255,.46)", accentShadow:"rgba(0,191,255,.30)" },
@@ -1227,14 +1227,41 @@
           logEvent("info", "Shield blocked wind!");
           setHud("SHIELD!");
         } else if (game.carry.length > 0){
-          const lost = game.carry.length;
+          // Scatter sticks all over board
+          const scattered = game.carry.length;
+          for (let stick of game.carry){
+            const pos = randomEmptyTile();
+            stick.x = pos.x;
+            stick.y = pos.y;
+            game.sticks.push(stick);
+          }
           game.carry = [];
           windWarningTimer = 0;
-          logEvent("bad", `Wind stole ${lost} sticks!`);
-          setHud("WIND STOLE STICKS!");
-          spawnSparks(game.playerX, game.playerY, 22, true);
+          logEvent("bad", `Wind scattered ${scattered} sticks across the board!`);
+          setHud("SCATTERED!");
+          beep(400, 0.15, "sawtooth", 0.10);
+          spawnSparks(game.playerX, game.playerY, 25, true);
           updateUI();
         } else {
+          // Throw player 4-5 squares
+          const distance = randInt(4, 5);
+          const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+          const dir = dirs[randInt(0, 3)];
+          let newX = game.playerX;
+          let newY = game.playerY;
+          for (let i = 0; i < distance; i++){
+            const testX = clamp(newX + dir.dx, 0, GRID_W - 1);
+            const testY = clamp(newY + dir.dy, 0, GRID_H - 1);
+            if (testX === newX && testY === newY) break;
+            newX = testX; newY = testY;
+          }
+          if (newX !== game.playerX || newY !== game.playerY){
+            game.playerX = newX; game.playerY = newY;
+            logEvent("bad", `Wind threw you ${distance} squares!`);
+            setHud("THROWN!");
+            beep(350, 0.12, "sine", 0.08);
+            spawnSparks(game.playerX, game.playerY, 20, false);
+          }
           windWarningTimer = 0;
         }
       } else if (windWarningTimer === 60 || windWarningTimer === 180){
@@ -2604,16 +2631,25 @@
   // ================================================================
   let sunBurstTiles = [];
   let sunBurstWarningTimer = 0;
+  let playerSunGlow = 0;
   const SUNBURST_WARNING_TIME = 150; // 2.5 seconds
   
   function initSunBursts(){
     sunBurstTiles = [];
-    const num = randInt(3, 4);
+    const num = randInt(7, 9); // Even more suns!
     for (let i = 0; i < num; i++){
+      let x, y;
+      // Make sure sun doesn't spawn in the hole
+      do {
+        x = randInt(0, GRID_W - 1);
+        y = randInt(0, GRID_H - 1);
+      } while (x === game.holeX && y === game.holeY);
+      
       sunBurstTiles.push({
-        x: randInt(0, GRID_W - 1),
-        y: randInt(0, GRID_H - 1),
-        pulse: Math.random() * Math.PI * 2
+        x: x,
+        y: y,
+        pulse: Math.random() * Math.PI * 2,
+        rotation: Math.random() * Math.PI * 2
       });
     }
   }
@@ -2621,11 +2657,18 @@
   function updateSunBursts(){
     for (let b of sunBurstTiles){
       b.pulse = (b.pulse + 0.08) % (Math.PI * 2);
+      b.rotation = (b.rotation + 0.02) % (Math.PI * 2); // Slow rotation
     }
     
     const onBurst = sunBurstTiles.some(b => b.x === game.playerX && b.y === game.playerY);
     if (onBurst){
       sunBurstWarningTimer++;
+      
+      // Trigger sun glow effect immediately when stepping on sun
+      if (sunBurstWarningTimer === 1){
+        playerSunGlow = 180; // 3 seconds glow effect
+      }
+      
       if (sunBurstWarningTimer >= SUNBURST_WARNING_TIME){
         // HOLE IS SACRED
         if (game.playerX === game.holeX && game.playerY === game.holeY){
@@ -2635,14 +2678,34 @@
           logEvent("info", "Shield blocked sun burst!");
           setHud("SHIELD!");
         } else if (game.carry.length > 0){
-          const lost = game.carry.length;
-          game.carry = [];
-          sunBurstWarningTimer = 0;
-          logEvent("bad", `Sun burst stole ${lost} sticks!`);
-          setHud("SUN BURST!");
-          beep(500, 0.12, "sine", 0.08);
-          spawnSparks(game.playerX, game.playerY, 22, true);
-          updateUI();
+          // Check if this is the last stick on the board
+          const sticksOnBoard = game.sticks.length;
+          const sticksCarried = game.carry.length;
+          const totalSticks = sticksOnBoard + sticksCarried;
+          
+          if (totalSticks === 1 && sticksCarried === 1){
+            // This is the LAST stick on the entire board - advance level!
+            game.carry = [];
+            sunBurstWarningTimer = 0;
+            logEvent("bonus", "Sun burst took the last stick! Level cleared!");
+            setHud("LEVEL COMPLETE!");
+            beep(700, 0.15, "sine", 0.10);
+            spawnSparks(game.playerX, game.playerY, 30, false);
+            gameSetTimeout(() => {
+              game.level++;
+              newLevel();
+            }, 800);
+          } else {
+            // Take sticks normally
+            const lost = game.carry.length;
+            game.carry = [];
+            sunBurstWarningTimer = 0;
+            logEvent("bad", `Sun burst stole ${lost} sticks!`);
+            setHud("SUN BURST!");
+            beep(500, 0.12, "sine", 0.08);
+            spawnSparks(game.playerX, game.playerY, 22, true);
+            updateUI();
+          }
         } else {
           sunBurstWarningTimer = 0;
         }
@@ -2661,29 +2724,72 @@
     for (let b of sunBurstTiles){
       const x = b.x * TILE + TILE / 2;
       const y = b.y * TILE + TILE / 2;
-      const pulse = Math.sin(b.pulse) * 0.5 + 0.5;
+      const pulse = Math.sin(b.pulse) * 0.2 + 0.8;
       
-      // Glowing burst
-      ctx.globalAlpha = 0.3 + pulse * 0.4;
-      const grad = ctx.createRadialGradient(x, y, 0, x, y, TILE / 2 + 6);
-      grad.addColorStop(0, 'rgba(255,212,0,0.8)');
-      grad.addColorStop(1, 'rgba(255,180,0,0)');
-      ctx.fillStyle = grad;
+      ctx.save();
+      ctx.translate(x, y);
+      
+      // Outer atmospheric glow
+      ctx.globalAlpha = 0.15 * pulse;
+      const atmosphereGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 22);
+      atmosphereGrad.addColorStop(0, 'rgba(255,240,200,0.3)');
+      atmosphereGrad.addColorStop(0.7, 'rgba(255,200,100,0.15)');
+      atmosphereGrad.addColorStop(1, 'rgba(255,150,0,0)');
+      ctx.fillStyle = atmosphereGrad;
       ctx.beginPath();
-      ctx.arc(x, y, TILE / 2 + 6, 0, Math.PI * 2);
+      ctx.arc(0, 0, 22, 0, Math.PI * 2);
       ctx.fill();
       
-      // Rays
-      ctx.globalAlpha = 0.6 + pulse * 0.4;
-      ctx.strokeStyle = '#ffd400';
-      ctx.lineWidth = 2;
+      // Rotating corona rays (8 wavy rays)
+      ctx.globalAlpha = 0.5 + pulse * 0.2;
+      ctx.rotate(b.rotation);
+      ctx.strokeStyle = '#ffb347';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      
       for (let i = 0; i < 8; i++){
-        const angle = (Math.PI / 4) * i + b.pulse;
+        const angle = (Math.PI * 2 / 8) * i;
+        const rayLength = 9 + Math.sin(b.pulse + i) * 2;
         ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + Math.cos(angle) * 10, y + Math.sin(angle) * 10);
+        ctx.moveTo(Math.cos(angle) * 7, Math.sin(angle) * 7);
+        ctx.lineTo(Math.cos(angle) * rayLength, Math.sin(angle) * rayLength);
         ctx.stroke();
       }
+      
+      // Main sun sphere (layered gradient for depth)
+      ctx.globalAlpha = 1;
+      
+      // Outer orange layer
+      const outerSphere = ctx.createRadialGradient(0, 0, 0, 0, 0, 8);
+      outerSphere.addColorStop(0, '#fff9e6');
+      outerSphere.addColorStop(0.4, '#ffeb3b');
+      outerSphere.addColorStop(0.7, '#ffc107');
+      outerSphere.addColorStop(1, '#ff9800');
+      ctx.fillStyle = outerSphere;
+      ctx.beginPath();
+      ctx.arc(0, 0, 8, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Bright core
+      ctx.globalAlpha = 0.9;
+      const coreGlow = ctx.createRadialGradient(-1, -1, 0, 0, 0, 5);
+      coreGlow.addColorStop(0, '#ffffff');
+      coreGlow.addColorStop(0.5, '#fffacd');
+      coreGlow.addColorStop(1, 'rgba(255,235,59,0)');
+      ctx.fillStyle = coreGlow;
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Hot spots (surface details)
+      ctx.globalAlpha = 0.4 + pulse * 0.2;
+      ctx.fillStyle = '#fff176';
+      ctx.beginPath();
+      ctx.arc(-2, -3, 1.5, 0, Math.PI * 2);
+      ctx.arc(3, 1, 1, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
     }
     
     // Warning indicator
@@ -3038,6 +3144,7 @@
   // Night Stick: Glowing 5-point stars on grid
   let starGridTiles = [];
   let playerGlowTimer = 0;
+  let ufo = null;
   
   function initStarGrid(){
     starGridTiles = [];
@@ -3111,6 +3218,224 @@
     
     ctx.restore();
     ctx.globalAlpha = 1;
+  }
+
+  // ================================================================
+  // UFO - Night Stick (roaming abductor)
+  // ================================================================
+  
+  function initUFO(){
+    console.log("🛸 initUFO() called!");
+    ufo = {
+      x: randInt(0, GRID_W - 1),
+      y: randInt(0, GRID_H - 1),
+      moveTimer: 0,
+      beamActive: false,
+      beamTimer: 0,
+      beamWarning: 0,
+      float: 0
+    };
+    console.log("🛸 UFO created at position:", ufo.x, ufo.y);
+  }
+  
+  function updateUFO(){
+    if (!ufo) return;
+    
+    ufo.float = (ufo.float + 0.08) % (Math.PI * 2);
+    
+    // Move UFO randomly every 4-6 seconds
+    ufo.moveTimer++;
+    if (ufo.moveTimer > randInt(240, 360)){
+      ufo.moveTimer = 0;
+      const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+      const dir = dirs[randInt(0, 3)];
+      ufo.x = clamp(ufo.x + dir.dx, 0, GRID_W - 1);
+      ufo.y = clamp(ufo.y + dir.dy, 0, GRID_H - 1);
+    }
+    
+    // Beam mechanic
+    if (!ufo.beamActive){
+      ufo.beamWarning++;
+      if (ufo.beamWarning > randInt(180, 300)){ // 3-5 seconds
+        ufo.beamActive = true;
+        ufo.beamTimer = 0;
+        ufo.beamWarning = 0;
+        logEvent("warn", "UFO charging beam!");
+        setHud("UFO ALERT!");
+        beep(600, 0.1, "sine", 0.06);
+      }
+    } else {
+      ufo.beamTimer++;
+      
+      // Warning beeps
+      if (ufo.beamTimer === 30 || ufo.beamTimer === 60){
+        beep(700, 0.08, "sine", 0.05);
+      }
+      
+      // Beam fires - check if player is in the beam (same column AND below UFO)
+      if (ufo.beamTimer > 90){
+        // Player must be in same column AND below the UFO (where the beam actually is)
+        if (game.playerX === ufo.x && game.playerY > ufo.y &&
+            !(game.playerX === game.holeX && game.playerY === game.holeY)){
+          if (activeShield > 0){
+            logEvent("info", "Shield blocked UFO beam!");
+            setHud("SHIELD!");
+          } else {
+            // Teleport player randomly
+            const newPos = randomEmptyTile();
+            game.playerX = newPos.x;
+            game.playerY = newPos.y;
+            logEvent("info", "UFO beam teleported you!");
+            setHud("ABDUCTED!");
+            
+            // Sci-fi teleport sound
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.type = "sine";
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+            
+            spawnSparks(game.playerX, game.playerY, 25, false);
+          }
+        }
+        ufo.beamActive = false;
+        ufo.beamTimer = 0;
+      }
+    }
+  }
+  
+  function drawUFO(){
+    if (!ufo){
+      console.log("🛸 drawUFO() called but ufo is null!");
+      return;
+    }
+    
+    const x = ufo.x * TILE + TILE / 2;
+    const y = ufo.y * TILE + TILE / 2;
+    const bob = Math.sin(ufo.float) * 2;
+    
+    ctx.save();
+    ctx.translate(x, y + bob);
+    
+    // UFO as black glowing triangle craft
+    const glowPulse = Math.sin(ufo.float * 2) * 0.3 + 0.7;
+    
+    // Outer glow aura
+    ctx.globalAlpha = 0.2 * glowPulse;
+    const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 25);
+    outerGlow.addColorStop(0, 'rgba(100,100,255,0.4)');
+    outerGlow.addColorStop(1, 'rgba(100,100,255,0)');
+    ctx.fillStyle = outerGlow;
+    ctx.beginPath();
+    ctx.arc(0, 0, 25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    
+    // Main triangle body (black with subtle edge glow)
+    ctx.save();
+    ctx.rotate(ufo.float * 0.5); // Slow rotation
+    
+    // Triangle shadow/glow
+    ctx.shadowColor = '#6464ff';
+    ctx.shadowBlur = 8 * glowPulse;
+    
+    // Black triangle body
+    ctx.fillStyle = '#0a0a0a';
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -10);  // Top point
+    ctx.lineTo(-9, 6);   // Bottom left
+    ctx.lineTo(9, 6);    // Bottom right
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    ctx.shadowBlur = 0;
+    
+    // Soft white lights on corners
+    const cornerLightAlpha = 0.7 + glowPulse * 0.3;
+    ctx.globalAlpha = cornerLightAlpha;
+    
+    // Top corner light
+    const topGrad = ctx.createRadialGradient(0, -10, 0, 0, -10, 3);
+    topGrad.addColorStop(0, 'rgba(255,255,255,1)');
+    topGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = topGrad;
+    ctx.beginPath();
+    ctx.arc(0, -10, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Bottom left corner light
+    const leftGrad = ctx.createRadialGradient(-9, 6, 0, -9, 6, 3);
+    leftGrad.addColorStop(0, 'rgba(255,255,255,1)');
+    leftGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = leftGrad;
+    ctx.beginPath();
+    ctx.arc(-9, 6, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Bottom right corner light
+    const rightGrad = ctx.createRadialGradient(9, 6, 0, 9, 6, 3);
+    rightGrad.addColorStop(0, 'rgba(255,255,255,1)');
+    rightGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = rightGrad;
+    ctx.beginPath();
+    ctx.arc(9, 6, 3, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Red center light (brighter when beam active)
+    ctx.globalAlpha = ufo.beamActive ? 1 : 0.6;
+    const centerGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 4);
+    centerGrad.addColorStop(0, 'rgba(255,50,50,1)');
+    centerGrad.addColorStop(0.5, 'rgba(255,0,0,0.8)');
+    centerGrad.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = centerGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    
+    // RED BEAM (subtle, matches center light)
+    if (ufo.beamActive){
+      const beamAlpha = Math.sin(ufo.beamTimer * 0.2) * 0.08 + 0.18; // More subtle pulse
+      
+      // Inner soft beam (matches center light intensity)
+      const beamGrad = ctx.createLinearGradient(0, 6, 0, 100);
+      beamGrad.addColorStop(0, `rgba(255, 50, 50, ${beamAlpha + 0.12})`); // Softer at top
+      beamGrad.addColorStop(1, `rgba(200, 30, 30, ${beamAlpha})`); // Darker red at bottom
+      ctx.fillStyle = beamGrad;
+      ctx.beginPath();
+      ctx.moveTo(-3, 6);
+      ctx.lineTo(-8, 400);
+      ctx.lineTo(8, 400);
+      ctx.lineTo(3, 6);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Subtle edge glow (not too bright)
+      ctx.strokeStyle = "rgba(255, 50, 50, 0.4)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      
+      // Very subtle outer glow
+      ctx.globalAlpha = 0.06;
+      ctx.strokeStyle = "#cc0000";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    
+    ctx.restore();
   }
   
   function drawPlayerGlow(){
@@ -4541,6 +4866,16 @@
     game.level++;
     applyThemeForLevel();
     
+    // Initialize star grid and UFO for Night Stick
+    if (currentLevelTheme().name === "Night Stick"){
+      initStarGrid();
+      initUFO();
+    } else {
+      starGridTiles = [];
+      playerGlowTimer = 0;
+      ufo = null;
+    }
+    
     // Initialize snowflakes for Ice Stick theme
     if (currentLevelTheme().name === "Ice Stick"){
       initSnowflakes();
@@ -4616,9 +4951,11 @@
     // Initialize star grid for Night Stick
     if (currentLevelTheme().name === "Night Stick"){
       initStarGrid();
+      initUFO();
     } else {
       starGridTiles = [];
       playerGlowTimer = 0;
+      ufo = null;
     }
     
     // Initialize Spell Stick - moving teleports + moving hole
@@ -4761,6 +5098,13 @@
     }
     resetCoreState();
     applyThemeForLevel();
+    
+    // Initialize level-specific elements (after theme is set)
+    if (currentLevelTheme().name === "Night Stick"){
+      initStarGrid();
+      initUFO();
+    }
+    
     updateUI();
     startLoop();
   }
@@ -4873,8 +5217,38 @@
       logEvent("bonus", `Zero in hole! +${bonus} bonus points!`);
       setHud(`HOLE BONUS +${bonus}!`);
       game.holePulse = 1.0;
-      beep(550, 0.12, "triangle", 0.08);
-      spawnSparks(game.holeX, game.holeY, 18, false);
+      
+      // Positive ascending C-E-G chord
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const o1 = audioCtx.createOscillator();
+      const g1 = audioCtx.createGain();
+      o1.connect(g1); g1.connect(audioCtx.destination);
+      o1.type = "sine"; o1.frequency.value = 523;
+      g1.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      g1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      o1.start(); o1.stop(audioCtx.currentTime + 0.3);
+      
+      setTimeout(() => {
+        const o2 = audioCtx.createOscillator();
+        const g2 = audioCtx.createGain();
+        o2.connect(g2); g2.connect(audioCtx.destination);
+        o2.type = "sine"; o2.frequency.value = 659;
+        g2.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        g2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        o2.start(); o2.stop(audioCtx.currentTime + 0.3);
+      }, 100);
+      
+      setTimeout(() => {
+        const o3 = audioCtx.createOscillator();
+        const g3 = audioCtx.createGain();
+        o3.connect(g3); g3.connect(audioCtx.destination);
+        o3.type = "sine"; o3.frequency.value = 784;
+        g3.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        g3.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+        o3.start(); o3.stop(audioCtx.currentTime + 0.4);
+      }, 200);
+      
+      spawnSparks(game.holeX, game.holeY, 25, false);
       commitScoreToLeaderboard();
       return;
     }
@@ -5949,6 +6323,36 @@ gameSetTimeout(updateScrollHint, 30);
 
     ctx.save();
     ctx.translate(cx, cy);
+    
+    // Sun glow effect - VIBRANT!
+    if (playerSunGlow > 0){
+      const glowAlpha = (playerSunGlow / 180) * 0.9; // Much stronger alpha
+      const pulse = Math.sin(Date.now() / 80) * 0.3 + 0.7; // Faster, bigger pulse
+      
+      // Outer bright glow
+      ctx.globalAlpha = glowAlpha * pulse * 0.6;
+      const outerGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+      outerGrad.addColorStop(0, 'rgba(255,235,59,0.9)'); // Bright yellow
+      outerGrad.addColorStop(0.5, 'rgba(255,193,7,0.7)'); // Golden
+      outerGrad.addColorStop(1, 'rgba(255,152,0,0)'); // Orange fade
+      ctx.fillStyle = outerGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 30, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Inner bright core
+      ctx.globalAlpha = glowAlpha * pulse;
+      const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+      coreGrad.addColorStop(0, 'rgba(255,255,224,1)'); // Almost white center
+      coreGrad.addColorStop(0.6, 'rgba(255,235,59,0.8)'); // Bright yellow
+      coreGrad.addColorStop(1, 'rgba(255,193,7,0)'); // Golden fade
+      ctx.fillStyle = coreGrad;
+      ctx.beginPath();
+      ctx.arc(0, 0, 15, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.globalAlpha = 1;
+    }
 
     const theme = currentLevelTheme();
     const strokeBase = (theme.name === "Ice Stick") ? "#0b0f14" : "#f3f4f6";
@@ -6230,6 +6634,40 @@ gameSetTimeout(updateScrollHint, 30);
       drawClassicBody();
     }
 
+    // Santa hat on Ice Stick (floppy style)
+    if (theme.name === "Ice Stick"){
+      ctx.save();
+      
+      // Main hat body (flopped to the side)
+      ctx.fillStyle = "#dc2626";
+      ctx.strokeStyle = "#991b1b";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-6, -12); // base left
+      ctx.lineTo(6, -12);  // base right
+      ctx.quadraticCurveTo(8, -16, 6, -19); // curve up and right
+      ctx.lineTo(-2, -19); // top edge
+      ctx.quadraticCurveTo(-4, -16, -6, -12); // curve back to base
+      ctx.fill();
+      ctx.stroke();
+      
+      // White fur trim at base
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.ellipse(0, -12, 6, 1.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // White pom-pom at tip (flopped over to the right)
+      ctx.beginPath();
+      ctx.arc(7, -19, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#e5e5e5";
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+
     ctx.restore();
   }
 
@@ -6352,6 +6790,14 @@ gameSetTimeout(updateScrollHint, 30);
     if (currentLevelTheme().name === "Night Stick" && starGridTiles.length > 0){
       updateStarGrid();
     }
+    if (currentLevelTheme().name === "Night Stick" && ufo){
+      updateUFO();
+    }
+    
+    // Update sun glow effect
+    if (playerSunGlow > 0){
+      playerSunGlow--;
+    }
     
     // Update Spell Stick hazards (moving teleports + hole)
     if (currentLevelTheme().name === "Spell Stick"){
@@ -6381,6 +6827,14 @@ gameSetTimeout(updateScrollHint, 30);
       if (snowman) updateSnowman();
       if (spiderWebs.length > 0) updateSpiderWebs();
       if (spiders.length > 0) updateSpiders();
+      
+      // Moving hole like Spell Stick
+      if (holeMoveTimer > 0){
+        holeMoveTimer--;
+        if (holeMoveTimer <= 90){ holeFlashTimer++; holeVisible = (holeFlashTimer % 20) < 10; }
+      } else {
+        moveHole(); holeMoveTimer = randInt(600, 900); holeFlashTimer = 0; holeVisible = true;
+      }
     }
 
     // draw
@@ -6392,6 +6846,9 @@ gameSetTimeout(updateScrollHint, 30);
     // Star grid (draw BEFORE sticks for layering)
     if (theme.name === "Night Stick" && starGridTiles.length > 0){
       drawStarGrid();
+    }
+    if (theme.name === "Night Stick" && ufo){
+      drawUFO();
     }
 
     // sticks
@@ -6666,7 +7123,7 @@ gameSetTimeout(updateScrollHint, 30);
           if (theme === "Glow Stick") initShadowMonsters();
           if (theme === "Sea Stick") initSharks();
           if (theme === "Sun Stick") initSunBursts();
-          if (theme === "Night Stick") initStarGrid();
+          if (theme === "Night Stick"){ initStarGrid(); initUFO(); }
           if (theme === "Spider Stick"){ initSpiderWebs(); initSpiders(); }
           if (theme === "Victory Stick"){
             windTiles = []; for(let i=0;i<2;i++) windTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()*Math.PI*2});
