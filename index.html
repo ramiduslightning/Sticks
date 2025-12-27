@@ -2678,16 +2678,15 @@
           logEvent("info", "Shield blocked sun burst!");
           setHud("SHIELD!");
         } else if (game.carry.length > 0){
-          // Check if this is the last stick on the board
+          // Check if board is empty (no sticks left on field)
           const sticksOnBoard = game.sticks.length;
           const sticksCarried = game.carry.length;
-          const totalSticks = sticksOnBoard + sticksCarried;
           
-          if (totalSticks === 1 && sticksCarried === 1){
-            // This is the LAST stick on the entire board - advance level!
+          if (sticksOnBoard === 0){
+            // Board is empty! Player was carrying the last stick(s) - level complete!
             game.carry = [];
             sunBurstWarningTimer = 0;
-            logEvent("bonus", "Sun burst took the last stick! Level cleared!");
+            logEvent("bonus", "Sun burst took your last sticks! Board cleared - advancing!");
             setHud("LEVEL COMPLETE!");
             beep(700, 0.15, "sine", 0.10);
             spawnSparks(game.playerX, game.playerY, 30, false);
@@ -2696,7 +2695,7 @@
               newLevel();
             }, 800);
           } else {
-            // Take sticks normally
+            // There are still sticks on the board - take carried sticks normally
             const lost = game.carry.length;
             game.carry = [];
             sunBurstWarningTimer = 0;
