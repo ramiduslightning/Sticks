@@ -1340,6 +1340,10 @@
   // Banana Stick (Level 6)
   let bananas = [];
   let monkey = { x: 0, y: 0, active: false };
+  
+  // Mountain Stick (Level 5)
+  let rams = [];
+  
   let snakeMoveTimer = 0;
   let snakeAttacking = false;
   let snakeAttackTimer = 0;
@@ -1595,14 +1599,14 @@
     const dy = Math.abs(monkey.y - game.playerY);
     const distance = dx + dy;
     
-    // Get agitated if player is within 1 square (adjacent)
+    // Get agitated if player is within 3 squares (gives ~3-4 seconds warning)
     const wasAgitated = monkey.agitated;
-    monkey.agitated = (distance <= 1);
+    monkey.agitated = (distance <= 3);
     
     if (monkey.agitated && !wasAgitated){
       // Just became agitated - make monkey sounds!
-      logEvent("monkey", "🐒 OOK OOK OOK! Monkey is angry!");
-      setHud("MONKEY AGITATED!");
+      logEvent("monkey", "🐒 OOK OOK OOK! Monkey is angry! GET AWAY!");
+      setHud("⚠️ MONKEY ANGRY - MOVE AWAY!");
       // Monkey screeching sounds
       beep(250, 0.08, "sawtooth", 0.25);
       setTimeout(() => beep(350, 0.08, "sawtooth", 0.22), 80);
@@ -1616,6 +1620,7 @@
     if (!monkey.agitated && wasAgitated){
       // Lost interest - just log it, don't move player
       logEvent("monkey", "🐒 Monkey calmed down.");
+      setHud("Monkey safe now");
     }
     
     // Play warning sounds while agitated
@@ -1623,8 +1628,8 @@
       if (!monkey.warningSoundTimer) monkey.warningSoundTimer = 0;
       monkey.warningSoundTimer++;
       
-      // Play warning sound every 90 frames (~1.5 seconds)
-      if (monkey.warningSoundTimer % 90 === 0){
+      // Play warning sound every 70 frames (~1.2 seconds) - frequent warnings
+      if (monkey.warningSoundTimer % 70 === 0){
         beep(300, 0.06, "sawtooth", 0.15);
         setTimeout(() => beep(350, 0.06, "sawtooth", 0.12), 60);
       }
@@ -1646,8 +1651,8 @@
     // Increment move timer
     monkey.moveTimer++;
     
-    // Determine move speed based on agitation
-    const moveInterval = monkey.agitated ? 45 : 120; // Agitated: ~0.75s, Calm: ~2s
+    // Determine move speed based on agitation - SLOWER when agitated for warning time
+    const moveInterval = monkey.agitated ? 90 : 120; // Agitated: ~1.5s, Calm: ~2s
     
     // Only move when timer reaches interval
     if (monkey.moveTimer < moveInterval){
@@ -1898,17 +1903,17 @@
     
     ctx.save();
     
-    // If agitated, show red pulsing glow
+    // If agitated, show yellow pulsing glow (banana theme)
     if (monkey.agitated){
       const pulse = (Math.sin(time * 8) + 1) / 2;
       const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, TILE * 0.9);
-      gradient.addColorStop(0, `rgba(255,0,0,${0.4 + pulse * 0.4})`);
-      gradient.addColorStop(1, "rgba(255,0,0,0)");
+      gradient.addColorStop(0, `rgba(255,215,0,${0.4 + pulse * 0.4})`); // Gold warning
+      gradient.addColorStop(1, "rgba(255,215,0,0)");
       ctx.fillStyle = gradient;
       ctx.fillRect(monkey.x * TILE, monkey.y * TILE, TILE, TILE);
       
-      // Angry marks when agitated
-      ctx.strokeStyle = `rgba(255,0,0,${0.7 + pulse * 0.3})`;
+      // Angry marks when agitated - yellow/orange
+      ctx.strokeStyle = `rgba(255,165,0,${0.7 + pulse * 0.3})`; // Orange
       ctx.lineWidth = 2;
       const angleOffset = time * 4;
       for (let i = 0; i < 3; i++){
@@ -1924,13 +1929,187 @@
       }
     }
     
-    // Monkey head emoji 🐵
-    ctx.font = "28px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("🐵", cx, cy);
+    // Draw custom monkey head - LARGER SIZE
+    // Head (brown circle)
+    ctx.fillStyle = "#8B6914";
+    ctx.beginPath();
+    ctx.arc(cx, cy, TILE * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Face/muzzle (tan/beige oval)
+    ctx.fillStyle = "#D2B48C";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + TILE * 0.1, TILE * 0.28, TILE * 0.26, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Eyes (animated blink)
+    const blink = Math.sin(time * 3) > 0.95 ? 0.3 : 1; // Occasional blink
+    ctx.fillStyle = monkey.agitated ? "#FFD700" : "#000000"; // Yellow eyes when agitated
+    ctx.beginPath();
+    ctx.ellipse(cx - TILE * 0.15, cy - TILE * 0.06, TILE * 0.06, TILE * 0.08 * blink, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx + TILE * 0.15, cy - TILE * 0.06, TILE * 0.06, TILE * 0.08 * blink, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Eye highlights
+    if (blink > 0.5){
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.beginPath();
+      ctx.arc(cx - TILE * 0.13, cy - TILE * 0.1, TILE * 0.025, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(cx + TILE * 0.17, cy - TILE * 0.1, TILE * 0.025, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Nose (small brown dot)
+    ctx.fillStyle = "#654321";
+    ctx.beginPath();
+    ctx.arc(cx, cy + TILE * 0.06, TILE * 0.05, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Mouth
+    ctx.strokeStyle = "#654321";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (monkey.agitated){
+      // Angry mouth - frown
+      ctx.arc(cx, cy + TILE * 0.23, TILE * 0.13, 0.2, Math.PI - 0.2);
+    } else {
+      // Happy mouth - smile
+      ctx.arc(cx, cy + TILE * 0.06, TILE * 0.15, 0.3, Math.PI - 0.3);
+    }
+    ctx.stroke();
+    
+    // Ears
+    ctx.fillStyle = "#8B6914";
+    ctx.beginPath();
+    ctx.arc(cx - TILE * 0.41, cy - TILE * 0.13, TILE * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + TILE * 0.41, cy - TILE * 0.13, TILE * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Inner ears (lighter)
+    ctx.fillStyle = "#D2B48C";
+    ctx.beginPath();
+    ctx.arc(cx - TILE * 0.41, cy - TILE * 0.13, TILE * 0.09, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + TILE * 0.41, cy - TILE * 0.13, TILE * 0.09, 0, Math.PI * 2);
+    ctx.fill();
     
     ctx.restore();
+  }
+
+
+  // ================================================================
+  // RAM - Mountain Stick
+  // ================================================================
+  
+  function initRams(){
+    rams = [];
+    const count = randInt(3, 5);
+    console.log('🐏 Spawning', count, 'rams');
+    for(let i = 0; i < count; i++){
+      const pos = randomEmptyTile();
+      rams.push({ 
+        x: pos.x, 
+        y: pos.y, 
+        moveTimer: randInt(0, 100) // Stagger their movement
+      });
+    }
+    console.log('Rams:', rams);
+  }
+  
+  function updateRams(){
+    if(currentLevelTheme().name !== "Mountain Stick" || rams.length === 0) return;
+    
+    // Don't update during battles
+    if(game.pendingMonster || game.inputLocked) return;
+    
+    rams.forEach(ram => {
+      // Increment move timer
+      ram.moveTimer++;
+      
+      // Move every 100 frames (~1.6 seconds) - moderate speed, docile
+      if (ram.moveTimer < 100){
+        return;
+      }
+      
+      // Reset timer
+      ram.moveTimer = 0;
+      
+      // Random wander
+      const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+      const dir = dirs[randInt(0, 3)];
+      ram.x = clamp(ram.x + dir.dx, 0, GRID_W - 1);
+      ram.y = clamp(ram.y + dir.dy, 0, GRID_H - 1);
+      
+      // Check if ram hit the player
+      if(ram.x === game.playerX && ram.y === game.playerY){
+        // Ram sound - low thumping
+        beep(150, 0.12, "sawtooth", 0.3);
+        setTimeout(() => beep(180, 0.1, "sawtooth", 0.25), 80);
+        
+        if (game.carry.length > 0){
+          // Scatter all sticks!
+          game.carry.forEach(stick => {
+            const pos = randomEmptyTile();
+            stick.x = pos.x;
+            stick.y = pos.y;
+            game.sticks.push(stick);
+          });
+          const scattered = game.carry.length;
+          game.carry = [];
+          logEvent("ram", `🐏 Ram scattered ${scattered} stick(s)!`);
+          setHud("RAM ATTACK!");
+          updateUI();
+        } else {
+          // Knock player 2-3 squares in random direction
+          const knockDist = randInt(2, 3);
+          const knockDir = dirs[randInt(0, 3)];
+          
+          for (let i = 0; i < knockDist; i++){
+            game.playerX = clamp(game.playerX + knockDir.dx, 0, GRID_W - 1);
+            game.playerY = clamp(game.playerY + knockDir.dy, 0, GRID_H - 1);
+          }
+          logEvent("ram", `🐏 Ram knocked you ${knockDist} squares!`);
+          setHud("KNOCKED BACK!");
+          updateUI();
+        }
+      }
+    });
+  }
+  
+  function drawRams(){
+    if(currentLevelTheme().name !== "Mountain Stick" || rams.length === 0) return;
+    
+    const time = Date.now() * 0.001;
+    
+    rams.forEach(ram => {
+      const bob = Math.sin(time * 1.8 + ram.x + ram.y) * 1.5;
+      
+      const cx = ram.x * TILE + TILE/2;
+      const cy = ram.y * TILE + TILE/2 + bob;
+      
+      ctx.save();
+      
+      // Goat emoji 🐐
+      ctx.font = "28px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🐐", cx, cy);
+      
+      // Add semi-transparent brown overlay to dull the brightness
+      ctx.fillStyle = "rgba(107, 85, 72, 0.25)"; // Brown with transparency
+      ctx.beginPath();
+      ctx.arc(cx, cy, TILE * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+    });
   }
 
 
@@ -5242,8 +5421,10 @@
     if (currentLevelTheme().name === "Mountain Stick"){
       console.log("✓ Mountain Stick detected! Calling initMountains()");
       initMountains();
+      initRams();
     } else {
       mountains = [];
+      rams = [];
     }
     
     // Initialize bananas and monkey for Banana Stick
@@ -5364,8 +5545,10 @@
     if (currentLevelTheme().name === "Mountain Stick"){
       console.log("✓ Mountain Stick detected! Calling initMountains()");
       initMountains();
+      initRams();
     } else {
       mountains = [];
+      rams = [];
     }
     
     // Initialize bananas and monkey for Banana Stick
@@ -7413,6 +7596,11 @@ gameSetTimeout(updateScrollHint, 30);
       updateMonkey();
     }
     
+    // Update ram for Mountain Stick theme
+    if (currentLevelTheme().name === "Mountain Stick"){
+      updateRams();
+    }
+    
     // Update freeze zones for Ice Stick theme
     if (currentLevelTheme().name === "Ice Stick" && freezeTiles.length > 0){
       updateFreezeTiles();
@@ -7523,6 +7711,7 @@ gameSetTimeout(updateScrollHint, 30);
     
     // Draw mountains (Mountain Stick)
     drawMountains();
+    drawRams();
     
     // Draw bananas and monkey (Banana Stick)
     drawBananas();
