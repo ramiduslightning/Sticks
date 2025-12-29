@@ -725,9 +725,10 @@
         <div class="title">
           <div>STICKS <span class="badge">v2.41</span></div>
           <div class="titleBtns">
-            <button id="btnSave" class="btn-save btn-mini" aria-label="Save Game" title="Save (S)">💾</button>
             <button class="btn-info btn-mini" id="btnInfo" title="Info">Info</button>
-            <button id="btnLoad" class="btn-load btn-mini" aria-label="Load Game" title="Load (L)">📂</button>
+            <button id="btnSave" class="btn-save btn-mini" aria-label="Save Game" title="Save (S)">Save</button>
+            <button id="btnLoad" class="btn-load btn-mini" aria-label="Load Game" title="Load (L)">Load</button>
+            <button id="btnSkipLevel" class="btn-info btn-mini" aria-label="Skip to Level" title="Skip to Level" style="margin-left:4px;">Level</button>
           </div>
         </div>
         <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
@@ -742,13 +743,30 @@
     </div>
   </div>
 
+  <div id="skipLevelPanel" class="modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.9); z-index:10000; align-items:center; justify-content:center;">
+    <div class="modal-content" style="background:#161b22; border:2px solid #3aa7ff; border-radius:12px; padding:30px; max-width:600px; color:#fff;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h2 style="margin:0; color:#3aa7ff;">🎯 Skip to Level</h2>
+        <button id="closeSkipLevel" style="background:#ff1f3a; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:16px; font-weight:600;">✕</button>
+      </div>
+      
+      <div style="color:#cdd9e5; margin-bottom:20px; line-height:1.5;">
+        Jump to any level! Your progress will be reset.
+      </div>
+      
+      <div id="levelGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px;">
+        <!-- Levels inserted by JavaScript -->
+      </div>
+    </div>
+  </div>
+
   <div id="infoOverlay">
     <div class="modalBox" role="dialog" aria-modal="true">
       <div class="modalTitle">How to Play</div>
       <div class="modalText">
         <!-- Intro -->
         <div style="margin:14px 0 12px 0; font-size:14px; color:#cdd9e5; line-height:1.5;">
-          <b>THE BASICS:</b> Collect sticks and deposit them in the hole to score points. Roll the dice to get actions, spend actions to move and interact, survive 10 levels of increasing difficulty!
+          <div style="margin-bottom:12px; padding:10px; background:rgba(58,167,255,0.15); border-radius:6px; border-left:3px solid #3aa7ff;"><b style="color:#3aa7ff; font-size:15px;">GOAL:</b> Collect ALL sticks on each level and deposit them in the hole to progress!</div><b>THE BASICS:</b> Roll the dice to get actions, spend actions to move and interact, survive 13 levels of increasing difficulty!
         </div>
 
         <div class="hr"></div>
@@ -806,6 +824,7 @@
         <div style="margin:10px 0;"><span class="badge">Mystery Tree</span> (Appears randomly during levels)
           <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
             <li style="margin:3px 0;">Standing on tree with sticks? Feed 1 stick for <b>+1 life</b></li>
+            <li style="margin:3px 0;">At max lives (5)? Get <b>+8 bonus points</b> instead!</li>
             <li style="margin:3px 0;">Standing on tree with no sticks? Get a <b>full load</b> instantly</li>
             <li style="margin:3px 0;">Tree disappears after granting a life or full load</li>
           </ul>
@@ -824,7 +843,11 @@
 
         <!-- Goal Section -->
         <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎯 GOAL</b></div>
-        <div style="margin:6px 0; line-height:1.5;">Progress through <b>10 themed levels</b>, each with unique hazards. Collect sticks, survive, and rack up the highest score!</div>
+        <div style="margin:6px 0; line-height:1.5; background:rgba(58,167,255,0.1); padding:10px; border-radius:6px; border-left:3px solid #3aa7ff;">
+          <div style="margin-bottom:6px;"><b style="color:#3aa7ff;">GOAL:</b> Collect ALL sticks on each level and deposit them in the hole to progress!</div>
+          <div><b style="color:#3aa7ff;">HOW:</b> Roll the die, move on the grid, pick up sticks, survive hazards, and feed the hole.</div>
+        </div>
+        <div style="margin:10px 0 6px 0; line-height:1.5;">Progress through <b>13 themed levels</b>, each with unique challenges. Rack up the highest score!</div>
         <div style="margin:6px 0 12px 0; line-height:1.5; color:#9fb1c6;"><b>Zero in the Hole:</b> Roll a zero while standing in hole and get extra points.</div>
 
         <div class="hr"></div>
@@ -941,7 +964,9 @@
     { name:"Sun Stick",     bg:"#140a03", grid:"#4a3a06", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
     { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
     { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
-    { name:"Ice Stick",     bg:"#a8d8ff", grid:"#004080", border:"#0066cc", accent:"#ffffff", accentGlow:"rgba(56,189,248,.42)", accentShadow:"rgba(56,189,248,.22)" },
+    { name:"Mountain Stick", bg:"#2b1f1a", grid:"#5c4a3a", border:"#8b7355", accent:"#a0826d", accentGlow:"rgba(160,130,109,.46)", accentShadow:"rgba(160,130,109,.28)" },
+    { name:"Banana Stick",  bg:"#1a2e0a", grid:"#2d4a1a", border:"#ffd700", accent:"#ffeb3b", accentGlow:"rgba(255,235,59,.46)", accentShadow:"rgba(255,235,59,.28)" },
+    { name:"Ice Stick",     bg:"#c8e6ff", grid:"#0066cc", border:"#0080ff", accent:"#ffffff", accentGlow:"rgba(56,189,248,.42)", accentShadow:"rgba(56,189,248,.22)" },
     { name:"Glow Stick",    bg:"#09060f", grid:"#ffb347", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.46)", accentShadow:"rgba(255,122,24,.22)" },
     { name:"Spell Stick",   bg:"#0d0010", grid:"#4a0a3a", border:"#ff1493", accent:"#ff1493", accentGlow:"rgba(255,20,147,.46)", accentShadow:"rgba(255,20,147,.30)" },
     { name:"Sea Stick",     bg:"#001a33", grid:"#003d5c", border:"#0077be", accent:"#00bfff", accentGlow:"rgba(0,191,255,.46)", accentShadow:"rgba(0,191,255,.30)" },
@@ -1309,6 +1334,12 @@
   // SNAKES - Snake Stick (chase and drain!)
   // ================================================================
   let snakes = [];
+  // Mountain Stick (Level 5)
+  let mountains = [];
+  
+  // Banana Stick (Level 6)
+  let bananas = [];
+  let monkey = { x: 0, y: 0, active: false };
   let snakeMoveTimer = 0;
   let snakeAttacking = false;
   let snakeAttackTimer = 0;
@@ -1332,6 +1363,39 @@
       snakes.push({ x, y, slither: Math.random() * Math.PI * 2 });
     }
   }
+
+  function initMountains(){
+    mountains = [];
+    const count = randInt(8, 12);
+    console.log('🏔️ Spawning', count, 'mountains');
+    for(let i = 0; i < count; i++){
+      const pos = randomEmptyTile();
+      mountains.push({ x: pos.x, y: pos.y, height: randInt(2, 5) });
+    }
+    console.log('Mountains:', mountains);
+  }
+
+  function initBananas(){
+    bananas = [];
+    const count = randInt(10, 15);
+    console.log('🍌 Spawning', count, 'bananas');
+    for(let i = 0; i < count; i++){
+      const pos = randomEmptyTile();
+      bananas.push({ x: pos.x, y: pos.y });
+    }
+    console.log('Bananas:', bananas);
+  }
+
+  function initMonkey(){
+    const pos = randomEmptyTile();
+    monkey.x = pos.x;
+    monkey.y = pos.y;
+    monkey.active = true;
+    monkey.agitated = false;
+    monkey.moveTimer = 0;
+    console.log('🐒 Monkey spawned at', monkey.x, monkey.y);
+  }
+
   
   function updateSnakes(){
     if (game.pendingMonster) return;
@@ -1421,6 +1485,245 @@
       }
     }
   }
+
+  
+  // Check if player is on a mountain (Mountain Stick level 5)
+  function isOnMountain(x, y){
+    if(currentLevelTheme().name !== "Mountain Stick") return null;
+    return mountains.find(m => m.x === x && m.y === y);
+  }
+
+  function getMountainMovementCost(x, y){
+    const mountain = isOnMountain(x, y);
+    return mountain ? mountain.height : 1;  // Mountains cost their height to traverse
+  }
+
+  
+  // Check if player stepped on banana
+  function checkBananaSlip(){
+    if(currentLevelTheme().name !== "Banana Stick") return;
+    
+    const banana = bananas.find(b => b.x === game.playerX && b.y === game.playerY);
+    if(banana){
+      // Slip in random direction 2-4 squares
+      const distance = randInt(2, 4);
+      const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+      const dir = dirs[randInt(0, 3)];
+      
+      let newX = game.playerX;
+      let newY = game.playerY;
+      
+      for(let i = 0; i < distance; i++){
+        newX = clamp(newX + dir.dx, 0, GRID_W - 1);
+        newY = clamp(newY + dir.dy, 0, GRID_H - 1);
+      }
+      
+      game.playerX = newX;
+      game.playerY = newY;
+      
+      logEvent("slip", `Slipped on banana! Slid ${distance} squares!`);
+      setHud("BANANA SLIP!");
+      beep(400, 0.15, "sine", 0.2);
+      
+      // Remove banana
+      bananas = bananas.filter(b => b !== banana);
+    }
+  }
+
+  // Check monkey collision
+  function checkMonkeyCollision(){
+    if(currentLevelTheme().name !== "Banana Stick" || !monkey.active) return;
+    
+    if(monkey.x === game.playerX && monkey.y === game.playerY){
+      if(game.carry.length > 0){
+        // Drop all sticks
+        game.carry.forEach(stick => {
+          const pos = randomEmptyTile();
+          stick.x = pos.x;
+          stick.y = pos.y;
+          game.sticks.push(stick);
+        });
+        game.carry = [];
+        logEvent("monkey", "Monkey stole your sticks!");
+        setHud("MONKEY STOLE STICKS!");
+        beep(200, 0.2, "sawtooth", 0.3);
+      } else {
+        // No sticks = die
+        takeDamage();
+        logEvent("death", "Monkey got you!");
+      }
+    }
+  }
+
+  
+  // Mountain blocking (for Mountain Stick)
+  function canMoveToSquare(x, y, actionsAvailable){
+    if(currentLevelTheme().name !== "Mountain Stick") return true;
+    
+    const mountain = mountains.find(m => m.x === x && m.y === y);
+    if(mountain){
+      // Need mountain.height actions to move onto mountain
+      if(actionsAvailable < mountain.height){
+        setHud(`Need ${mountain.height} actions for that mountain!`);
+        beep(300, 0.1, "sawtooth", 0.2);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Consume actions when moving onto mountain
+  function consumeMountainActions(x, y){
+    if(currentLevelTheme().name !== "Mountain Stick") return 1;
+    
+    const mountain = mountains.find(m => m.x === x && m.y === y);
+    if(mountain){
+      logEvent("climb", `Climbed mountain (height ${mountain.height})!`);
+      return mountain.height;  // Costs mountain.height actions
+    }
+    return 1;  // Normal squares cost 1 action
+  }
+
+  function updateMonkey(){
+    if(currentLevelTheme().name !== "Banana Stick" || !monkey.active) return;
+    
+    // Don't update monkey during stick/monster battles
+    if(game.pendingMonster || game.inputLocked) return;
+    
+    // Calculate distance to player (Manhattan distance)
+    const dx = Math.abs(monkey.x - game.playerX);
+    const dy = Math.abs(monkey.y - game.playerY);
+    const distance = dx + dy;
+    
+    // Get agitated if player is within 1 square (adjacent)
+    const wasAgitated = monkey.agitated;
+    monkey.agitated = (distance <= 1);
+    
+    if (monkey.agitated && !wasAgitated){
+      // Just became agitated - make monkey sounds!
+      logEvent("monkey", "🐒 OOK OOK OOK! Monkey is angry!");
+      setHud("MONKEY AGITATED!");
+      // Monkey screeching sounds
+      beep(250, 0.08, "sawtooth", 0.25);
+      setTimeout(() => beep(350, 0.08, "sawtooth", 0.22), 80);
+      setTimeout(() => beep(280, 0.08, "sawtooth", 0.2), 160);
+      setTimeout(() => beep(320, 0.1, "sawtooth", 0.18), 240);
+      
+      // Initialize warning sound timer
+      monkey.warningSoundTimer = 0;
+    }
+    
+    if (!monkey.agitated && wasAgitated){
+      // Lost interest - just log it, don't move player
+      logEvent("monkey", "🐒 Monkey calmed down.");
+    }
+    
+    // Play warning sounds while agitated
+    if (monkey.agitated){
+      if (!monkey.warningSoundTimer) monkey.warningSoundTimer = 0;
+      monkey.warningSoundTimer++;
+      
+      // Play warning sound every 90 frames (~1.5 seconds)
+      if (monkey.warningSoundTimer % 90 === 0){
+        beep(300, 0.06, "sawtooth", 0.15);
+        setTimeout(() => beep(350, 0.06, "sawtooth", 0.12), 60);
+      }
+    }
+    
+    // Check if monkey is on a banana - occasionally eat it
+    const onBanana = bananas.find(b => b.x === monkey.x && b.y === monkey.y);
+    if (onBanana && Math.random() < 0.05){ // Reduced chance
+      // Eat the banana!
+      bananas = bananas.filter(b => b !== onBanana);
+      logEvent("monkey", "🐒 Monkey ate a banana!");
+      beep(400, 0.05, "sine", 0.08);
+      beep(500, 0.05, "sine", 0.06);
+      // Don't move this turn, just eat
+      monkey.moveTimer = 0; // Reset timer
+      return;
+    }
+    
+    // Increment move timer
+    monkey.moveTimer++;
+    
+    // Determine move speed based on agitation
+    const moveInterval = monkey.agitated ? 45 : 120; // Agitated: ~0.75s, Calm: ~2s
+    
+    // Only move when timer reaches interval
+    if (monkey.moveTimer < moveInterval){
+      return; // Not time to move yet
+    }
+    
+    // Reset timer
+    monkey.moveTimer = 0;
+    
+    if (monkey.agitated){
+      // When agitated, move one square toward player
+      const dirs = [];
+      
+      if (monkey.x < game.playerX && monkey.x < GRID_W - 1) dirs.push({dx: 1, dy: 0});
+      if (monkey.x > game.playerX && monkey.x > 0) dirs.push({dx: -1, dy: 0});
+      if (monkey.y < game.playerY && monkey.y < GRID_H - 1) dirs.push({dx: 0, dy: 1});
+      if (monkey.y > game.playerY && monkey.y > 0) dirs.push({dx: 0, dy: -1});
+      
+      if (dirs.length > 0){
+        const dir = dirs[randInt(0, dirs.length - 1)];
+        monkey.x = clamp(monkey.x + dir.dx, 0, GRID_W - 1);
+        monkey.y = clamp(monkey.y + dir.dy, 0, GRID_H - 1);
+      }
+    } else {
+      // When calm, wander randomly around the board
+      const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+      const dir = dirs[randInt(0, 3)];
+      const newX = clamp(monkey.x + dir.dx, 0, GRID_W - 1);
+      const newY = clamp(monkey.y + dir.dy, 0, GRID_H - 1);
+      monkey.x = newX;
+      monkey.y = newY;
+    }
+    
+    // Check if monkey caught player
+    if(monkey.x === game.playerX && monkey.y === game.playerY){
+      if(game.carry.length > 0){
+        // Drop all sticks - DRAMATIC SOUND
+        game.carry.forEach(stick => {
+          const pos = randomEmptyTile();
+          stick.x = pos.x;
+          stick.y = pos.y;
+          game.sticks.push(stick);
+        });
+        game.carry = [];
+        logEvent("monkey", "🐒 MONKEY STOLE YOUR STICKS!");
+        setHud("STICKS STOLEN!");
+        // Dramatic descending sound
+        beep(600, 0.15, "sawtooth", 0.35);
+        setTimeout(() => beep(400, 0.15, "sawtooth", 0.35), 100);
+        setTimeout(() => beep(200, 0.2, "sawtooth", 0.4), 200);
+        // Update UI to show lost sticks
+        updateUI();
+      } else {
+        // No sticks = lose a life AND monkey dies too (it's an easy level)
+        game.lives--;
+        monkey.active = false; // Monkey dies
+        logEvent("death", "🐒 MONKEY ATTACKED! Both monkey and player defeated!");
+        setHud("MUTUAL DEFEAT!");
+        // Dramatic death sound
+        beep(800, 0.1, "sawtooth", 0.4);
+        setTimeout(() => beep(600, 0.12, "sawtooth", 0.4), 80);
+        setTimeout(() => beep(400, 0.15, "sawtooth", 0.45), 160);
+        setTimeout(() => beep(200, 0.2, "sawtooth", 0.5), 260);
+        setTimeout(() => beep(100, 0.25, "sawtooth", 0.5), 380);
+        
+        if (game.lives <= 0){
+          gameOver();
+        } else {
+          // Update UI immediately to show life loss
+          updateUI();
+        }
+        // Player stays in same position, monkey is now gone
+      }
+    }
+  }
+
   
   function drawSnakes(){
     ctx.save();
@@ -1488,6 +1791,148 @@
     }
     ctx.restore();
   }
+
+  function drawMountains(){
+    if(currentLevelTheme().name !== "Mountain Stick") return;
+    
+    mountains.forEach(m => {
+      const cx = m.x * TILE + TILE/2;
+      const cy = m.y * TILE + TILE/2;
+      
+      // Check if player is currently on this mountain
+      const isOnThisMountain = game.mountainTraversal && 
+                               game.mountainTraversal.x === m.x && 
+                               game.mountainTraversal.y === m.y;
+      
+      ctx.save();
+      
+      // Highlight if player is on this mountain - brown theme
+      if (isOnThisMountain){
+        ctx.fillStyle = "rgba(139, 115, 85, 0.4)";
+        ctx.fillRect(m.x * TILE, m.y * TILE, TILE, TILE);
+      }
+      
+      // Mountain triangle (brown)
+      ctx.fillStyle = "#5c4a3a";
+      ctx.strokeStyle = "#8b7355";
+      ctx.lineWidth = 2;
+      
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - TILE*0.4);  // peak
+      ctx.lineTo(cx - TILE*0.4, cy + TILE*0.3);  // bottom left
+      ctx.lineTo(cx + TILE*0.4, cy + TILE*0.3);  // bottom right
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Snow cap on peak (white triangle)
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - TILE*0.4);  // peak
+      ctx.lineTo(cx - TILE*0.15, cy - TILE*0.15);  // left
+      ctx.lineTo(cx + TILE*0.15, cy - TILE*0.15);  // right
+      ctx.closePath();
+      ctx.fill();
+      
+      // Height number - show remaining if on this mountain, otherwise show total
+      if (isOnThisMountain){
+        // Show remaining actions needed - white with brown outline for visibility
+        ctx.strokeStyle = "#6B4423";
+        ctx.lineWidth = 4;
+        ctx.font = "bold 18px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.strokeText(game.mountainTraversal.remaining, cx, cy + 2);
+        ctx.fillStyle = "#FFFFFF";
+        ctx.fillText(game.mountainTraversal.remaining, cx, cy + 2);
+        
+        // Add "CLIMB" text above - raised higher to not block number
+        ctx.font = "bold 11px monospace";
+        ctx.strokeStyle = "#3d2f1f";
+        ctx.lineWidth = 3;
+        ctx.strokeText("CLIMB", cx, cy - TILE*0.35);
+        ctx.fillStyle = "#FFE4B5";
+        ctx.fillText("CLIMB", cx, cy - TILE*0.35);
+      } else {
+        // Show original height
+        ctx.fillStyle = "#a0826d";
+        ctx.font = "bold 12px monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(m.height, cx, cy + 2);
+      }
+      
+      ctx.restore();
+    });
+  }
+
+  function drawBananas(){
+    if(currentLevelTheme().name !== "Banana Stick") return;
+    console.log("Drawing", bananas.length, "bananas");
+    
+    bananas.forEach(b => {
+      const cx = b.x * TILE + TILE/2;
+      const cy = b.y * TILE + TILE/2;
+      
+      ctx.save();
+      
+      // Banana emoji
+      ctx.font = "20px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🍌", cx, cy);
+      
+      ctx.restore();
+    });
+  }
+
+  function drawMonkey(){
+    if(currentLevelTheme().name !== "Banana Stick" || !monkey.active) return;
+    
+    // Animation values
+    const time = Date.now() * 0.001;
+    const bob = Math.sin(time * 2) * 2; // Bobbing
+    
+    const cx = monkey.x * TILE + TILE/2;
+    const cy = monkey.y * TILE + TILE/2 + bob;
+    
+    ctx.save();
+    
+    // If agitated, show red pulsing glow
+    if (monkey.agitated){
+      const pulse = (Math.sin(time * 8) + 1) / 2;
+      const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, TILE * 0.9);
+      gradient.addColorStop(0, `rgba(255,0,0,${0.4 + pulse * 0.4})`);
+      gradient.addColorStop(1, "rgba(255,0,0,0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(monkey.x * TILE, monkey.y * TILE, TILE, TILE);
+      
+      // Angry marks when agitated
+      ctx.strokeStyle = `rgba(255,0,0,${0.7 + pulse * 0.3})`;
+      ctx.lineWidth = 2;
+      const angleOffset = time * 4;
+      for (let i = 0; i < 3; i++){
+        const angle = angleOffset + (i * Math.PI * 2 / 3);
+        const x1 = cx + Math.cos(angle) * TILE * 0.4;
+        const y1 = cy + Math.sin(angle) * TILE * 0.4;
+        const x2 = cx + Math.cos(angle) * TILE * 0.55;
+        const y2 = cy + Math.sin(angle) * TILE * 0.55;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+    }
+    
+    // Monkey head emoji 🐵
+    ctx.font = "28px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("🐵", cx, cy);
+    
+    ctx.restore();
+  }
+
 
   // ================================================================
   // FREEZE ZONES - Ice Stick
@@ -4367,7 +4812,10 @@
     holeFlash: 0,
     sparks: [],
 
-    inputLocked: false
+    inputLocked: false,
+    
+    // Mountain Stick: track traversal progress
+    mountainTraversal: null // {x, y, total, remaining}
   };
 
   function carryCap(){
@@ -4788,6 +5236,27 @@
       snowflakes = [];
     }
     
+    // Initialize mountains for Mountain Stick
+    console.log("Current level theme:", currentLevelTheme().name);
+    console.log("Checking for Mountain Stick...");
+    if (currentLevelTheme().name === "Mountain Stick"){
+      console.log("✓ Mountain Stick detected! Calling initMountains()");
+      initMountains();
+    } else {
+      mountains = [];
+    }
+    
+    // Initialize bananas and monkey for Banana Stick
+    console.log("Checking for Banana Stick...");
+    if (currentLevelTheme().name === "Banana Stick"){
+      console.log("✓ Banana Stick detected! Calling init functions");
+      initBananas();
+      initMonkey();
+    } else {
+      bananas = [];
+      monkey.active = false;
+    }
+    
     // Initialize fire tiles if starting on Fire Stick
     if (currentLevelTheme().name === "Fire Stick"){
       initFireTiles();
@@ -4856,14 +5325,21 @@
   }
 
   function newLevel(){
-    if (game.level > 11){
+    console.log("🎮 newLevel() called! Current game.level:", game.level);
+    if (game.level > 13){
       winGame();
       updateUI();
       return;
     }
 
     game.level++;
+    console.log("📈 Level incremented to:", game.level);
+    
+    // Clear mountain traversal state
+    game.mountainTraversal = null;
+    
     applyThemeForLevel();
+    console.log("🎨 Theme applied:", currentLevelTheme().name);
     
     // Initialize star grid and UFO for Night Stick
     if (currentLevelTheme().name === "Night Stick"){
@@ -4880,6 +5356,27 @@
       initSnowflakes();
     } else {
       snowflakes = [];
+    }
+    
+    // Initialize mountains for Mountain Stick
+    console.log("Current level theme:", currentLevelTheme().name);
+    console.log("Checking for Mountain Stick...");
+    if (currentLevelTheme().name === "Mountain Stick"){
+      console.log("✓ Mountain Stick detected! Calling initMountains()");
+      initMountains();
+    } else {
+      mountains = [];
+    }
+    
+    // Initialize bananas and monkey for Banana Stick
+    console.log("Checking for Banana Stick...");
+    if (currentLevelTheme().name === "Banana Stick"){
+      console.log("✓ Banana Stick detected! Calling init functions");
+      initBananas();
+      initMonkey();
+    } else {
+      bananas = [];
+      monkey.active = false;
     }
     
     // Initialize wind tiles for Sky Stick
@@ -5449,10 +5946,151 @@ gameSetTimeout(updateScrollHint, 30);
 
   function move(dx,dy){
     if (game.inputLocked) return;
+    
+    // Calculate new position
+    const newX = clamp(game.playerX + dx, 0, GRID_W-1);
+    const newY = clamp(game.playerY + dy, 0, GRID_H-1);
+    
+    // Check if we're currently ON a mountain square
+    const currentlyOnMountain = game.mountainTraversal && 
+                                 game.mountainTraversal.x === game.playerX && 
+                                 game.mountainTraversal.y === game.playerY;
+    
+    if (currentlyOnMountain){
+      // We're on a mountain - any direction key press consumes an action for climbing
+      
+      // First, try to spend an action
+      if (!spendAction()){
+        // No actions left - player needs to roll
+        return;
+      }
+      
+      // Consume the action for climbing
+      game.mountainTraversal.remaining--;
+      
+      if (game.mountainTraversal.remaining <= 0){
+        // Finished climbing! Clear traversal so next move will work normally
+        logEvent("climb", "✓ Mountain traversed! Can move freely now.");
+        setHud("MOUNTAIN CLEAR!");
+        beep(600, 0.15, "sine", 0.18);
+        game.mountainTraversal = null; // Clear the traversal
+        // Don't move yet - player stays on mountain until next move
+      } else {
+        // Still climbing
+        logEvent("climb", `Climbing... ${game.mountainTraversal.remaining} more action(s) needed`);
+        setHud(`CLIMBING (${game.mountainTraversal.remaining} more)`);
+        beep(450, 0.08, "sine", 0.12);
+      }
+      
+      updateUI();
+      return;
+    }
+    
+    // Check if moving onto a mountain
+    if(currentLevelTheme().name === "Mountain Stick"){
+      const mountain = mountains.find(m => m.x === newX && m.y === newY);
+      if(mountain){
+        // Entering a mountain
+        if (!spendAction()) return;
+        
+        game.playerX = newX;
+        game.playerY = newY;
+        
+        game.mountainTraversal = {
+          x: newX,
+          y: newY,
+          total: mountain.height,
+          remaining: mountain.height - 1 // -1 because this move counts
+        };
+        
+        logEvent("climb", `Entered height-${mountain.height} mountain. Need ${mountain.height - 1} more action(s) to leave.`);
+        setHud(`ON MOUNTAIN (${mountain.height - 1} more)`);
+        beep(400, 0.1, "sine", 0.15);
+        beep(220,0.03,"triangle",0.02);
+        updateUI();
+        return;
+      }
+    }
+    
+    // Normal movement
     if (!spendAction()) return;
-    game.playerX = clamp(game.playerX + dx, 0, GRID_W-1);
-    game.playerY = clamp(game.playerY + dy, 0, GRID_H-1);
+    
+    game.playerX = newX;
+    game.playerY = newY;
     beep(220,0.03,"triangle",0.02);
+    
+    // Check banana slip immediately after moving
+    if(currentLevelTheme().name === "Banana Stick"){
+      const banana = bananas.find(b => b.x === newX && b.y === newY);
+      if(banana){
+        // Relocate banana to a different position instead of removing it
+        const newPos = randomEmptyTile();
+        banana.x = newPos.x;
+        banana.y = newPos.y;
+        
+        // Slip in random direction 2-4 squares
+        const distance = randInt(2, 4);
+        const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+        const dir = dirs[randInt(0, 3)];
+        
+        let slipX = game.playerX;
+        let slipY = game.playerY;
+        
+        for(let i = 0; i < distance; i++){
+          slipX = clamp(slipX + dir.dx, 0, GRID_W - 1);
+          slipY = clamp(slipY + dir.dy, 0, GRID_H - 1);
+        }
+        
+        game.playerX = slipX;
+        game.playerY = slipY;
+        
+        logEvent("slip", `🍌 Slipped on banana! It moved elsewhere, and you slid ${distance} squares!`);
+        setHud("BANANA SLIP!");
+        beep(400, 0.15, "sine", 0.2);
+        beep(300, 0.15, "sine", 0.15);
+      }
+    }
+    
+    // Check monkey collision immediately after moving
+    if(currentLevelTheme().name === "Banana Stick" && monkey.active){
+      if(monkey.x === game.playerX && monkey.y === game.playerY){
+        if(game.carry.length > 0){
+          // Drop all sticks - DRAMATIC SOUND
+          game.carry.forEach(stick => {
+            const pos = randomEmptyTile();
+            stick.x = pos.x;
+            stick.y = pos.y;
+            game.sticks.push(stick);
+          });
+          const dropped = game.carry.length;
+          game.carry = [];
+          logEvent("monkey", `🐒 MONKEY STOLE ${dropped} STICKS!`);
+          setHud("MONKEY ATTACK!");
+          // Dramatic descending sound
+          beep(600, 0.15, "sawtooth", 0.35);
+          setTimeout(() => beep(400, 0.15, "sawtooth", 0.35), 100);
+          setTimeout(() => beep(200, 0.2, "sawtooth", 0.4), 200);
+        } else {
+          // No sticks = lose a life AND monkey dies too (easy level)
+          game.lives--;
+          monkey.active = false; // Monkey dies
+          logEvent("death", "🐒 MONKEY ATTACKED! Both defeated!");
+          setHud("MUTUAL DEFEAT!");
+          // Dramatic death sound
+          beep(800, 0.1, "sawtooth", 0.4);
+          setTimeout(() => beep(600, 0.12, "sawtooth", 0.4), 80);
+          setTimeout(() => beep(400, 0.15, "sawtooth", 0.45), 160);
+          setTimeout(() => beep(200, 0.2, "sawtooth", 0.5), 260);
+          setTimeout(() => beep(100, 0.25, "sawtooth", 0.5), 380);
+          
+          if (game.lives <= 0){
+            gameOver();
+          }
+          // Player stays in same position, monkey is gone
+        }
+      }
+    }
+    
     updateUI();
   }
 
@@ -6124,6 +6762,14 @@ gameSetTimeout(updateScrollHint, 30);
       holeColor = "#1a0005";
       holeStroke = "#ff5a6a";
       glowColor = "rgba(255,31,58,0.6)";
+    } else if (theme.name === "Mountain Stick") {
+      holeColor = "#2b1f1a";
+      holeStroke = "#8b7355";
+      glowColor = "rgba(139,115,85,0.6)";
+    } else if (theme.name === "Banana Stick") {
+      holeColor = "#1a2e0a";
+      holeStroke = "#ffd700";
+      glowColor = "rgba(255,215,0,0.6)";
     } else if (theme.name === "Snake Stick") {
       holeColor = "#001a0a";
       holeStroke = "#39ff95";
@@ -6762,6 +7408,11 @@ gameSetTimeout(updateScrollHint, 30);
       updateSnakes();
     }
     
+    // Update monkey for Banana Stick theme
+    if (currentLevelTheme().name === "Banana Stick"){
+      updateMonkey();
+    }
+    
     // Update freeze zones for Ice Stick theme
     if (currentLevelTheme().name === "Ice Stick" && freezeTiles.length > 0){
       updateFreezeTiles();
@@ -6870,6 +7521,13 @@ gameSetTimeout(updateScrollHint, 30);
       drawSnakes();
     }
     
+    // Draw mountains (Mountain Stick)
+    drawMountains();
+    
+    // Draw bananas and monkey (Banana Stick)
+    drawBananas();
+    drawMonkey();
+    
     // Draw freeze zones
     if (theme.name === "Ice Stick" && freezeTiles.length > 0){
       drawFreezeTiles();
@@ -6910,6 +7568,9 @@ gameSetTimeout(updateScrollHint, 30);
       if (windTiles.length > 0) drawWindTiles();
       if (fireTiles.length > 0) drawFireTiles();
       if (snakes.length > 0) drawSnakes();
+    drawMountains();
+    drawBananas();
+    drawMonkey();
       if (freezeTiles.length > 0) drawFreezeTiles();
       if (shadowMonsters.length > 0) drawShadowMonsters();
       if (sharks.length > 0) drawSharks();
@@ -6966,7 +7627,43 @@ gameSetTimeout(updateScrollHint, 30);
     if (window.infoMusicWas) { musicOn = true; ui.btnMusic.textContent = "Music: ON"; startMusic(); }
   }
 
-  ui.btnInfo.addEventListener("click", openInfo);
+  // Skip to Level functionality
+  const levelNames = ["Night", "Sun", "Sky", "Fire", "Mountain", "Banana", "Ice", "Glow", "Spell", "Sea", "Spider", "Snake", "Victory"];
+  const levelEmojis = ["🌙", "☀️", "☁️", "🔥", "⛰️", "🍌", "❄️", "✨", "🔮", "🌊", "🕷️", "🐍", "👑"];
+
+  function showSkipLevelMenu(){
+    const modal = document.getElementById('skipLevelPanel');
+    const grid = document.getElementById('levelGrid');
+    
+    if(!modal || !grid){
+      console.error('Skip level modal not found');
+      return;
+    }
+    
+    grid.innerHTML = '';
+    
+    for(let i = 0; i < levelNames.length; i++){
+      const btn = document.createElement('button');
+      btn.style.cssText = 'padding:12px; background:linear-gradient(135deg, #1f2937 0%, #374151 100%); border:2px solid #3aa7ff; border-radius:8px; color:#fff; cursor:pointer; font-size:13px; font-weight:600; transition:all 0.2s;';
+      btn.innerHTML = `${levelEmojis[i]}<br>Level ${i + 1}<br><span style="font-size:10px; opacity:0.8;">${levelNames[i]}</span>`;
+      btn.onmouseover = () => btn.style.background = 'linear-gradient(135deg, #3aa7ff 0%, #60a5fa 100%)';
+      btn.onmouseout = () => btn.style.background = 'linear-gradient(135deg, #1f2937 0%, #374151 100%)';
+      btn.onclick = () => skipToLevel(i + 1);
+      grid.appendChild(btn);
+    }
+    
+    modal.style.display = 'flex';
+  }
+
+  function skipToLevel(levelNum){
+    const modal = document.getElementById('skipLevelPanel');
+    if(modal) modal.style.display = 'none';
+    
+    game.level = levelNum - 1;
+    newLevel();
+  }
+
+  btnInfo.addEventListener("click", openInfo);
   ui.btnInfoClose.addEventListener("click", closeInfo);
 
   ui.btnRoll.addEventListener("click", doRoll);
@@ -6990,6 +7687,11 @@ gameSetTimeout(updateScrollHint, 30);
     game.inputLocked = false;
     newGame(false);
   });
+  document.getElementById('btnSkipLevel').addEventListener('click', showSkipLevelMenu);
+  document.getElementById('closeSkipLevel')?.addEventListener('click', () => {
+    document.getElementById('skipLevelPanel').style.display = 'none';
+  });
+
   ui.btnRestart.addEventListener("click", () => {
     ui.gameOverOverlay.style.display = "none";
     game.inputLocked = false;
