@@ -60,11 +60,14 @@
 
     .title{
       font-weight:1000;
-      letter-spacing:.6px;
+      font-size:28px;
+      letter-spacing:2px;
       display:flex;
       justify-content:space-between;
       align-items:center;
       gap:10px;
+      color:#3aa7ff;
+      text-shadow:0 2px 4px rgba(58,167,255,0.3);
     }
 
     .subtitle{
@@ -102,6 +105,11 @@
       font-weight:1000;
       font-size:12px;
       user-select:none;
+    }
+    
+    #uiThemeMini{
+      color:#ffffff;
+      text-align:center;
     }
 
     .playerArcade{
@@ -621,7 +629,7 @@
 <body>
   <div class="wrap">
     <div class="panel">
-      <div class="title"><div>Activity</div><span class="badge" id="uiThemeMini">Night Stick</span></div>
+      <div class="title" style="justify-content:center;"><div>Activity</div><span class="badge" id="uiThemeMini">Night Stick</span></div>
       <div class="subtitle">Latest on top. Color = importance.</div>
       <div class="hr"></div>
       <div class="log" id="log"></div>
