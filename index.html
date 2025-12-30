@@ -1033,6 +1033,164 @@
   let fireWarningTimer = 0;
   const FIRE_WARNING_TIME = 150; // 2 seconds warning
   
+  // Sun Stick - Roaming sun character
+  let sunCharacter = { x: 0, y: 0, active: false, moveTimer: 0 };
+  const positiveMessages = [
+    "You got this! ☀️",
+    "Keep going! 🌟",
+    "Awesome! ✨",
+    "Great job! 💪",
+    "You're doing amazing! 🎉",
+    "Shine bright! ☀️",
+    "Stay positive! 😎",
+    "Keep shining! ⭐"
+  ];
+  
+  function initSunCharacter(){
+    const pos = randomEmptyTile();
+    sunCharacter.x = pos.x;
+    sunCharacter.y = pos.y;
+    sunCharacter.active = true;
+    sunCharacter.moveTimer = 0;
+  }
+  
+  function updateSunCharacter(){
+    if(currentLevelTheme().name !== "Sun Stick" || !sunCharacter.active) return;
+    
+    // Don't update during battles
+    if(game.pendingMonster || game.inputLocked) return;
+    
+    // Increment move timer
+    sunCharacter.moveTimer++;
+    
+    // Move every 120 frames (~2 seconds)
+    if(sunCharacter.moveTimer < 120){
+      return;
+    }
+    
+    sunCharacter.moveTimer = 0;
+    
+    // Random wander
+    const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+    const dir = dirs[randInt(0, 3)];
+    sunCharacter.x = clamp(sunCharacter.x + dir.dx, 0, GRID_W - 1);
+    sunCharacter.y = clamp(sunCharacter.y + dir.dy, 0, GRID_H - 1);
+    
+    // Check if player is within 1 square - give high five!
+    const dx = Math.abs(sunCharacter.x - game.playerX);
+    const dy = Math.abs(sunCharacter.y - game.playerY);
+    const distance = dx + dy;
+    
+    // Check if not already glowing AND within 1 square
+    if(distance === 1 && playerSunGlow === 0){
+      // High five! Give mega vibrant gold glow EVERY TIME
+      playerSunGlow = 600; // 10 seconds of MEGA glow (60 fps * 10)
+      
+      const message = positiveMessages[randInt(0, positiveMessages.length - 1)];
+      logEvent("sun", "☀️ " + message + " MEGA SUN POWER!");
+      setHud("☀️ MEGA SUN POWER! ☀️");
+      
+      // Positive ascending notes
+      beep(400, 0.08, "sine", 0.15);
+      setTimeout(() => beep(500, 0.08, "sine", 0.15), 80);
+      setTimeout(() => beep(600, 0.08, "sine", 0.15), 160);
+      setTimeout(() => beep(700, 0.1, "sine", 0.2), 240);
+      setTimeout(() => beep(800, 0.12, "sine", 0.25), 340);
+    }
+  }
+  
+  function drawSunCharacter(){
+    if(currentLevelTheme().name !== "Sun Stick" || !sunCharacter.active) return;
+    
+    const time = Date.now() * 0.001;
+    const bob = Math.sin(time * 2) * 1.5;
+    
+    const cx = sunCharacter.x * TILE + TILE/2;
+    const cy = sunCharacter.y * TILE + TILE/2 + bob;
+    
+    ctx.save();
+    ctx.translate(cx, cy);
+    
+    // HUGE wavy flame-like rays ALL AROUND - STRETCH OUT!
+    const pulse = Math.sin(time * 3) * 0.1 + 0.9;
+    
+    for(let i = 0; i < 16; i++){
+      const angle = (i / 16) * Math.PI * 2;
+      const waveOffset = Math.sin(time * 2 + i * 0.5) * 0.15;
+      
+      // Gradient for each ray - yellow to orange
+      const rayGrad = ctx.createRadialGradient(0, 0, TILE * 0.3, 0, 0, TILE * 1.2);
+      rayGrad.addColorStop(0, '#FFD700');
+      rayGrad.addColorStop(0.5, '#FFA500');
+      rayGrad.addColorStop(1, 'rgba(255, 140, 0, 0)'); // Fade to transparent
+      ctx.fillStyle = rayGrad;
+      
+      // Draw BIG wavy flame-like ray shape
+      ctx.beginPath();
+      
+      const innerRadius = TILE * 0.32;
+      const outerRadius = (TILE * 1.1 + waveOffset * TILE * 0.2) * pulse; // MUCH BIGGER!
+      
+      // Create flame/wave shape with curves
+      const angleWidth = 0.14;
+      const angleStart = angle - angleWidth;
+      const angleMid = angle;
+      const angleEnd = angle + angleWidth;
+      
+      // Start from inner circle
+      ctx.moveTo(Math.cos(angleStart) * innerRadius, Math.sin(angleStart) * innerRadius);
+      
+      // Curve outward to tip (flame peak) - EXTENDED!
+      const tipRadius = outerRadius + Math.sin(i) * TILE * 0.15;
+      ctx.quadraticCurveTo(
+        Math.cos(angleMid - 0.08) * (innerRadius + outerRadius) * 0.5,
+        Math.sin(angleMid - 0.08) * (innerRadius + outerRadius) * 0.5,
+        Math.cos(angleMid) * tipRadius,
+        Math.sin(angleMid) * tipRadius
+      );
+      
+      // Curve back to inner circle
+      ctx.quadraticCurveTo(
+        Math.cos(angleMid + 0.08) * (innerRadius + outerRadius) * 0.5,
+        Math.sin(angleMid + 0.08) * (innerRadius + outerRadius) * 0.5,
+        Math.cos(angleEnd) * innerRadius,
+        Math.sin(angleEnd) * innerRadius
+      );
+      
+      ctx.closePath();
+      ctx.fill();
+      
+      // Orange outline for definition
+      ctx.strokeStyle = '#FF8C00';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    
+    // Bright yellow-orange circle for sun body with gradient
+    const sunGrad = ctx.createRadialGradient(0, -TILE * 0.05, 0, 0, 0, TILE * 0.32);
+    sunGrad.addColorStop(0, '#FFFACD'); // Very light yellow highlight
+    sunGrad.addColorStop(0.3, '#FFD700'); // Golden
+    sunGrad.addColorStop(0.7, '#FFA500'); // Orange
+    sunGrad.addColorStop(1, '#FF8C00'); // Dark orange edge
+    ctx.fillStyle = sunGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, TILE * 0.32, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Orange outline on sun body
+    ctx.strokeStyle = '#FF8C00';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Sun with sunglasses emoji 😎 on top
+    ctx.font = "26px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("😎", 0, 0);
+    
+    ctx.restore();
+  }
+  
   function initFireTiles(){
     fireTiles = [];
     // Create 8-12 random fire tiles
@@ -1201,6 +1359,208 @@
   let windGustTimer = 0;
   const WIND_WARNING_TIME = 300; // 5 seconds
   
+  // Sky Stick - Clouds and Airplane
+  let skyClouds = [];
+  let cloudTrails = []; // Player trails through clouds
+  let airplane = { x: 0, y: 0, active: false, moveTimer: 0, dx: 1, dy: 0 };
+  
+  function initSkyClouds(){
+    skyClouds = [];
+    const count = randInt(8, 12);
+    for(let i = 0; i < count; i++){
+      skyClouds.push({
+        x: randInt(0, GRID_W - 1),
+        y: randInt(0, GRID_H - 1),
+        drift: (Math.random() - 0.5) * 0.02
+      });
+    }
+    
+    // Init airplane
+    airplane.x = randInt(0, GRID_W - 1);
+    airplane.y = randInt(0, GRID_H - 1);
+    airplane.active = true;
+    airplane.moveTimer = 0;
+    airplane.dx = Math.random() > 0.5 ? 1 : -1;
+    airplane.dy = Math.random() > 0.5 ? 1 : -1;
+  }
+  
+  function updateSkyClouds(){
+    // Drift clouds slowly
+    skyClouds.forEach(cloud => {
+      cloud.x += cloud.drift;
+      if(cloud.x < 0) cloud.x = GRID_W - 1;
+      if(cloud.x >= GRID_W) cloud.x = 0;
+    });
+    
+    // Check if player walked through a cloud
+    const onCloud = skyClouds.some(c => 
+      Math.floor(c.x) === game.playerX && c.y === game.playerY
+    );
+    if(onCloud){
+      cloudTrails.push({
+        x: game.playerX,
+        y: game.playerY,
+        lifetime: 120 // 2 seconds
+      });
+      // Add cloud effect on player
+      playerCloudEffect = 180; // 3 seconds on player
+    }
+    
+    // Update cloud trails
+    cloudTrails = cloudTrails.filter(trail => {
+      trail.lifetime--;
+      return trail.lifetime > 0;
+    });
+    
+    // Update airplane
+    if(!airplane.carrying){
+      airplane.moveTimer++;
+      if(airplane.moveTimer >= 90){ // Move every 1.5 seconds (much slower)
+        airplane.moveTimer = 0;
+        airplane.x = clamp(airplane.x + airplane.dx, 0, GRID_W - 1);
+        airplane.y = clamp(airplane.y + airplane.dy, 0, GRID_H - 1);
+        
+        // Bounce at edges
+        if(airplane.x <= 0 || airplane.x >= GRID_W - 1) airplane.dx *= -1;
+        if(airplane.y <= 0 || airplane.y >= GRID_H - 1) airplane.dy *= -1;
+        
+        // Random direction change
+        if(Math.random() < 0.1){
+          airplane.dx = Math.random() > 0.5 ? 1 : -1;
+          airplane.dy = Math.random() > 0.5 ? 1 : -1;
+        }
+      }
+    }
+    
+    // Check if player hit airplane
+    if(airplane.x === game.playerX && airplane.y === game.playerY && !airplane.carrying){
+      airplane.carrying = true;
+      airplane.tripProgress = 0;
+      airplane.tripSteps = 0;
+      logEvent("airplane", "✈️ Airplane ride! Taking you on a trip!");
+      setHud("AIRPLANE RIDE!");
+      beep(600, 0.1, "sine", 0.2);
+      setTimeout(() => beep(800, 0.1, "sine", 0.2), 100);
+    }
+    
+    // Animate airplane trip if carrying player
+    if(airplane.carrying){
+      airplane.tripProgress++;
+      if(airplane.tripProgress % 6 === 0){ // Move every ~0.1 seconds during trip
+        const oldX = game.playerX;
+        const oldY = game.playerY;
+        game.playerX = clamp(game.playerX + airplane.dx, 0, GRID_W - 1);
+        game.playerY = clamp(game.playerY + airplane.dy, 0, GRID_H - 1);
+        
+        // Airplane moves with player
+        airplane.x = game.playerX;
+        airplane.y = game.playerY;
+        
+        // Check if actually moved
+        if(game.playerX !== oldX || game.playerY !== oldY){
+          airplane.tripSteps = (airplane.tripSteps || 0) + 1;
+        }
+        
+        if(airplane.tripSteps >= 10){
+          // Trip complete! Move airplane 1 square away immediately
+          airplane.carrying = false;
+          airplane.tripProgress = 0;
+          airplane.tripSteps = 0;
+          
+          // Move airplane 1 square in its direction
+          airplane.x = clamp(airplane.x + airplane.dx, 0, GRID_W - 1);
+          airplane.y = clamp(airplane.y + airplane.dy, 0, GRID_H - 1);
+          airplane.moveTimer = 0; // Resume normal movement
+          
+          logEvent("airplane", "✈️ Arrived at destination!");
+          setHud("DROPPED OFF!");
+          beep(500, 0.1, "sine", 0.2);
+          updateUI();
+        }
+      }
+    }
+  }
+  
+  function drawSkyClouds(){
+    // Draw clouds - new fluffy design
+    skyClouds.forEach(cloud => {
+      const cx = cloud.x * TILE + TILE/2;
+      const cy = cloud.y * TILE + TILE/2;
+      
+      ctx.save();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+      
+      // More natural cloud with 5 overlapping circles
+      // Bottom layer
+      ctx.beginPath();
+      ctx.arc(cx - TILE * 0.3, cy + TILE * 0.05, TILE * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(cx + TILE * 0.3, cy + TILE * 0.05, TILE * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Middle layer
+      ctx.beginPath();
+      ctx.arc(cx - TILE * 0.1, cy - TILE * 0.05, TILE * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(cx + TILE * 0.15, cy - TILE * 0.05, TILE * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Top puff
+      ctx.beginPath();
+      ctx.arc(cx, cy - TILE * 0.2, TILE * 0.26, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+    });
+    
+    // Draw cloud trails - drag effect
+    cloudTrails.forEach(trail => {
+      const tx = trail.x * TILE + TILE/2;
+      const ty = trail.y * TILE + TILE/2;
+      const alpha = trail.lifetime / 120;
+      
+      ctx.save();
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
+      
+      // Multiple small circles creating wispy drag effect
+      ctx.beginPath();
+      ctx.arc(tx - TILE * 0.15, ty, TILE * 0.2 * alpha, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(tx, ty - TILE * 0.05, TILE * 0.18 * alpha, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(tx + TILE * 0.1, ty + TILE * 0.05, TILE * 0.15 * alpha, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
+    });
+    
+    // Draw airplane
+    const ax = airplane.x * TILE + TILE/2;
+    const ay = airplane.y * TILE + TILE/2;
+    
+    ctx.save();
+    ctx.font = "24px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("✈️", ax, ay);
+    
+    // If carrying player, draw stick figure attached
+    if(airplane.carrying){
+      ctx.font = "16px Arial";
+      ctx.fillText("🧍", ax + TILE * 0.3, ay);
+    }
+    
+    ctx.restore();
+  }
+  
   function initWindTiles(){
     windTiles = [];
     const num = randInt(6, 10);
@@ -1336,10 +1696,11 @@
   let snakes = [];
   // Mountain Stick (Level 5)
   let mountains = [];
+  let mountainClouds = []; // Floating clouds for Mountain Stick
   
   // Banana Stick (Level 6)
   let bananas = [];
-  let monkey = { x: 0, y: 0, active: false };
+  let monkeys = []; // Changed to array for multiple monkeys
   
   // Mountain Stick (Level 5)
   let rams = [];
@@ -1377,6 +1738,17 @@
       mountains.push({ x: pos.x, y: pos.y, height: randInt(2, 5) });
     }
     console.log('Mountains:', mountains);
+    
+    // Add floating clouds for Mountain Stick
+    mountainClouds = [];
+    const cloudCount = randInt(4, 6);
+    for(let i = 0; i < cloudCount; i++){
+      mountainClouds.push({
+        x: Math.random() * GRID_W,
+        y: randInt(0, GRID_H - 1),
+        drift: (Math.random() - 0.5) * 0.015
+      });
+    }
   }
 
   function initBananas(){
@@ -1390,14 +1762,21 @@
     console.log('Bananas:', bananas);
   }
 
-  function initMonkey(){
-    const pos = randomEmptyTile();
-    monkey.x = pos.x;
-    monkey.y = pos.y;
-    monkey.active = true;
-    monkey.agitated = false;
-    monkey.moveTimer = 0;
-    console.log('🐒 Monkey spawned at', monkey.x, monkey.y);
+  function initMonkeys(){
+    monkeys = [];
+    const count = randInt(2, 3);
+    console.log('🐒 Spawning', count, 'monkeys');
+    for(let i = 0; i < count; i++){
+      const pos = randomEmptyTile();
+      monkeys.push({
+        x: pos.x,
+        y: pos.y,
+        agitated: false,
+        moveTimer: randInt(0, 60), // Stagger movement
+        warningSoundTimer: 0
+      });
+    }
+    console.log('Monkeys:', monkeys);
   }
 
   
@@ -1588,145 +1967,240 @@
     return 1;  // Normal squares cost 1 action
   }
 
-  function updateMonkey(){
-    if(currentLevelTheme().name !== "Banana Stick" || !monkey.active) return;
+  function updateMonkeys(){
+    if(currentLevelTheme().name !== "Banana Stick" || monkeys.length === 0) return;
     
-    // Don't update monkey during stick/monster battles
+    // Don't update monkeys during stick/monster battles
     if(game.pendingMonster || game.inputLocked) return;
     
-    // Calculate distance to player (Manhattan distance)
-    const dx = Math.abs(monkey.x - game.playerX);
-    const dy = Math.abs(monkey.y - game.playerY);
-    const distance = dx + dy;
-    
-    // Get agitated if player is within 3 squares (gives ~3-4 seconds warning)
-    const wasAgitated = monkey.agitated;
-    monkey.agitated = (distance <= 3);
-    
-    if (monkey.agitated && !wasAgitated){
-      // Just became agitated - make monkey sounds!
-      logEvent("monkey", "🐒 OOK OOK OOK! Monkey is angry! GET AWAY!");
-      setHud("⚠️ MONKEY ANGRY - MOVE AWAY!");
-      // Monkey screeching sounds
-      beep(250, 0.08, "sawtooth", 0.25);
-      setTimeout(() => beep(350, 0.08, "sawtooth", 0.22), 80);
-      setTimeout(() => beep(280, 0.08, "sawtooth", 0.2), 160);
-      setTimeout(() => beep(320, 0.1, "sawtooth", 0.18), 240);
-      
-      // Initialize warning sound timer
-      monkey.warningSoundTimer = 0;
-    }
-    
-    if (!monkey.agitated && wasAgitated){
-      // Lost interest - just log it, don't move player
-      logEvent("monkey", "🐒 Monkey calmed down.");
-      setHud("Monkey safe now");
-    }
-    
-    // Play warning sounds while agitated
-    if (monkey.agitated){
-      if (!monkey.warningSoundTimer) monkey.warningSoundTimer = 0;
-      monkey.warningSoundTimer++;
-      
-      // Play warning sound every 70 frames (~1.2 seconds) - frequent warnings
-      if (monkey.warningSoundTimer % 70 === 0){
-        beep(300, 0.06, "sawtooth", 0.15);
-        setTimeout(() => beep(350, 0.06, "sawtooth", 0.12), 60);
+    monkeys.forEach(monkey => {
+      // Decrement cooldown timer
+      if(monkey.cooldown > 0){
+        monkey.cooldown--;
       }
-    }
-    
-    // Check if monkey is on a banana - occasionally eat it
-    const onBanana = bananas.find(b => b.x === monkey.x && b.y === monkey.y);
-    if (onBanana && Math.random() < 0.05){ // Reduced chance
-      // Eat the banana!
-      bananas = bananas.filter(b => b !== onBanana);
-      logEvent("monkey", "🐒 Monkey ate a banana!");
-      beep(400, 0.05, "sine", 0.08);
-      beep(500, 0.05, "sine", 0.06);
-      // Don't move this turn, just eat
-      monkey.moveTimer = 0; // Reset timer
-      return;
-    }
-    
-    // Increment move timer
-    monkey.moveTimer++;
-    
-    // Determine move speed based on agitation - SLOWER when agitated for warning time
-    const moveInterval = monkey.agitated ? 90 : 120; // Agitated: ~1.5s, Calm: ~2s
-    
-    // Only move when timer reaches interval
-    if (monkey.moveTimer < moveInterval){
-      return; // Not time to move yet
-    }
-    
-    // Reset timer
-    monkey.moveTimer = 0;
-    
-    if (monkey.agitated){
-      // When agitated, move one square toward player
-      const dirs = [];
       
-      if (monkey.x < game.playerX && monkey.x < GRID_W - 1) dirs.push({dx: 1, dy: 0});
-      if (monkey.x > game.playerX && monkey.x > 0) dirs.push({dx: -1, dy: 0});
-      if (monkey.y < game.playerY && monkey.y < GRID_H - 1) dirs.push({dx: 0, dy: 1});
-      if (monkey.y > game.playerY && monkey.y > 0) dirs.push({dx: 0, dy: -1});
+      // Calculate distance to player (Manhattan distance)
+      const dx = Math.abs(monkey.x - game.playerX);
+      const dy = Math.abs(monkey.y - game.playerY);
+      const distance = dx + dy;
       
-      if (dirs.length > 0){
-        const dir = dirs[randInt(0, dirs.length - 1)];
-        monkey.x = clamp(monkey.x + dir.dx, 0, GRID_W - 1);
-        monkey.y = clamp(monkey.y + dir.dy, 0, GRID_H - 1);
-      }
-    } else {
-      // When calm, wander randomly around the board
-      const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
-      const dir = dirs[randInt(0, 3)];
-      const newX = clamp(monkey.x + dir.dx, 0, GRID_W - 1);
-      const newY = clamp(monkey.y + dir.dy, 0, GRID_H - 1);
-      monkey.x = newX;
-      monkey.y = newY;
-    }
-    
-    // Check if monkey caught player
-    if(monkey.x === game.playerX && monkey.y === game.playerY){
-      if(game.carry.length > 0){
-        // Drop all sticks - DRAMATIC SOUND
-        game.carry.forEach(stick => {
-          const pos = randomEmptyTile();
-          stick.x = pos.x;
-          stick.y = pos.y;
-          game.sticks.push(stick);
-        });
-        game.carry = [];
-        logEvent("monkey", "🐒 MONKEY STOLE YOUR STICKS!");
-        setHud("STICKS STOLEN!");
-        // Dramatic descending sound
-        beep(600, 0.15, "sawtooth", 0.35);
-        setTimeout(() => beep(400, 0.15, "sawtooth", 0.35), 100);
-        setTimeout(() => beep(200, 0.2, "sawtooth", 0.4), 200);
-        // Update UI to show lost sticks
-        updateUI();
-      } else {
-        // No sticks = lose a life AND monkey dies too (it's an easy level)
-        game.lives--;
-        monkey.active = false; // Monkey dies
-        logEvent("death", "🐒 MONKEY ATTACKED! Both monkey and player defeated!");
-        setHud("MUTUAL DEFEAT!");
-        // Dramatic death sound
-        beep(800, 0.1, "sawtooth", 0.4);
-        setTimeout(() => beep(600, 0.12, "sawtooth", 0.4), 80);
-        setTimeout(() => beep(400, 0.15, "sawtooth", 0.45), 160);
-        setTimeout(() => beep(200, 0.2, "sawtooth", 0.5), 260);
-        setTimeout(() => beep(100, 0.25, "sawtooth", 0.5), 380);
+      // Get agitated if player is within 3 squares (gives ~3-4 seconds warning)
+      const wasAgitated = monkey.agitated;
+      monkey.agitated = (distance <= 3);
+      
+      if (monkey.agitated && !wasAgitated){
+        // Just became agitated - make monkey sounds!
+        logEvent("monkey", "🐒 OOK OOK OOK! Monkey is angry! GET AWAY!");
+        setHud("⚠️ MONKEY ANGRY - MOVE AWAY!");
+        // Monkey screeching sounds
+        beep(250, 0.08, "sawtooth", 0.25);
+        setTimeout(() => beep(350, 0.08, "sawtooth", 0.22), 80);
+        setTimeout(() => beep(280, 0.08, "sawtooth", 0.2), 160);
+        setTimeout(() => beep(320, 0.1, "sawtooth", 0.18), 240);
         
-        if (game.lives <= 0){
-          gameOver();
-        } else {
-          // Update UI immediately to show life loss
-          updateUI();
-        }
-        // Player stays in same position, monkey is now gone
+        // Initialize warning sound timer
+        monkey.warningSoundTimer = 0;
       }
-    }
+      
+      if (!monkey.agitated && wasAgitated){
+        // Lost interest - just log it, don't move player
+        logEvent("monkey", "🐒 Monkey calmed down.");
+      }
+      
+      // Play warning sounds while agitated
+      if (monkey.agitated){
+        if (!monkey.warningSoundTimer) monkey.warningSoundTimer = 0;
+        monkey.warningSoundTimer++;
+        
+        // Play warning sound every 70 frames (~1.2 seconds) - frequent warnings
+        if (monkey.warningSoundTimer % 70 === 0){
+          beep(300, 0.06, "sawtooth", 0.15);
+          setTimeout(() => beep(350, 0.06, "sawtooth", 0.12), 60);
+        }
+      }
+      
+      // Check if monkey is on a banana - occasionally eat it
+      const onBanana = bananas.find(b => b.x === monkey.x && b.y === monkey.y);
+      if (onBanana && Math.random() < 0.05){ // Reduced chance
+        // Eat the banana!
+        bananas = bananas.filter(b => b !== onBanana);
+        logEvent("monkey", "🐒 Monkey ate a banana!");
+        beep(400, 0.05, "sine", 0.08);
+        beep(500, 0.05, "sine", 0.06);
+        // Don't move this turn, just eat
+        monkey.moveTimer = 0; // Reset timer
+        return;
+      }
+      
+      // Increment move timer
+      monkey.moveTimer++;
+      
+      // Determine move speed based on agitation - SLOWER when agitated for warning time
+      const moveInterval = monkey.agitated ? 90 : 120; // Agitated: ~1.5s, Calm: ~2s
+      
+      // Only move when timer reaches interval
+      if (monkey.moveTimer < moveInterval){
+        return; // Not time to move yet
+      }
+      
+      // Reset timer
+      monkey.moveTimer = 0;
+      
+      if (monkey.agitated){
+        // When agitated, move one square toward player
+        const dirs = [];
+        
+        if (monkey.x < game.playerX && monkey.x < GRID_W - 1) dirs.push({dx: 1, dy: 0});
+        if (monkey.x > game.playerX && monkey.x > 0) dirs.push({dx: -1, dy: 0});
+        if (monkey.y < game.playerY && monkey.y < GRID_H - 1) dirs.push({dx: 0, dy: 1});
+        if (monkey.y > game.playerY && monkey.y > 0) dirs.push({dx: 0, dy: -1});
+        
+        if (dirs.length > 0){
+          const dir = dirs[randInt(0, dirs.length - 1)];
+          monkey.x = clamp(monkey.x + dir.dx, 0, GRID_W - 1);
+          monkey.y = clamp(monkey.y + dir.dy, 0, GRID_H - 1);
+        }
+      } else {
+        // When calm, wander randomly around the board
+        const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+        const dir = dirs[randInt(0, 3)];
+        const newX = clamp(monkey.x + dir.dx, 0, GRID_W - 1);
+        const newY = clamp(monkey.y + dir.dy, 0, GRID_H - 1);
+        monkey.x = newX;
+        monkey.y = newY;
+      }
+      
+      // Check if this monkey caught player - AUTOMATIC BATTLE!
+      if(monkey.x === game.playerX && monkey.y === game.playerY){
+        // Mark this monkey as having encountered player (with cooldown check)
+        if(!monkey.battling && !monkey.cooldown){
+          monkey.battling = true;
+          monkey.cooldown = 180; // 3 second cooldown before can battle again
+          
+          if(game.carry.length > 0){
+            // Monkey takes sticks and moves away
+            game.carry.forEach(stick => {
+              const pos = randomEmptyTile();
+              stick.x = pos.x;
+              stick.y = pos.y;
+              game.sticks.push(stick);
+            });
+            game.carry = [];
+            logEvent("monkey", "🐒 MONKEY STOLE YOUR STICKS!");
+            setHud("STICKS STOLEN!");
+            // Dramatic descending sound
+            beep(600, 0.15, "sawtooth", 0.35);
+            setTimeout(() => beep(400, 0.15, "sawtooth", 0.35), 100);
+            setTimeout(() => beep(200, 0.2, "sawtooth", 0.4), 200);
+            
+            // Move monkey away
+            const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+            for(let i = 0; i < 3; i++){
+              const dir = dirs[randInt(0, 3)];
+              monkey.x = clamp(monkey.x + dir.dx, 0, GRID_W - 1);
+              monkey.y = clamp(monkey.y + dir.dy, 0, GRID_H - 1);
+            }
+            monkey.battling = false;
+            monkey.agitated = false;
+            
+            updateUI();
+          } else {
+            // AUTOMATIC BATTLE! Player has advantage (0-2 = lose, 3-5 = win)
+            const roll = randInt(0, 5);
+            logEvent("roll", `🎲 Auto-rolled ${roll} vs Monkey!`);
+            
+            if(roll <= 2){
+              // LOSE (0-2) - monkey takes a life and moves away
+              game.lives--;
+              logEvent("death", "🐒 Monkey wins! Lost a life!");
+              setHud("MONKEY WINS!");
+              
+              // Dramatic defeat sound - lower, sadder notes
+              beep(400, 0.15, "sawtooth", 0.4);
+              setTimeout(() => beep(300, 0.15, "sawtooth", 0.45), 120);
+              setTimeout(() => beep(200, 0.18, "sawtooth", 0.5), 240);
+              setTimeout(() => beep(150, 0.2, "sawtooth", 0.55), 380);
+              setTimeout(() => beep(100, 0.25, "sawtooth", 0.6), 540);
+              
+              // Move monkey away
+              const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+              for(let i = 0; i < 3; i++){
+                const dir = dirs[randInt(0, 3)];
+                monkey.x = clamp(monkey.x + dir.dx, 0, GRID_W - 1);
+                monkey.y = clamp(monkey.y + dir.dy, 0, GRID_H - 1);
+              }
+              monkey.battling = false;
+              monkey.agitated = false;
+              
+              // 3-5 second pause with warning before monkey can attack again
+              const pauseTime = randInt(3000, 5000);
+              game.inputLocked = true;
+              logEvent("warning", "⚠️ MOVE AWAY! Monkey will attack again soon!");
+              setHud("⚠️ MOVE NOW!");
+              
+              // DRAMATIC URGENT WARNING SOUND - GET OUT OF THERE!
+              beep(800, 0.1, "square", 0.5);
+              setTimeout(() => beep(600, 0.1, "square", 0.5), 100);
+              setTimeout(() => beep(800, 0.1, "square", 0.5), 200);
+              setTimeout(() => beep(600, 0.1, "square", 0.5), 300);
+              setTimeout(() => beep(900, 0.15, "square", 0.6), 400);
+              setTimeout(() => beep(500, 0.15, "square", 0.6), 550);
+              setTimeout(() => beep(1000, 0.2, "square", 0.7), 700);
+              
+              setTimeout(() => {
+                game.inputLocked = false;
+                logEvent("warning", "Monkey can attack again - stay alert!");
+              }, pauseTime);
+              
+              if(game.lives <= 0){
+                gameOver();
+              } else {
+                updateUI();
+              }
+            } else {
+              // WIN (3-5) - player has advantage!
+              const funMessages = [
+                "🍌 Monkey has been MASHED!",
+                "🍌 Monkey SQUASHED!",
+                "🍌 Monkey goes BANANAS... and loses!",
+                "🍌 Monkey DEFEATED!",
+                "🍌 Monkey MUSHED!"
+              ];
+              const msg = funMessages[randInt(0, funMessages.length - 1)];
+              
+              // BANANA BOOST! Double carry capacity
+              bananaMode = true;
+              
+              logEvent("victory", "🍌 BANANA BUNDLE is BORN! 🍌");
+              logEvent("info", "💪 You can now carry TWICE the sticks!");
+              logEvent("info", "🎉 Lasts until you deposit at the hole!");
+              setHud("🍌 BANANA BUNDLE! 🍌");
+              
+              // Remove monkey
+              const idx = monkeys.indexOf(monkey);
+              if(idx > -1) monkeys.splice(idx, 1);
+              
+              // FUN CELEBRATORY TRANSFORMATION MUSIC!
+              beep(400, 0.08, "sine", 0.25);
+              setTimeout(() => beep(500, 0.08, "sine", 0.25), 60);
+              setTimeout(() => beep(600, 0.08, "sine", 0.3), 120);
+              setTimeout(() => beep(700, 0.08, "sine", 0.3), 180);
+              setTimeout(() => beep(800, 0.1, "sine", 0.35), 240);
+              setTimeout(() => beep(900, 0.1, "sine", 0.35), 310);
+              setTimeout(() => beep(1000, 0.12, "sine", 0.4), 380);
+              setTimeout(() => beep(1200, 0.12, "sine", 0.4), 460);
+              // Extra celebration burst!
+              setTimeout(() => beep(800, 0.08, "sine", 0.3), 550);
+              setTimeout(() => beep(1000, 0.08, "sine", 0.3), 610);
+              setTimeout(() => beep(1200, 0.1, "sine", 0.35), 670);
+              setTimeout(() => beep(1400, 0.12, "sine", 0.4), 740);
+              
+              updateUI();
+            }
+          }
+        }
+      }
+    });
   }
 
   
@@ -1891,20 +2365,22 @@
     });
   }
 
-  function drawMonkey(){
-    if(currentLevelTheme().name !== "Banana Stick" || !monkey.active) return;
+  function drawMonkeys(){
+    if(currentLevelTheme().name !== "Banana Stick" || monkeys.length === 0) return;
     
-    // Animation values
     const time = Date.now() * 0.001;
-    const bob = Math.sin(time * 2) * 2; // Bobbing
     
-    const cx = monkey.x * TILE + TILE/2;
-    const cy = monkey.y * TILE + TILE/2 + bob;
-    
-    ctx.save();
-    
-    // If agitated, show yellow pulsing glow (banana theme)
-    if (monkey.agitated){
+    monkeys.forEach(monkey => {
+      // Animation values
+      const bob = Math.sin(time * 2 + monkey.x + monkey.y) * 2; // Unique bob per monkey
+      
+      const cx = monkey.x * TILE + TILE/2;
+      const cy = monkey.y * TILE + TILE/2 + bob;
+      
+      ctx.save();
+      
+      // If agitated, show yellow pulsing glow (banana theme)
+      if (monkey.agitated){
       const pulse = (Math.sin(time * 8) + 1) / 2;
       const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, TILE * 0.9);
       gradient.addColorStop(0, `rgba(255,215,0,${0.4 + pulse * 0.4})`); // Gold warning
@@ -2001,6 +2477,7 @@
     ctx.fill();
     
     ctx.restore();
+    }); // End forEach monkey
   }
 
 
@@ -2030,22 +2507,44 @@
     if(game.pendingMonster || game.inputLocked) return;
     
     rams.forEach(ram => {
-      // Increment move timer
-      ram.moveTimer++;
+      // Check if player is within 1 square - rams get aggressive!
+      const dx = Math.abs(ram.x - game.playerX);
+      const dy = Math.abs(ram.y - game.playerY);
+      const distance = dx + dy;
       
-      // Move every 100 frames (~1.6 seconds) - moderate speed, docile
-      if (ram.moveTimer < 100){
-        return;
+      // If within 1 square, DEFINITELY charge!
+      if(distance === 1){
+        // Ram charges immediately towards player
+        const dirs = [];
+        if (ram.x < game.playerX) dirs.push({dx: 1, dy: 0});
+        if (ram.x > game.playerX) dirs.push({dx: -1, dy: 0});
+        if (ram.y < game.playerY) dirs.push({dx: 0, dy: 1});
+        if (ram.y > game.playerY) dirs.push({dx: 0, dy: -1});
+        
+        if(dirs.length > 0){
+          const dir = dirs[randInt(0, dirs.length - 1)];
+          ram.x = clamp(ram.x + dir.dx, 0, GRID_W - 1);
+          ram.y = clamp(ram.y + dir.dy, 0, GRID_H - 1);
+        }
+      } else {
+        // Normal wandering behavior
+        // Increment move timer
+        ram.moveTimer++;
+        
+        // Move every 100 frames (~1.6 seconds)
+        if (ram.moveTimer < 100){
+          return;
+        }
+        
+        // Reset timer
+        ram.moveTimer = 0;
+        
+        // Random wander
+        const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+        const dir = dirs[randInt(0, 3)];
+        ram.x = clamp(ram.x + dir.dx, 0, GRID_W - 1);
+        ram.y = clamp(ram.y + dir.dy, 0, GRID_H - 1);
       }
-      
-      // Reset timer
-      ram.moveTimer = 0;
-      
-      // Random wander
-      const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
-      const dir = dirs[randInt(0, 3)];
-      ram.x = clamp(ram.x + dir.dx, 0, GRID_W - 1);
-      ram.y = clamp(ram.y + dir.dy, 0, GRID_H - 1);
       
       // Check if ram hit the player
       if(ram.x === game.playerX && ram.y === game.playerY){
@@ -2067,8 +2566,9 @@
           setHud("RAM ATTACK!");
           updateUI();
         } else {
-          // Knock player 2-3 squares in random direction
-          const knockDist = randInt(2, 3);
+          // Knock player 3-5 squares in random direction (more aggressive!)
+          const knockDist = randInt(3, 5);
+          const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
           const knockDir = dirs[randInt(0, 3)];
           
           for (let i = 0; i < knockDist; i++){
@@ -2080,6 +2580,49 @@
           updateUI();
         }
       }
+    });
+  }
+  
+  function drawMountainClouds(){
+    if(currentLevelTheme().name !== "Mountain Stick") return;
+    
+    // Update cloud positions
+    mountainClouds.forEach(cloud => {
+      cloud.x += cloud.drift;
+      if(cloud.x < -0.5) cloud.x = GRID_W;
+      if(cloud.x > GRID_W) cloud.x = -0.5;
+    });
+    
+    // Draw clouds - same style as Sky Stick
+    mountainClouds.forEach(cloud => {
+      const cx = cloud.x * TILE + TILE/2;
+      const cy = cloud.y * TILE + TILE/2;
+      
+      ctx.save();
+      ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+      
+      // 5 overlapping circles for fluffy cloud
+      ctx.beginPath();
+      ctx.arc(cx - TILE * 0.3, cy + TILE * 0.05, TILE * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(cx + TILE * 0.3, cy + TILE * 0.05, TILE * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(cx - TILE * 0.1, cy - TILE * 0.05, TILE * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(cx + TILE * 0.15, cy - TILE * 0.05, TILE * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(cx, cy - TILE * 0.2, TILE * 0.26, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.restore();
     });
   }
   
@@ -3256,6 +3799,8 @@
   let sunBurstTiles = [];
   let sunBurstWarningTimer = 0;
   let playerSunGlow = 0;
+  let playerCloudEffect = 0; // Cloud drag effect on player
+  let bananaMode = false; // Banana boost from defeating monkey
   const SUNBURST_WARNING_TIME = 150; // 2.5 seconds
   
   function initSunBursts(){
@@ -4999,7 +5544,10 @@
 
   function carryCap(){
     const base = Math.min(6, 3 + Math.floor((game.level - 1) / 3));
-    return game.bonusActive ? (base + 2) : base;
+    let cap = game.bonusActive ? (base + 2) : base;
+    // BANANA BUNDLE - double capacity!
+    if(bananaMode) cap *= 2;
+    return cap;
   }
   function sticksToSpawnForLevel(level){
     return 6 + (level-1)*3;
@@ -5424,6 +5972,7 @@
       initRams();
     } else {
       mountains = [];
+      mountainClouds = [];
       rams = [];
     }
     
@@ -5432,10 +5981,10 @@
     if (currentLevelTheme().name === "Banana Stick"){
       console.log("✓ Banana Stick detected! Calling init functions");
       initBananas();
-      initMonkey();
+      initMonkeys();
     } else {
       bananas = [];
-      monkey.active = false;
+      monkeys = [];
     }
     
     // Initialize fire tiles if starting on Fire Stick
@@ -5548,6 +6097,7 @@
       initRams();
     } else {
       mountains = [];
+      mountainClouds = [];
       rams = [];
     }
     
@@ -5556,20 +6106,24 @@
     if (currentLevelTheme().name === "Banana Stick"){
       console.log("✓ Banana Stick detected! Calling init functions");
       initBananas();
-      initMonkey();
+      initMonkeys();
     } else {
       bananas = [];
-      monkey.active = false;
+      monkeys = [];
     }
     
     // Initialize wind tiles for Sky Stick
     if (currentLevelTheme().name === "Sky Stick"){
       initWindTiles();
+      initSkyClouds();
       windGustTimer = 0;
     } else {
       windTiles = [];
       windWarningTimer = 0;
       windGustTimer = 0;
+      skyClouds = [];
+      cloudTrails = [];
+      airplane.active = false;
     }
     
     // Initialize snakes for Snake Stick
@@ -5622,9 +6176,11 @@
     // Initialize sun bursts for Sun Stick
     if (currentLevelTheme().name === "Sun Stick"){
       initSunBursts();
+      initSunCharacter();
     } else {
       sunBurstTiles = [];
       sunBurstWarningTimer = 0;
+      sunCharacter.active = false;
     }
     
     // Initialize star grid for Night Stick
@@ -6204,7 +6760,7 @@ gameSetTimeout(updateScrollHint, 30);
     
     // Check banana slip immediately after moving
     if(currentLevelTheme().name === "Banana Stick"){
-      const banana = bananas.find(b => b.x === newX && b.y === newY);
+      const banana = bananas.find(b => b.x === game.playerX && b.y === game.playerY);
       if(banana){
         // Relocate banana to a different position instead of removing it
         const newPos = randomEmptyTile();
@@ -6256,7 +6812,7 @@ gameSetTimeout(updateScrollHint, 30);
         } else {
           // No sticks = lose a life AND monkey dies too (easy level)
           game.lives--;
-          monkey.active = false; // Monkey dies
+          monkeys = []; // Monkey dies
           logEvent("death", "🐒 MONKEY ATTACKED! Both defeated!");
           setHud("MUTUAL DEFEAT!");
           // Dramatic death sound
@@ -6341,6 +6897,12 @@ gameSetTimeout(updateScrollHint, 30);
       }
       game.score += pts;
       game.carry = [];
+      
+      // Deactivate banana mode on deposit
+      if(bananaMode){
+        bananaMode = false;
+        logEvent("info", "Banana boost ended.");
+      }
       
       // Expire power-ups on deposit
       if (activeShield > 0){
@@ -7181,6 +7743,33 @@ gameSetTimeout(updateScrollHint, 30);
       
       ctx.globalAlpha = 1;
     }
+    
+    // Cloud effect on player
+    if (playerCloudEffect > 0){
+      const cloudAlpha = (playerCloudEffect / 180) * 0.7;
+      
+      ctx.globalAlpha = cloudAlpha;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+      
+      // Multiple wispy cloud puffs around player
+      ctx.beginPath();
+      ctx.arc(-8, -3, 6, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(8, -3, 6, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(0, -8, 7, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.beginPath();
+      ctx.arc(0, 5, 5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.globalAlpha = 1;
+    }
 
     const theme = currentLevelTheme();
     const strokeBase = (theme.name === "Ice Stick") ? "#0b0f14" : "#f3f4f6";
@@ -7234,8 +7823,94 @@ gameSetTimeout(updateScrollHint, 30);
 
       drawCarryDots();
     };
+    
+    const drawBananaBody = () => {
+      // Classic front-facing banana - simple and recognizable!
+      
+      // Main banana body - tapered at bottom like real banana
+      ctx.fillStyle = "#FFD700"; // Golden yellow
+      ctx.strokeStyle = "#DAA520"; // Darker gold outline
+      ctx.lineWidth = 2.5;
+      
+      // Banana shape - tapers to a point at bottom
+      ctx.beginPath();
+      ctx.moveTo(-4, -16);
+      ctx.lineTo(-4, 8);
+      ctx.quadraticCurveTo(-4, 11, -2, 12); // Start tapering
+      ctx.lineTo(0, 14); // Point at bottom
+      ctx.lineTo(2, 12); // Taper from other side
+      ctx.quadraticCurveTo(4, 11, 4, 8);
+      ctx.lineTo(4, -16);
+      ctx.quadraticCurveTo(4, -18, 0, -18);
+      ctx.quadraticCurveTo(-4, -18, -4, -16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Brown spots
+      ctx.fillStyle = "rgba(139, 69, 19, 0.5)";
+      ctx.beginPath();
+      ctx.ellipse(-2, -8, 1.5, 2, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(1, -2, 1.2, 1.6, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(-1, 5, 1.3, 1.7, 0.1, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Green tip at top
+      ctx.fillStyle = "#9ACD32";
+      ctx.strokeStyle = "#7CB342";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-3, -18);
+      ctx.quadraticCurveTo(0, -21, 3, -18);
+      ctx.lineTo(0, -16);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Stick figure arms
+      ctx.strokeStyle = strokeBase;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-4, 0);
+      ctx.lineTo(-8, 3);
+      ctx.moveTo(4, 0);
+      ctx.lineTo(8, 3);
+      ctx.stroke();
+      
+      // Stick figure legs - from sides of tapered bottom
+      ctx.beginPath();
+      ctx.moveTo(-2, 12);
+      ctx.lineTo(-5, 19);
+      ctx.moveTo(2, 12);
+      ctx.lineTo(5, 19);
+      ctx.stroke();
+      
+      // Happy face
+      ctx.fillStyle = "#000000";
+      ctx.beginPath();
+      ctx.arc(-1.5, -10, 1.2, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(1.5, -10, 1.2, 0, Math.PI*2);
+      ctx.fill();
+      
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(0, -7, 2, 0.2, Math.PI - 0.2);
+      ctx.stroke();
+      
+      drawCarryDots();
+    };
 
-    if (skin === "alien"){
+    if (bananaMode){
+      drawBananaBody();
+    }
+    else if (skin === "alien"){
       ctx.beginPath();
       ctx.arc(0, -7, 7, 0, Math.PI*2);
       ctx.stroke();
@@ -7584,6 +8259,7 @@ gameSetTimeout(updateScrollHint, 30);
     // Update wind tiles for Sky Stick theme
     if (currentLevelTheme().name === "Sky Stick" && windTiles.length > 0){
       updateWindTiles();
+      updateSkyClouds();
     }
     
     // Update snakes for Snake Stick theme
@@ -7593,7 +8269,7 @@ gameSetTimeout(updateScrollHint, 30);
     
     // Update monkey for Banana Stick theme
     if (currentLevelTheme().name === "Banana Stick"){
-      updateMonkey();
+      updateMonkeys();
     }
     
     // Update ram for Mountain Stick theme
@@ -7622,6 +8298,7 @@ gameSetTimeout(updateScrollHint, 30);
     // Update sun bursts for Sun Stick
     if (currentLevelTheme().name === "Sun Stick" && sunBurstTiles.length > 0){
       updateSunBursts();
+      updateSunCharacter();
     }
     
     // Update star grid for Night Stick
@@ -7635,6 +8312,11 @@ gameSetTimeout(updateScrollHint, 30);
     // Update sun glow effect
     if (playerSunGlow > 0){
       playerSunGlow--;
+    }
+    
+    // Update cloud effect
+    if (playerCloudEffect > 0){
+      playerCloudEffect--;
     }
     
     // Update Spell Stick hazards (moving teleports + hole)
@@ -7711,11 +8393,17 @@ gameSetTimeout(updateScrollHint, 30);
     
     // Draw mountains (Mountain Stick)
     drawMountains();
+    drawMountainClouds();
     drawRams();
+    
+    // Draw Sky Stick clouds and airplane
+    if (theme.name === "Sky Stick"){
+      drawSkyClouds();
+    }
     
     // Draw bananas and monkey (Banana Stick)
     drawBananas();
-    drawMonkey();
+    drawMonkeys();
     
     // Draw freeze zones
     if (theme.name === "Ice Stick" && freezeTiles.length > 0){
@@ -7735,6 +8423,7 @@ gameSetTimeout(updateScrollHint, 30);
     // Draw sun bursts for Sun Stick
     if (theme.name === "Sun Stick" && sunBurstTiles.length > 0){
       drawSunBursts();
+      drawSunCharacter();
     }
     
     // Draw Spell Stick teleports and hole flash
@@ -7759,7 +8448,7 @@ gameSetTimeout(updateScrollHint, 30);
       if (snakes.length > 0) drawSnakes();
     drawMountains();
     drawBananas();
-    drawMonkey();
+    drawMonkeys();
       if (freezeTiles.length > 0) drawFreezeTiles();
       if (shadowMonsters.length > 0) drawShadowMonsters();
       if (sharks.length > 0) drawSharks();
