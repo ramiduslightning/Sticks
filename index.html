@@ -1077,32 +1077,81 @@
     
     sunCharacter.moveTimer = 0;
     
-    // Random wander
-    const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
-    const dir = dirs[randInt(0, 3)];
-    sunCharacter.x = clamp(sunCharacter.x + dir.dx, 0, GRID_W - 1);
-    sunCharacter.y = clamp(sunCharacter.y + dir.dy, 0, GRID_H - 1);
+    // Check distance to player
+    const dx = sunCharacter.x - game.playerX;
+    const dy = sunCharacter.y - game.playerY;
+    const distance = Math.abs(dx) + Math.abs(dy);
     
-    // Check if player is within 1 square - give high five!
-    const dx = Math.abs(sunCharacter.x - game.playerX);
-    const dy = Math.abs(sunCharacter.y - game.playerY);
-    const distance = dx + dy;
+    // If player is 1-3 squares away, move TOWARD them!
+    if(distance >= 1 && distance <= 3){
+      // Move toward player
+      if(Math.abs(dx) > Math.abs(dy)){
+        // Move horizontally toward player
+        sunCharacter.x = clamp(sunCharacter.x + (dx > 0 ? -1 : 1), 0, GRID_W - 1);
+      } else {
+        // Move vertically toward player
+        sunCharacter.y = clamp(sunCharacter.y + (dy > 0 ? -1 : 1), 0, GRID_H - 1);
+      }
+    } else {
+      // Random wander when far away
+      const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+      const dir = dirs[randInt(0, 3)];
+      sunCharacter.x = clamp(sunCharacter.x + dir.dx, 0, GRID_W - 1);
+      sunCharacter.y = clamp(sunCharacter.y + dir.dy, 0, GRID_H - 1);
+    }
     
-    // Check if not already glowing AND within 1 square
-    if(distance === 1 && playerSunGlow === 0){
-      // High five! Give mega vibrant gold glow EVERY TIME
+    // Check if player is within 1 square (including on sun) - give sun glow bonus!
+    const newDx = Math.abs(sunCharacter.x - game.playerX);
+    const newDy = Math.abs(sunCharacter.y - game.playerY);
+    const newDistance = newDx + newDy;
+    
+    // Check if not already glowing AND within 1 square OR on the sun
+    if(newDistance <= 1 && playerSunGlow === 0){
+      // SUN GLOW! Give mega vibrant gold glow
       playerSunGlow = 600; // 10 seconds of MEGA glow (60 fps * 10)
       
-      const message = positiveMessages[randInt(0, positiveMessages.length - 1)];
-      logEvent("sun", "☀️ " + message + " MEGA SUN POWER!");
-      setHud("☀️ MEGA SUN POWER! ☀️");
-      
-      // Positive ascending notes
-      beep(400, 0.08, "sine", 0.15);
-      setTimeout(() => beep(500, 0.08, "sine", 0.15), 80);
-      setTimeout(() => beep(600, 0.08, "sine", 0.15), 160);
-      setTimeout(() => beep(700, 0.1, "sine", 0.2), 240);
-      setTimeout(() => beep(800, 0.12, "sine", 0.25), 340);
+      // BONUS EFFECTS!
+      if(game.carry.length === 0){
+        // No sticks? CREATE FULL LOAD from the sun!
+        const cap = carryCap();
+        
+        for(let i = 0; i < cap; i++){
+          const newStick = {
+            color: STICK_COLORS[randInt(0, STICK_COLORS.length - 1)],
+            cursed: false,
+            bonus: false,
+            value: 1
+          };
+          game.carry.push(newStick);
+        }
+        
+        logEvent("sun", `☀️ SUN BLESSING! Created ${cap} magical sticks!`);
+        setHud("☀️ SUN LOADED YOU! ☀️");
+        
+        // Magical ascending sound
+        beep(400, 0.08, "sine", 0.15);
+        setTimeout(() => beep(500, 0.08, "sine", 0.15), 80);
+        setTimeout(() => beep(600, 0.08, "sine", 0.15), 160);
+        setTimeout(() => beep(700, 0.1, "sine", 0.2), 240);
+        setTimeout(() => beep(800, 0.12, "sine", 0.25), 340);
+        
+        updateUI();
+      } else {
+        // Holding sticks? DOUBLE THEIR VALUE!
+        game.carry.forEach(stick => {
+          stick.value = (stick.value || 1) * 2;
+        });
+        
+        logEvent("sun", `☀️ SUN POWER! Your ${game.carry.length} sticks are now 2× value!`);
+        setHud("☀️ STICKS DOUBLED! ☀️");
+        
+        // Powerful ascending sound
+        beep(500, 0.08, "sine", 0.2);
+        setTimeout(() => beep(600, 0.08, "sine", 0.2), 80);
+        setTimeout(() => beep(700, 0.08, "sine", 0.2), 160);
+        setTimeout(() => beep(800, 0.1, "sine", 0.25), 240);
+        setTimeout(() => beep(900, 0.12, "sine", 0.3), 340);
+      }
     }
   }
   
@@ -5207,7 +5256,7 @@
   
   function initSunBursts(){
     sunBurstTiles = [];
-    const num = randInt(7, 9); // Even more suns!
+    const num = randInt(18, 22); // EVEN MORE suns!
     for (let i = 0; i < num; i++){
       let x, y;
       // Make sure sun doesn't spawn in the hole
