@@ -966,7 +966,7 @@
   /* ---- Level Themes + Stick Names ---- */
   const LEVELS = [
     { name:"Night Stick",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
-    { name:"Sparkle Stick", bg:"#ffeef8", grid:"#ffc0e0", border:"#ff69b4", accent:"#ff1493", accentGlow:"rgba(255,20,147,.46)", accentShadow:"rgba(255,105,180,.30)" },
+    { name:"Sparkle Stick", bg:"#d84d9f", grid:"#ffffff", border:"#ff69b4", accent:"#ff1493", accentGlow:"rgba(255,255,255,.46)", accentShadow:"rgba(255,255,255,.30)" },
     { name:"Sun Stick",     bg:"#140a03", grid:"#4a3a06", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
     { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
     { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
@@ -1204,6 +1204,8 @@
     sparkleTrail = 0;
     flowerRain = true; // ALWAYS ACTIVE now!
     flowerRainParticles = [];
+    sparkleParticles = [];
+    cupcakeHearts = [];
     
     // Create ONE rainbow arcing across the board
     rainbows.push({
@@ -1239,7 +1241,34 @@
     // Update cupcake mode timer
     if(cupcakeMode > 0){
       cupcakeMode--;
+      
+      // Spawn hearts around cupcake during cupcake mode!
+      if(Math.random() < 0.3){
+        const angle = Math.random() * Math.PI * 2;
+        const distance = 20 + Math.random() * 15;
+        const px = game.playerX * TILE + TILE/2 + Math.cos(angle) * distance;
+        const py = game.playerY * TILE + TILE/2 + Math.sin(angle) * distance;
+        
+        cupcakeHearts.push({
+          x: px,
+          y: py,
+          vx: Math.cos(angle) * 0.5,
+          vy: Math.sin(angle) * 0.5 - 1, // Float upward
+          life: 60,
+          size: randInt(8, 14),
+          opacity: 1
+        });
+      }
     }
+    
+    // Update cupcake hearts
+    cupcakeHearts = cupcakeHearts.filter(h => {
+      h.x += h.vx;
+      h.y += h.vy;
+      h.life--;
+      h.opacity = h.life / 60;
+      return h.life > 0;
+    });
     
     // Update flower rain particles - CONSTANT soft shower
     // Gentler spawn rate for constant effect
@@ -1269,7 +1298,7 @@
     
     ctx.save();
     
-    // Draw rainbows - 3D gradient effect
+    // Draw rainbows - ALIVE with flowing energy!
     rainbows.forEach(rainbow => {
       const colors = [
         {base: "#ff0000", light: "#ff6666", dark: "#cc0000"}, // Red
@@ -1284,43 +1313,150 @@
       const cy = rainbow.y * TILE + (rainbow.height * TILE);
       const radius = rainbow.width * TILE / 2;
       
-      // Super bright, fun rainbow - NO GREY/SHADOW!
+      // Flowing energy animation - SLOWER, more graceful
+      const flowTime = Date.now() * 0.0015; // Slower flow (was 0.003)
+      const pulseTime = Date.now() * 0.001; // Slower pulse (was 0.002)
+      const pulse = Math.sin(pulseTime) * 0.15 + 1; // Gentler pulse (0.85 to 1.15)
+      
+      // Super bright, fun rainbow with ENERGY!
       colors.forEach((color, i) => {
         const arcRadius = radius - i * 7;
         
-        // Bright solid colors with white highlights
-        ctx.strokeStyle = color.light; // Use light color only - super bright!
-        ctx.lineWidth = 9;
-        ctx.globalAlpha = 1; // Full opacity
+        // Main bright color with pulsating glow
+        ctx.shadowColor = color.base;
+        ctx.shadowBlur = 8 + Math.sin(pulseTime + i * 0.5) * 4; // Pulsating shadow per color
+        ctx.strokeStyle = color.light;
+        ctx.lineWidth = 9 * pulse; // Pulsating width
+        ctx.globalAlpha = 1;
         ctx.lineCap = "round";
         ctx.beginPath();
         ctx.arc(cx, cy, arcRadius, Math.PI, 0);
         ctx.stroke();
         
-        // White highlight shimmer on top
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-        ctx.lineWidth = 3;
-        ctx.globalAlpha = 1;
-        ctx.beginPath();
-        ctx.arc(cx, cy, arcRadius, Math.PI + 0.2, Math.PI + 1);
-        ctx.stroke();
+        // Flowing energy shimmer - moves along the arc!
+        for(let j = 0; j < 3; j++){
+          const flowOffset = (flowTime + j * 2) % (Math.PI); // Flowing from left to right
+          const shimmerAlpha = Math.sin((flowTime + j * 2) % (Math.PI * 2)) * 0.4 + 0.4;
+          
+          ctx.shadowBlur = 15;
+          ctx.strokeStyle = `rgba(255, 255, 255, ${shimmerAlpha})`;
+          ctx.lineWidth = 5;
+          ctx.globalAlpha = shimmerAlpha;
+          ctx.beginPath();
+          ctx.arc(cx, cy, arcRadius, Math.PI + flowOffset, Math.PI + flowOffset + 0.3);
+          ctx.stroke();
+        }
+        
+        ctx.shadowBlur = 0;
       });
+      
+      // Sparkle particles that flow along the rainbow
+      const numSparkles = 15;
+      for(let s = 0; s < numSparkles; s++){
+        const sparklePos = (flowTime * 0.5 + s * 0.4) % Math.PI;
+        const sparkleAngle = Math.PI + sparklePos;
+        const sparkleLayer = Math.floor(s % colors.length);
+        const sparkleRadius = radius - sparkleLayer * 7;
+        
+        const sx = cx + Math.cos(sparkleAngle) * sparkleRadius;
+        const sy = cy + Math.sin(sparkleAngle) * sparkleRadius;
+        
+        const sparkleAlpha = Math.sin((flowTime * 2 + s) % (Math.PI * 2)) * 0.5 + 0.5;
+        
+        ctx.globalAlpha = sparkleAlpha;
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = '#ffffff';
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      ctx.shadowBlur = 0;
       ctx.globalAlpha = 1;
     });
     
     
-    // Draw flower rain - simple pink flowers!
+    // Draw flower rain - WHITE flowers for contrast!
     flowerRainParticles.forEach(flower => {
       ctx.save();
       ctx.translate(flower.x, flower.y);
       ctx.rotate(flower.rotation);
       
-      ctx.font = `${flower.size}px Arial`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("🌸", 0, 0);
+      // Draw white flower instead of emoji
+      const petalSize = flower.size / 2.5;
+      
+      // Draw 5 petals
+      ctx.fillStyle = '#ffffff';
+      for(let i = 0; i < 5; i++){
+        const angle = (i / 5) * Math.PI * 2;
+        const px = Math.cos(angle) * petalSize * 0.6;
+        const py = Math.sin(angle) * petalSize * 0.6;
+        
+        ctx.beginPath();
+        ctx.arc(px, py, petalSize * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Yellow center
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(0, 0, petalSize * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      
       ctx.restore();
     });
+    
+    // Draw pink sparkle trail - STAR SHAPES that TWINKLE!
+    sparkleParticles.forEach(sparkle => {
+      ctx.save();
+      ctx.translate(sparkle.x, sparkle.y);
+      ctx.rotate(sparkle.rotation);
+      
+      const twinkleScale = 0.7 + Math.sin(sparkle.twinkle) * 0.3; // Twinkle effect
+      const size = sparkle.size * twinkleScale;
+      
+      ctx.globalAlpha = sparkle.opacity * (0.6 + Math.sin(sparkle.twinkle) * 0.4);
+      ctx.fillStyle = sparkle.color;
+      ctx.shadowColor = sparkle.color;
+      ctx.shadowBlur = 8;
+      
+      // Draw 4-pointed star
+      ctx.beginPath();
+      for(let i = 0; i < 4; i++){
+        const angle = (i / 4) * Math.PI * 2;
+        const outerX = Math.cos(angle) * size;
+        const outerY = Math.sin(angle) * size;
+        const innerAngle = angle + Math.PI / 4;
+        const innerX = Math.cos(innerAngle) * (size * 0.3);
+        const innerY = Math.sin(innerAngle) * (size * 0.3);
+        
+        if(i === 0) ctx.moveTo(outerX, outerY);
+        else ctx.lineTo(outerX, outerY);
+        ctx.lineTo(innerX, innerY);
+      }
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.restore();
+    });
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    
+    // Draw cupcake hearts (during cupcake mode) - INSIDE the white glow!
+    cupcakeHearts.forEach(heart => {
+      ctx.globalAlpha = heart.opacity;
+      
+      ctx.fillStyle = '#ff69b4';
+      ctx.shadowColor = '#ff69b4';
+      ctx.shadowBlur = 6;
+      ctx.font = `${heart.size}px Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("💕", heart.x, heart.y);
+    });
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
     
     ctx.restore();
   }
@@ -4358,77 +4494,43 @@
   function initVictoryLasers(){
     laserWalls = [];
     
-    // Create 2 laser walls that MOVE to new positions
-    for(let i = 0; i < 2; i++){
-      const isVertical = Math.random() > 0.5;
-      
-      if(isVertical){
-        laserWalls.push({
-          type: 'vertical',
-          x: randInt(2, GRID_W - 3),
-          movable: true,
-          active: false,
-          ghostly: false,
-          ghostlyTimer: 0,
-          ghostlyDuration: 120, // 2 seconds vapor preview
-          activeTimer: 0,
-          activeDuration: 180, // 3 seconds active
-          inactiveTimer: randInt(0, 180),
-          inactiveDuration: 240
-        });
-      } else {
-        laserWalls.push({
-          type: 'horizontal',
-          y: randInt(2, GRID_H - 3),
-          movable: true,
-          active: false,
-          ghostly: false,
-          ghostlyTimer: 0,
-          ghostlyDuration: 120,
-          activeTimer: 0,
-          activeDuration: 180,
-          inactiveTimer: randInt(0, 180),
-          inactiveDuration: 240
-        });
-      }
-    }
+    // Create 2 energy ball emitters - ONE vertical, ONE horizontal!
     
-    // Create 2 TIMED BEAM lasers (stationary, shoot beams periodically)
-    for(let i = 0; i < 2; i++){
-      const isVertical = Math.random() > 0.5;
-      
-      if(isVertical){
-        laserWalls.push({
-          type: 'vertical',
-          x: randInt(2, GRID_W - 3),
-          movable: false,
-          timed: true, // This one shoots timed beams!
-          active: false,
-          beamActive: false,
-          beamTimer: 0,
-          beamDuration: 90, // Beam lasts 1.5 seconds
-          cycleTimer: randInt(0, 180), // Staggered start
-          cycleDuration: 240, // Fires every 4 seconds
-          warningTimer: 0,
-          warningDuration: 60 // 1 second warning
-        });
-      } else {
-        laserWalls.push({
-          type: 'horizontal',
-          y: randInt(2, GRID_H - 3),
-          movable: false,
-          timed: true,
-          active: false,
-          beamActive: false,
-          beamTimer: 0,
-          beamDuration: 90,
-          cycleTimer: randInt(0, 180),
-          cycleDuration: 240,
-          warningTimer: 0,
-          warningDuration: 60
-        });
-      }
-    }
+    // First: Vertical energy ball (shoots full-height laser from its position)
+    laserWalls.push({
+      type: 'vertical',
+      x: randInt(2, GRID_W - 3), // Ball position (moves slowly around grid)
+      y: randInt(2, GRID_H - 3),
+      targetX: randInt(2, GRID_W - 3),
+      targetY: randInt(2, GRID_H - 3),
+      moveSpeed: 0.02, // Very slow movement
+      beamActive: false,
+      beamTimer: 0,
+      beamDuration: 120, // Shoots for 2 seconds
+      cycleTimer: randInt(0, 180),
+      cycleDuration: 240, // Fires every 4 seconds
+      warningTimer: 0,
+      warningDuration: 60, // 1 second pulsating warning
+      moving: false
+    });
+    
+    // Second: Horizontal energy ball (shoots full-width laser from its position)
+    laserWalls.push({
+      type: 'horizontal',
+      x: randInt(2, GRID_W - 3), // Ball position (moves slowly around grid)
+      y: randInt(2, GRID_H - 3),
+      targetX: randInt(2, GRID_W - 3),
+      targetY: randInt(2, GRID_H - 3),
+      moveSpeed: 0.02, // Very slow movement
+      beamActive: false,
+      beamTimer: 0,
+      beamDuration: 120, // Shoots for 2 seconds
+      cycleTimer: randInt(0, 180),
+      cycleDuration: 240, // Fires every 4 seconds
+      warningTimer: 0,
+      warningDuration: 60, // 1 second pulsating warning
+      moving: false
+    });
     
     // Create LARGE ROBOTIC tank
     const startPos = {x: randInt(1, GRID_W - 2), y: randInt(1, GRID_H - 2)};
@@ -4454,181 +4556,117 @@
     // FREEZE ALL HAZARDS during monster battles!
     if(game.pendingMonster || game.inputLocked) return;
     
-    // Update laser walls
+    // Update energy ball emitters
     laserWalls.forEach(wall => {
-      if(wall.movable){
-        // MOVING lasers
-        if(!wall.ghostly && !wall.active){
-          wall.inactiveTimer++;
-          if(wall.inactiveTimer >= wall.inactiveDuration){
-            // Move to NEW position!
-            if(wall.type === 'vertical'){
-              wall.x = randInt(2, GRID_W - 3);
-            } else {
-              wall.y = randInt(2, GRID_H - 3);
-            }
-            
-            wall.inactiveTimer = 0;
-            wall.ghostly = true;
-            wall.ghostlyTimer = 0;
-            beep(500, 0.06, "sine", 0.1);
-          }
-        } else if(wall.ghostly){
-          // Vapor preview phase - NO COLLISION YET!
-          wall.ghostlyTimer++;
-          if(wall.ghostlyTimer >= wall.ghostlyDuration){
-            wall.ghostly = false;
-            wall.active = true;
-            wall.activeTimer = 0;
-            beep(800, 0.1, "sine", 0.15);
-          }
-        } else if(wall.active){
-          // Fully active - CAN KILL!
-          wall.activeTimer++;
-          
-          let hit = false;
-          if(wall.type === 'vertical' && wall.x === game.playerX){
-            hit = true;
-          }
-          if(wall.type === 'horizontal' && wall.y === game.playerY){
-            hit = true;
-          }
-          
-          if(hit){
-            // Check shield first!
-            if(activeShield > 0){
-              logEvent("info", "Shield absorbed laser!");
-              setHud("🛡️ LASER BLOCKED!");
-              spawnSparks(game.playerX, game.playerY, 20, false);
-              
-              // Still move laser to new position
-              wall.active = false;
-              wall.ghostly = false;
-              wall.inactiveTimer = 0;
-              
-              if(wall.type === 'vertical'){
-                wall.x = randInt(2, GRID_W - 3);
-              } else {
-                wall.y = randInt(2, GRID_H - 3);
-              }
-            } else {
-              // No shield - take damage!
-              game.lives--;
-              logEvent("death", "⚡ VAPORIZED BY LASER WALL! ⚡");
-              setHud("☠️ LASER VAPORIZED YOU! ☠️");
-              
-              startDoomMusic(3000);
-              
-              // DRAMATIC LASER DEATH SOUND!
-              beep(1800, 0.2, "square", 0.7);
-              setTimeout(() => beep(1400, 0.18, "square", 0.7), 60);
-              setTimeout(() => beep(1000, 0.16, "square", 0.7), 120);
-              setTimeout(() => beep(600, 0.14, "square", 0.7), 180);
-              setTimeout(() => beep(200, 0.2, "square", 0.7), 240);
-              
-              game.holeFlash = 2.0;
-              spawnSparks(game.playerX, game.playerY, 45, true);
-              
-              // MOVE LASER TO NEW POSITION so player doesn't die again immediately!
-              wall.active = false;
-              wall.ghostly = false;
-              wall.inactiveTimer = 0;
-              
-              if(wall.type === 'vertical'){
-                wall.x = randInt(2, GRID_W - 3);
-              } else {
-                wall.y = randInt(2, GRID_H - 3);
-              }
-              
-              if(game.lives <= 0){
-                gameOver();
-              } else {
-                updateUI();
-              }
-            }
-          }
-          
-          if(wall.activeTimer >= wall.activeDuration){
-            wall.active = false;
-            wall.activeTimer = 0;
-            wall.inactiveTimer = 0;
-            beep(400, 0.06, "sine", 0.08);
-          }
-        }
-      } else if(wall.timed){
-        // TIMED BEAM lasers (like shark lanes - shoot beams periodically)
-        wall.cycleTimer++;
+      // Move slowly toward target
+      if(!wall.beamActive && wall.warningTimer === 0){
+        const dx = wall.targetX - wall.x;
+        const dy = wall.targetY - wall.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
         
-        if(!wall.beamActive && wall.warningTimer === 0){
+        if(dist > 0.1){
+          // Still moving to target
+          wall.x += (dx / dist) * wall.moveSpeed;
+          wall.y += (dy / dist) * wall.moveSpeed;
+          wall.moving = true;
+        } else {
+          // Reached target - start shooting cycle
+          wall.x = wall.targetX;
+          wall.y = wall.targetY;
+          wall.moving = false;
+          
+          wall.cycleTimer++;
+          
           if(wall.cycleTimer >= wall.cycleDuration){
+            // Start pulsating warning!
             wall.warningTimer = wall.warningDuration;
             wall.cycleTimer = 0;
             beep(600, 0.08, "sine", 0.12);
           }
-        } else if(wall.warningTimer > 0){
-          wall.warningTimer--;
-          if(wall.warningTimer === 0){
-            wall.beamActive = true;
-            wall.beamTimer = 0;
-            beep(900, 0.12, "sine", 0.18);
-          }
-        } else if(wall.beamActive){
-          wall.beamTimer++;
-          
-          // Check collision when beam is active
-          let hit = false;
-          if(wall.type === 'vertical' && wall.x === game.playerX){
+        }
+      } else if(wall.warningTimer > 0){
+        // Pulsating warning phase
+        wall.warningTimer--;
+        if(wall.warningTimer === 0){
+          // Fire laser!
+          wall.beamActive = true;
+          wall.beamTimer = 0;
+          beep(900, 0.12, "sine", 0.18);
+        }
+      } else if(wall.beamActive){
+        // Laser is firing
+        wall.beamTimer++;
+        
+        // Check collision
+        let hit = false;
+        const ballX = Math.round(wall.x);
+        const ballY = Math.round(wall.y);
+        
+        if(wall.type === 'vertical'){
+          // Vertical laser - check if player is in same column
+          if(game.playerX === ballX){
             hit = true;
           }
-          if(wall.type === 'horizontal' && wall.y === game.playerY){
+        } else {
+          // Horizontal laser - check if player is in same row
+          if(game.playerY === ballY){
             hit = true;
           }
-          
-          if(hit){
-            // Check shield first!
-            if(activeShield > 0){
-              logEvent("info", "Shield absorbed timed beam!");
-              setHud("🛡️ BEAM BLOCKED!");
-              spawnSparks(game.playerX, game.playerY, 20, false);
-              
-              // Still deactivate beam
-              wall.beamActive = false;
-              wall.beamTimer = 0;
-            } else {
-              // No shield - take damage!
-              game.lives--;
-              logEvent("death", "⚡ DISINTEGRATED BY BEAM! ⚡");
-              setHud("☠️ BEAM DISINTEGRATED YOU! ☠️");
-              
-              startDoomMusic(3000);
-              
-              // DRAMATIC BEAM DEATH SOUND!
-              beep(1800, 0.2, "square", 0.7);
-              setTimeout(() => beep(1400, 0.18, "square", 0.7), 60);
-              setTimeout(() => beep(1000, 0.16, "square", 0.7), 120);
-              setTimeout(() => beep(600, 0.14, "square", 0.7), 180);
-              setTimeout(() => beep(200, 0.2, "square", 0.7), 240);
-              
-              game.holeFlash = 2.0;
-              spawnSparks(game.playerX, game.playerY, 45, true);
-              
-              // DEACTIVATE BEAM IMMEDIATELY to prevent multi-kill!
-              wall.beamActive = false;
-              wall.beamTimer = 0;
-              
-              if(game.lives <= 0){
-                gameOver();
-              } else {
-                updateUI();
-              }
-            }
-          }
-          
-          if(wall.beamTimer >= wall.beamDuration){
+        }
+        
+        if(hit){
+          // Check shield first!
+          if(activeShield > 0){
+            logEvent("info", "Shield absorbed energy beam!");
+            setHud("🛡️ BEAM BLOCKED!");
+            spawnSparks(game.playerX, game.playerY, 20, false);
+            
             wall.beamActive = false;
             wall.beamTimer = 0;
-            beep(400, 0.06, "sine", 0.08);
+            // Pick new target
+            wall.targetX = randInt(2, GRID_W - 3);
+            wall.targetY = randInt(2, GRID_H - 3);
+          } else {
+            // No shield - take damage!
+            game.lives--;
+            logEvent("death", "⚡ VAPORIZED BY ENERGY BEAM! ⚡");
+            setHud("☠️ ENERGY BEAM! ☠️");
+            
+            startDoomMusic(3000);
+            
+            // DRAMATIC BEAM DEATH SOUND!
+            beep(1800, 0.2, "square", 0.7);
+            setTimeout(() => beep(1400, 0.18, "square", 0.7), 60);
+            setTimeout(() => beep(1000, 0.16, "square", 0.7), 120);
+            setTimeout(() => beep(600, 0.14, "square", 0.7), 180);
+            setTimeout(() => beep(200, 0.2, "square", 0.7), 240);
+            
+            game.holeFlash = 2.0;
+            spawnSparks(game.playerX, game.playerY, 45, true);
+            
+            wall.beamActive = false;
+            wall.beamTimer = 0;
+            // Pick new target
+            wall.targetX = randInt(2, GRID_W - 3);
+            wall.targetY = randInt(2, GRID_H - 3);
+            
+            if(game.lives <= 0){
+              gameOver();
+            } else {
+              updateUI();
+            }
           }
+        }
+        
+        // Beam duration finished
+        if(wall.beamTimer >= wall.beamDuration){
+          wall.beamActive = false;
+          wall.beamTimer = 0;
+          beep(400, 0.06, "sine", 0.08);
+          
+          // Pick new target position to move to
+          wall.targetX = randInt(2, GRID_W - 3);
+          wall.targetY = randInt(2, GRID_H - 3);
         }
       }
     });
@@ -4637,25 +4675,29 @@
     if(victoryTank){
       victoryTank.float = (victoryTank.float + 0.05) % (Math.PI * 2);
       
-      // Tank CHASES player
+      // Tank CHASES player but keeps distance
       victoryTank.moveTimer++;
       if(victoryTank.moveTimer > victoryTank.moveInterval){
         victoryTank.moveTimer = 0;
         
         const dx = game.playerX - victoryTank.x;
         const dy = game.playerY - victoryTank.y;
+        const distance = Math.abs(dx) + Math.abs(dy); // Manhattan distance
         
-        if(Math.abs(dx) >= Math.abs(dy)){
-          if(dx > 0 && victoryTank.x < GRID_W - 1){
-            victoryTank.x++;
-          } else if(dx < 0 && victoryTank.x > 0){
-            victoryTank.x--;
-          }
-        } else {
-          if(dy > 0 && victoryTank.y < GRID_H - 1){
-            victoryTank.y++;
-          } else if(dy < 0 && victoryTank.y > 0){
-            victoryTank.y--;
+        // Only move if more than 2 squares away - keep distance!
+        if(distance > 2){
+          if(Math.abs(dx) >= Math.abs(dy)){
+            if(dx > 0 && victoryTank.x < GRID_W - 1){
+              victoryTank.x++;
+            } else if(dx < 0 && victoryTank.x > 0){
+              victoryTank.x--;
+            }
+          } else {
+            if(dy > 0 && victoryTank.y < GRID_H - 1){
+              victoryTank.y++;
+            } else if(dy < 0 && victoryTank.y > 0){
+              victoryTank.y--;
+            }
           }
         }
       }
@@ -4672,7 +4714,7 @@
       // RED Beam mechanic
       if(!victoryTank.beamActive){
         victoryTank.beamWarning++;
-        if(victoryTank.beamWarning > randInt(180, 300)){
+        if(victoryTank.beamWarning > randInt(600, 900)){ // Much less frequent! (10-15 seconds)
           victoryTank.beamActive = true;
           victoryTank.beamTimer = 0;
           victoryTank.beamWarning = 0;
@@ -4715,11 +4757,11 @@
           }
           
           if(playerInBeam){
-            // MUCH MORE REASONABLE ODDS - roll 0-19
-            // 0 = TELEPORT (5% chance - 1/20) - Very rare!
-            // 1-19 = MISS (95% chance - 19/20) - Usually miss!
+            // EXTREMELY LOW ODDS - roll 0-49
+            // 0 = TELEPORT (2% chance - 1/50) - Extremely rare!
+            // 1-49 = MISS (98% chance - 49/50) - Almost always miss!
             // NO KILL - removed completely, too punishing
-            const roll = randInt(0, 19);
+            const roll = randInt(0, 49);
             
             // Check shield first!
             if(activeShield > 0){
@@ -4727,7 +4769,7 @@
               setHud("🛡️ BEAM DEFLECTED!");
               spawnSparks(game.playerX, game.playerY, 15, false);
             } else if(roll === 0){
-              // TELEPORT - Beam relocates you (rare!)
+              // TELEPORT - Beam relocates you (extremely rare!)
               const newPos = randomEmptyTile();
               game.playerX = newPos.x;
               game.playerY = newPos.y;
@@ -4751,7 +4793,7 @@
               
               spawnSparks(game.playerX, game.playerY, 25, false);
             }
-            // else: roll 1-19 = MISS (95% chance) - beam passes harmlessly!
+            // else: roll 1-49 = MISS (98% chance) - beam passes harmlessly!
           }
           
           if(victoryTank.beamTimer >= 120){
@@ -4768,242 +4810,106 @@
     
     ctx.save();
     
-    // Draw laser walls
+    // Draw energy ball emitters
     laserWalls.forEach(wall => {
-      if(wall.type === 'vertical'){
-        const sx = wall.x * TILE + TILE / 2;
+      const ballX = wall.x * TILE + TILE / 2;
+      const ballY = wall.y * TILE + TILE / 2;
+      const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+      
+      // Draw the energy ball
+      if(wall.warningTimer > 0){
+        // HEAVY PULSATING warning before shooting!
+        const warnPulse = Math.sin(wall.warningTimer * 0.3) * 0.6 + 0.6;
+        const ballSize = 10 + warnPulse * 5;
         
-        if(wall.timed){
-          // TIMED BEAM laser - draw emitter
-          const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
-          
-          // Emitter base (top of screen)
-          ctx.fillStyle = '#27ae60';
-          ctx.strokeStyle = '#52ffa8';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(sx, 15, 8, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.stroke();
-          
-          // Warning glow
-          if(wall.warningTimer > 0){
-            const warnPulse = Math.sin(wall.warningTimer * 0.2) * 0.5 + 0.5;
-            ctx.shadowColor = "#ffeb3b";
-            ctx.shadowBlur = 15 * warnPulse;
-            ctx.fillStyle = `rgba(255, 235, 59, ${0.3 + warnPulse * 0.4})`;
-            ctx.beginPath();
-            ctx.arc(sx, 15, 12, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-          }
-          
-          // Beam when active
-          if(wall.beamActive){
-            const beamPulse = Math.sin(Date.now() * 0.015) * 0.2 + 0.8;
-            
-            // IMPRESSIVE beam effect!
-            ctx.shadowColor = "#27ae60";
-            ctx.shadowBlur = 25;
-            
-            // Outer glow
-            const outerGrad = ctx.createLinearGradient(sx, 15, sx, CANVAS_H);
-            outerGrad.addColorStop(0, `rgba(39, 174, 96, ${beamPulse * 0.9})`);
-            outerGrad.addColorStop(1, `rgba(39, 174, 96, ${beamPulse * 0.7})`);
-            ctx.strokeStyle = outerGrad;
-            ctx.lineWidth = 10;
-            ctx.beginPath();
-            ctx.moveTo(sx, 15);
-            ctx.lineTo(sx, CANVAS_H);
-            ctx.stroke();
-            
-            // Inner core
-            const coreGrad = ctx.createLinearGradient(sx, 15, sx, CANVAS_H);
-            coreGrad.addColorStop(0, `rgba(82, 255, 168, ${beamPulse})`);
-            coreGrad.addColorStop(1, `rgba(82, 255, 168, ${beamPulse * 0.8})`);
-            ctx.strokeStyle = coreGrad;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(sx, 15);
-            ctx.lineTo(sx, CANVAS_H);
-            ctx.stroke();
-            
-            // Bright center
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = `rgba(200, 255, 220, ${beamPulse})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(sx, 15);
-            ctx.lineTo(sx, CANVAS_H);
-            ctx.stroke();
-          }
-        } else {
-          // MOVING laser
-          if(wall.ghostly){
-            // VAPOR preview (solid transparent, NOT dashed!)
-            const vaporPulse = Math.sin(wall.ghostlyTimer * 0.08) * 0.3 + 0.5;
-            const alpha = 0.2 + vaporPulse * 0.3;
-            
-            // Vapor effect - multiple layers
-            for(let i = 0; i < 3; i++){
-              const offset = i * 2;
-              const layerAlpha = alpha * (1 - i * 0.2);
-              ctx.strokeStyle = `rgba(39, 174, 96, ${layerAlpha})`;
-              ctx.lineWidth = 6 - i;
-              ctx.shadowColor = "#27ae60";
-              ctx.shadowBlur = 15 + vaporPulse * 10;
-              ctx.beginPath();
-              ctx.moveTo(sx - offset, 0);
-              ctx.lineTo(sx - offset, CANVAS_H);
-              ctx.stroke();
-              ctx.beginPath();
-              ctx.moveTo(sx + offset, 0);
-              ctx.lineTo(sx + offset, CANVAS_H);
-              ctx.stroke();
-            }
-            ctx.shadowBlur = 0;
-          } else if(wall.active){
-            // Fully active laser - IMPRESSIVE!
-            const pulse = Math.sin(Date.now() * 0.008) * 0.2 + 0.8;
-            
-            ctx.shadowColor = "#27ae60";
-            ctx.shadowBlur = 25;
-            ctx.strokeStyle = `rgba(39, 174, 96, ${pulse * 0.9})`;
-            ctx.lineWidth = 8;
-            ctx.beginPath();
-            ctx.moveTo(sx, 0);
-            ctx.lineTo(sx, CANVAS_H);
-            ctx.stroke();
-            
-            ctx.shadowBlur = 15;
-            ctx.strokeStyle = `rgba(82, 255, 168, ${pulse})`;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(sx, 0);
-            ctx.lineTo(sx, CANVAS_H);
-            ctx.stroke();
-            
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = `rgba(200, 255, 220, ${pulse})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(sx, 0);
-            ctx.lineTo(sx, CANVAS_H);
-            ctx.stroke();
-          }
-        }
+        // Pulsating outer glow
+        ctx.shadowColor = "#ffeb3b";
+        ctx.shadowBlur = 20 + warnPulse * 20;
+        ctx.fillStyle = `rgba(255, 235, 59, ${0.4 + warnPulse * 0.4})`;
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, ballSize + 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Pulsating energy ball
+        ctx.fillStyle = `rgba(255, 235, 59, ${0.8 + warnPulse * 0.2})`;
+        ctx.strokeStyle = `rgba(255, 255, 100, ${warnPulse})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, ballSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
       } else {
-        // Horizontal laser
-        const sy = wall.y * TILE + TILE / 2;
+        // Normal idle/moving state - steady green ball
+        ctx.fillStyle = '#27ae60';
+        ctx.strokeStyle = '#52ffa8';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#27ae60';
+        ctx.shadowBlur = 8 * pulse;
+        ctx.beginPath();
+        ctx.arc(ballX, ballY, 10 * pulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+      
+      // Draw laser beam when active (shoots FROM the ball position)
+      if(wall.beamActive){
+        const beamPulse = Math.sin(Date.now() * 0.015) * 0.2 + 0.8;
         
-        if(wall.timed){
-          // TIMED BEAM laser emitter
-          const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
-          
-          ctx.fillStyle = '#27ae60';
-          ctx.strokeStyle = '#52ffa8';
-          ctx.lineWidth = 2;
+        ctx.shadowColor = "#27ae60";
+        ctx.shadowBlur = 25;
+        
+        if(wall.type === 'vertical'){
+          // Vertical beam - full height
+          // Outer glow
+          ctx.strokeStyle = `rgba(39, 174, 96, ${beamPulse * 0.9})`;
+          ctx.lineWidth = 12;
           ctx.beginPath();
-          ctx.arc(15, sy, 8, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.moveTo(ballX, 0);
+          ctx.lineTo(ballX, CANVAS_H);
           ctx.stroke();
           
-          if(wall.warningTimer > 0){
-            const warnPulse = Math.sin(wall.warningTimer * 0.2) * 0.5 + 0.5;
-            ctx.shadowColor = "#ffeb3b";
-            ctx.shadowBlur = 15 * warnPulse;
-            ctx.fillStyle = `rgba(255, 235, 59, ${0.3 + warnPulse * 0.4})`;
-            ctx.beginPath();
-            ctx.arc(15, sy, 12, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-          }
+          // Inner core
+          ctx.strokeStyle = `rgba(82, 255, 168, ${beamPulse})`;
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(ballX, 0);
+          ctx.lineTo(ballX, CANVAS_H);
+          ctx.stroke();
           
-          if(wall.beamActive){
-            const beamPulse = Math.sin(Date.now() * 0.015) * 0.2 + 0.8;
-            
-            ctx.shadowColor = "#27ae60";
-            ctx.shadowBlur = 25;
-            
-            const outerGrad = ctx.createLinearGradient(15, sy, CANVAS_W, sy);
-            outerGrad.addColorStop(0, `rgba(39, 174, 96, ${beamPulse * 0.9})`);
-            outerGrad.addColorStop(1, `rgba(39, 174, 96, ${beamPulse * 0.7})`);
-            ctx.strokeStyle = outerGrad;
-            ctx.lineWidth = 10;
-            ctx.beginPath();
-            ctx.moveTo(15, sy);
-            ctx.lineTo(CANVAS_W, sy);
-            ctx.stroke();
-            
-            const coreGrad = ctx.createLinearGradient(15, sy, CANVAS_W, sy);
-            coreGrad.addColorStop(0, `rgba(82, 255, 168, ${beamPulse})`);
-            coreGrad.addColorStop(1, `rgba(82, 255, 168, ${beamPulse * 0.8})`);
-            ctx.strokeStyle = coreGrad;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(15, sy);
-            ctx.lineTo(CANVAS_W, sy);
-            ctx.stroke();
-            
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = `rgba(200, 255, 220, ${beamPulse})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(15, sy);
-            ctx.lineTo(CANVAS_W, sy);
-            ctx.stroke();
-          }
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = `rgba(200, 255, 220, ${beamPulse})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(ballX, 0);
+          ctx.lineTo(ballX, CANVAS_H);
+          ctx.stroke();
         } else {
-          // MOVING laser
-          if(wall.ghostly){
-            const vaporPulse = Math.sin(wall.ghostlyTimer * 0.08) * 0.3 + 0.5;
-            const alpha = 0.2 + vaporPulse * 0.3;
-            
-            for(let i = 0; i < 3; i++){
-              const offset = i * 2;
-              const layerAlpha = alpha * (1 - i * 0.2);
-              ctx.strokeStyle = `rgba(39, 174, 96, ${layerAlpha})`;
-              ctx.lineWidth = 6 - i;
-              ctx.shadowColor = "#27ae60";
-              ctx.shadowBlur = 15 + vaporPulse * 10;
-              ctx.beginPath();
-              ctx.moveTo(0, sy - offset);
-              ctx.lineTo(CANVAS_W, sy - offset);
-              ctx.stroke();
-              ctx.beginPath();
-              ctx.moveTo(0, sy + offset);
-              ctx.lineTo(CANVAS_W, sy + offset);
-              ctx.stroke();
-            }
-            ctx.shadowBlur = 0;
-          } else if(wall.active){
-            const pulse = Math.sin(Date.now() * 0.008) * 0.2 + 0.8;
-            
-            ctx.shadowColor = "#27ae60";
-            ctx.shadowBlur = 25;
-            ctx.strokeStyle = `rgba(39, 174, 96, ${pulse * 0.9})`;
-            ctx.lineWidth = 8;
-            ctx.beginPath();
-            ctx.moveTo(0, sy);
-            ctx.lineTo(CANVAS_W, sy);
-            ctx.stroke();
-            
-            ctx.shadowBlur = 15;
-            ctx.strokeStyle = `rgba(82, 255, 168, ${pulse})`;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(0, sy);
-            ctx.lineTo(CANVAS_W, sy);
-            ctx.stroke();
-            
-            ctx.shadowBlur = 0;
-            ctx.strokeStyle = `rgba(200, 255, 220, ${pulse})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(0, sy);
-            ctx.lineTo(CANVAS_W, sy);
-            ctx.stroke();
-          }
+          // Horizontal beam - full width
+          // Outer glow
+          ctx.strokeStyle = `rgba(39, 174, 96, ${beamPulse * 0.9})`;
+          ctx.lineWidth = 12;
+          ctx.beginPath();
+          ctx.moveTo(0, ballY);
+          ctx.lineTo(CANVAS_W, ballY);
+          ctx.stroke();
+          
+          // Inner core
+          ctx.strokeStyle = `rgba(82, 255, 168, ${beamPulse})`;
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.moveTo(0, ballY);
+          ctx.lineTo(CANVAS_W, ballY);
+          ctx.stroke();
+          
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = `rgba(200, 255, 220, ${beamPulse})`;
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, ballY);
+          ctx.lineTo(CANVAS_W, ballY);
+          ctx.stroke();
         }
       }
     });
@@ -5289,6 +5195,8 @@
   let flowerRain = false; // Flower rain active
   let flowerRainParticles = [];
   let cupcakeMode = 0; // Timer for cupcake transformation (10 seconds)
+  let sparkleParticles = []; // Pink sparkle trail when moving!
+  let cupcakeHearts = []; // Hearts around cupcake during cupcake mode
   
   // Cursed Stick variables
   let ghosts = [];
@@ -5812,13 +5720,29 @@
   
   function initStarGrid(){
     starGridTiles = [];
-    const numStars = randInt(8, 12);
-    for (let i = 0; i < numStars; i++){
-      starGridTiles.push({
-        x: randInt(0, GRID_W - 1),
-        y: randInt(0, GRID_H - 1),
-        twinkle: Math.random() * Math.PI * 2
-      });
+    // Create a beautiful night sky with evenly distributed stars
+    const numStars = 35; // Lots of stars for proper night sky!
+    
+    // Divide grid into regions to ensure even distribution
+    const regionsX = 7;
+    const regionsY = 5;
+    const starsPerRegion = Math.ceil(numStars / (regionsX * regionsY));
+    
+    for(let rx = 0; rx < regionsX; rx++){
+      for(let ry = 0; ry < regionsY; ry++){
+        // Each region gets 1 star
+        const regionW = Math.floor(GRID_W / regionsX);
+        const regionH = Math.floor(GRID_H / regionsY);
+        
+        const x = rx * regionW + randInt(0, regionW - 1);
+        const y = ry * regionH + randInt(0, regionH - 1);
+        
+        starGridTiles.push({
+          x: Math.min(x, GRID_W - 1),
+          y: Math.min(y, GRID_H - 1),
+          twinkle: Math.random() * Math.PI * 2
+        });
+      }
     }
   }
   
@@ -6749,8 +6673,8 @@
 
   function startMusic(){
     ensureAudio();
+    musicStep = 0; // Always start from beginning!
     if (musicTimer) return;
-    musicStep = 0;
     musicTimer = setInterval(() => {
       if (!musicOn) return;
       if (game.pendingMonster) return;
@@ -7095,7 +7019,14 @@
 
   function applyThemeForLevel(){
     const t = currentLevelTheme();
-    if (ui.themeMini) ui.themeMini.textContent = t.name;
+    if (ui.themeMini){
+      ui.themeMini.textContent = t.name;
+      
+      // Keep all theme names consistent white
+      ui.themeMini.style.background = "#0b1220";
+      ui.themeMini.style.borderColor = "#2b3a4c";
+      ui.themeMini.style.color = "#ffffff";
+    }
     document.documentElement.style.setProperty("--lvlBg", t.bg);
     document.documentElement.style.setProperty("--lvlBorder", t.border);
     document.documentElement.style.setProperty("--lvlAccentGlow", t.accentGlow);
@@ -7594,6 +7525,8 @@
       flowerRain = false;
       flowerRainParticles = [];
       cupcakeMode = 0;
+      sparkleParticles = [];
+      cupcakeHearts = [];
     }
     
     // Initialize snowflakes for Ice Stick theme
@@ -8252,6 +8185,45 @@ gameSetTimeout(updateScrollHint, 30);
     game.playerX = newX;
     game.playerY = newY;
     beep(220,0.03,"triangle",0.02);
+    
+    // Pink sparkle trail on Sparkle Stick!
+    if(currentLevelTheme().name === "Sparkle Stick"){
+      const px = game.playerX * TILE + TILE/2;
+      const py = game.playerY * TILE + TILE/2;
+      
+      // Spawn 10-15 pink sparkles at player position
+      for(let i = 0; i < randInt(10, 15); i++){
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 0.3 + Math.random() * 1.2;
+        
+        sparkleParticles.push({
+          x: px + (Math.random() - 0.5) * 10,
+          y: py + (Math.random() - 0.5) * 10,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: randInt(25, 40),
+          maxLife: 40,
+          size: randInt(2, 5),
+          rotation: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 0.2,
+          color: Math.random() > 0.3 ? '#ff69b4' : (Math.random() > 0.5 ? '#ffc0e0' : '#ffffff'), // Pink, light pink, or white
+          twinkle: Math.random() * Math.PI * 2
+        });
+      }
+    }
+    
+    // Update sparkle particles
+    sparkleParticles = sparkleParticles.filter(s => {
+      s.x += s.vx;
+      s.y += s.vy;
+      s.vx *= 0.92; // Slow down faster
+      s.vy *= 0.92;
+      s.rotation += s.rotSpeed;
+      s.twinkle += 0.3; // Twinkle speed
+      s.life--;
+      s.opacity = s.life / s.maxLife;
+      return s.life > 0;
+    });
     
     // Check banana slip immediately after moving
     if(currentLevelTheme().name === "Banana Stick"){
@@ -9104,7 +9076,12 @@ gameSetTimeout(updateScrollHint, 30);
 
     if (flash > 0){
       ctx.globalAlpha = 0.25 + flash*0.55;
-      ctx.fillStyle = "#ff1f3a";
+      // Use green flash for Victory Stick, red for others
+      if(theme.name === "Victory Stick"){
+        ctx.fillStyle = "#27ae60"; // Green flash!
+      } else {
+        ctx.fillStyle = "#ff1f3a"; // Red flash
+      }
       ctx.beginPath();
       ctx.arc(cx, cy, 18 + flash*10, 0, Math.PI*2);
       ctx.fill();
@@ -9190,27 +9167,32 @@ gameSetTimeout(updateScrollHint, 30);
 
     ctx.save();
 
+    // Glow ring - larger!
     ctx.globalAlpha = 0.10 + osc*0.18;
     ctx.strokeStyle = "#39ff95";
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3; // Thicker
     ctx.beginPath();
-    ctx.arc(x + TILE/2, y + TILE/2, 10 + osc*3, 0, Math.PI*2);
+    ctx.arc(x + TILE/2, y + TILE/2, 15 + osc*4.5, 0, Math.PI*2); // 1.5x larger
     ctx.stroke();
 
     ctx.globalAlpha = 1;
+    
+    // Tree trunk - larger!
     ctx.fillStyle = "#a16207";
-    ctx.fillRect(x + 11, y + 12, 2, 7);
-    ctx.fillRect(x + 10, y + 14, 4, 5);
+    ctx.fillRect(x + 9.5, y + 11, 3, 10.5); // Vertical part, 1.5x
+    ctx.fillRect(x + 8.5, y + 14, 6, 7.5); // Bottom part, 1.5x
 
+    // Tree foliage - larger!
     ctx.fillStyle = "#22c55e";
-    ctx.fillRect(x + 8,  y + 8,  8, 2);
-    ctx.fillRect(x + 7,  y + 10, 10, 2);
-    ctx.fillRect(x + 8,  y + 12, 8, 2);
+    ctx.fillRect(x + 6,  y + 6,  12, 3); // Top layer, 1.5x
+    ctx.fillRect(x + 4.5, y + 9,  15, 3); // Middle layer, 1.5x
+    ctx.fillRect(x + 6,  y + 12, 12, 3); // Bottom layer, 1.5x
 
+    // Sparkles - larger!
     ctx.globalAlpha = 0.35 + osc*0.35;
     ctx.fillStyle = theme.accent;
-    ctx.fillRect(x + 6, y + 6, 1, 1);
-    ctx.fillRect(x + 17, y + 7, 1, 1);
+    ctx.fillRect(x + 4.5, y + 5, 1.5, 1.5); // Left sparkle, 1.5x
+    ctx.fillRect(x + 17, y + 7, 1.5, 1.5); // Right sparkle, 1.5x
 
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -9324,46 +9306,10 @@ gameSetTimeout(updateScrollHint, 30);
 
     const theme = currentLevelTheme();
     
-    // CUPCAKE MODE: Cupcake emoji with stick figure arms and legs and PINK GLOW!
+    // CUPCAKE MODE: Cupcake emoji with stick figure arms and legs - NO GLOW!
     if(theme.name === "Sparkle Stick" && cupcakeMode > 0){
       const time = Date.now();
       const bounce = Math.sin(time * 0.005) * 2; // Gentle bounce
-      
-      // PINK GLOW OUTLINE - bright and visible!
-      const glowPulse = Math.sin(time * 0.004) * 0.3 + 0.7;
-      const alpha = (cupcakeMode / 600) * glowPulse;
-      
-      // Multiple layers for bright outline effect
-      // Outer bright pink ring
-      ctx.globalAlpha = alpha * 0.8;
-      ctx.strokeStyle = '#ff69b4'; // Theme border color
-      ctx.lineWidth = 8;
-      ctx.shadowColor = '#ff69b4';
-      ctx.shadowBlur = 20;
-      ctx.beginPath();
-      ctx.arc(0, -5 + bounce, 28, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Middle pink ring
-      ctx.globalAlpha = alpha * 0.9;
-      ctx.lineWidth = 5;
-      ctx.shadowBlur = 15;
-      ctx.strokeStyle = '#ffc0e0'; // Grid color
-      ctx.beginPath();
-      ctx.arc(0, -5 + bounce, 23, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      // Inner bright core ring
-      ctx.globalAlpha = alpha * 1;
-      ctx.lineWidth = 3;
-      ctx.shadowBlur = 10;
-      ctx.strokeStyle = '#ffb6d9'; // Lighter pink
-      ctx.beginPath();
-      ctx.arc(0, -5 + bounce, 18, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      ctx.shadowBlur = 0;
-      ctx.globalAlpha = 1;
       
       // Draw cupcake emoji
       ctx.font = "32px Arial";
@@ -9371,12 +9317,11 @@ gameSetTimeout(updateScrollHint, 30);
       ctx.textBaseline = "middle";
       ctx.fillText("🧁", 0, -5 + bounce);
       
-      // Stick figure arms with pink glow
-      ctx.strokeStyle = "#ff1493"; // Hot pink
+      // Stick figure arms
+      ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
-      ctx.shadowColor = '#ff69b4';
-      ctx.shadowBlur = 6;
+      ctx.shadowBlur = 0;
       
       const armSwing = Math.sin(time * 0.003) * 0.2;
       ctx.beginPath();
@@ -9386,7 +9331,7 @@ gameSetTimeout(updateScrollHint, 30);
       ctx.lineTo(14, 4 + bounce - armSwing * 3);
       ctx.stroke();
       
-      // Stick figure legs with pink glow
+      // Stick figure legs
       ctx.beginPath();
       ctx.moveTo(-3, 10 + bounce);
       ctx.lineTo(-6, 16 + bounce);
@@ -9421,7 +9366,7 @@ gameSetTimeout(updateScrollHint, 30);
     
     // Normal stick figure drawing
     let strokeBase = (theme.name === "Ice Stick") ? "#0b0f14" : 
-                     (theme.name === "Sparkle Stick") ? "#ff1493" : // Hot pink for visibility
+                     (theme.name === "Sparkle Stick") ? "#ffffff" : // White for Sparkle Stick!
                      (theme.name === "Banana Stick") ? "#ffffff" : // White for banana
                      "#f3f4f6";
     
@@ -10216,8 +10161,8 @@ gameSetTimeout(updateScrollHint, 30);
   }
 
   // Skip to Level functionality
-  const levelNames = ["Night", "Sparkle", "Sun", "Sky", "Fire", "Mountain", "Cursed", "Banana", "Ice", "Glow", "Spell", "Sea", "Spider", "Snake", "Victory"];
-  const levelEmojis = ["🌙", "✨", "☀️", "☁️", "🔥", "⛰️", "💀", "🍌", "❄️", "💫", "🔮", "🌊", "🕷️", "🐍", "👑"];
+  const levelNames = ["Night", "Sparkle", "Sun", "Sky", "Fire", "Mountain", "Cursed", "Banana", "Ice", "Glow", "Spell", "Sea", "Snake", "Spider", "Victory"];
+  const levelEmojis = ["🌙", "✨", "☀️", "☁️", "🔥", "⛰️", "💀", "🍌", "❄️", "💫", "🔮", "🌊", "🐍", "🕷️", "👑"];
 
   function showSkipLevelMenu(){
     const modal = document.getElementById('skipLevelPanel');
