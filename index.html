@@ -365,10 +365,14 @@
       border-radius:12px;
       border:1px solid #2b3a4c;
       background:#0b1220;
-      color:#e6edf3;
+      color:#39ff95; /* Green like Pick/Drop button */
       font-weight:1000;
       outline:none;
       cursor:pointer;
+    }
+    select option{
+      color:#39ff95; /* Green for options too */
+      background:#0b1220;
     }
     select:focus{ box-shadow: 0 0 0 3px rgba(58,167,255,0.18); }
 
@@ -684,7 +688,7 @@
           <button id="btnUse" class="btn-use">Pick/Drop</button>
           <button id="btnNew" class="btn-new">New Game</button>
           <button id="btnPause" class="btn-clear">⏸ Pause</button>
-          <button id="btnMusic" class="btn-music">Music: OFF</button>
+          <button id="btnMusic" class="btn-music">Music: ON</button>
         </div>
 
         <div class="hr"></div>
@@ -774,7 +778,7 @@
       <div class="modalText">
         <!-- Intro -->
         <div style="margin:14px 0 12px 0; font-size:14px; color:#cdd9e5; line-height:1.5;">
-          <div style="margin-bottom:12px; padding:10px; background:rgba(58,167,255,0.15); border-radius:6px; border-left:3px solid #3aa7ff;"><b style="color:#3aa7ff; font-size:15px;">GOAL:</b> Collect ALL sticks on each level and deposit them in the hole to progress!</div><b>THE BASICS:</b> Roll the dice to get actions, spend actions to move and interact, survive 13 levels of increasing difficulty!
+          <div style="margin-bottom:12px; padding:10px; background:rgba(58,167,255,0.15); border-radius:6px; border-left:3px solid #3aa7ff;"><b style="color:#3aa7ff; font-size:15px;">GOAL:</b> Collect ALL sticks on each level and deposit them in the hole to progress!</div><b>THE BASICS:</b> Roll the dice to get actions, spend actions to move and interact, survive 15 levels of increasing difficulty!
         </div>
 
         <div class="hr"></div>
@@ -911,10 +915,6 @@
       <div class="modalTitle">GAME OVER</div>
 
       <div class="endBanner loseBanner">
-        <div>
-          <div class="endHeadline">The sticks won this round</div>
-          <div class="endSub">No shame. Just… stick disrespect.</div>
-        </div>
         <div class="bigIcon">💀</div>
         <div class="fx" id="loseFx"></div>
       </div>
@@ -929,19 +929,16 @@
 
   <div id="winOverlay">
     <div class="modalBox" role="dialog" aria-modal="true">
-      <div class="modalTitle">YOU WIN</div>
+      <div class="modalTitle">🏆 VICTORY! 🏆</div>
 
       <div class="endBanner winBanner">
-        <div>
-          <div class="endHeadline">Victory Stick cleared</div>
-          <div class="endSub">Fanfare engaged. Ego permitted.</div>
-        </div>
         <div class="bigIcon">🏆</div>
         <div class="fx" id="winFx"></div>
       </div>
 
       <div class="modalText" id="winText">You cleared the sticks. The hole is satisfied (for now).</div>
       <div class="modalActions">
+        <button class="modalClose" id="btnWinClose">Close</button>
         <button class="modalClose" id="btnWinRestart">Play Again</button>
       </div>
     </div>
@@ -969,18 +966,20 @@
   /* ---- Level Themes + Stick Names ---- */
   const LEVELS = [
     { name:"Night Stick",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
+    { name:"Sparkle Stick", bg:"#ffeef8", grid:"#ffc0e0", border:"#ff69b4", accent:"#ff1493", accentGlow:"rgba(255,20,147,.46)", accentShadow:"rgba(255,105,180,.30)" },
     { name:"Sun Stick",     bg:"#140a03", grid:"#4a3a06", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
     { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
     { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
     { name:"Mountain Stick", bg:"#2b1f1a", grid:"#5c4a3a", border:"#8b7355", accent:"#a0826d", accentGlow:"rgba(160,130,109,.46)", accentShadow:"rgba(160,130,109,.28)" },
-    { name:"Banana Stick",  bg:"#1a2e0a", grid:"#2d4a1a", border:"#ffd700", accent:"#ffeb3b", accentGlow:"rgba(255,235,59,.46)", accentShadow:"rgba(255,235,59,.28)" },
-    { name:"Ice Stick",     bg:"#c8e6ff", grid:"#0066cc", border:"#0080ff", accent:"#ffffff", accentGlow:"rgba(56,189,248,.42)", accentShadow:"rgba(56,189,248,.22)" },
+    { name:"Cursed Stick",  bg:"#0a0012", grid:"#1a0a2a", border:"#4a0a6a", accent:"#8b00ff", accentGlow:"rgba(139,0,255,.46)", accentShadow:"rgba(139,0,255,.30)" },
+    { name:"Banana Stick",  bg:"#1a2e0a", grid:"#0d1f05", border:"#ffd700", accent:"#ffeb3b", accentGlow:"rgba(255,235,59,.46)", accentShadow:"rgba(255,235,59,.28)" },
+    { name:"Ice Stick",     bg:"#d4f1ff", grid:"#87ceeb", border:"#4da6ff", accent:"#ffffff", accentGlow:"rgba(56,189,248,.42)", accentShadow:"rgba(56,189,248,.22)" },
     { name:"Glow Stick",    bg:"#09060f", grid:"#ffb347", border:"#ff7a18", accent:"#ffb347", accentGlow:"rgba(255,122,24,.46)", accentShadow:"rgba(255,122,24,.22)" },
     { name:"Spell Stick",   bg:"#0d0010", grid:"#4a0a3a", border:"#ff1493", accent:"#ff1493", accentGlow:"rgba(255,20,147,.46)", accentShadow:"rgba(255,20,147,.30)" },
     { name:"Sea Stick",     bg:"#001a33", grid:"#003d5c", border:"#0077be", accent:"#00bfff", accentGlow:"rgba(0,191,255,.46)", accentShadow:"rgba(0,191,255,.30)" },
-    { name:"Spider Stick",  bg:"#0d0a12", grid:"#1a1520", border:"#2d2335", accent:"#8b5cf6", accentGlow:"rgba(139,92,246,.46)", accentShadow:"rgba(139,92,246,.30)" },
     { name:"Snake Stick",   bg:"#04120a", grid:"#0a2414", border:"#08c46b", accent:"#39ff95", accentGlow:"rgba(57,255,149,.44)", accentShadow:"rgba(57,255,149,.28)" },
-    { name:"Victory Stick", bg:"#070315", grid:"#c27bff", border:"#7a35ff", accent:"#c27bff", accentGlow:"rgba(194,123,255,.55)", accentShadow:"rgba(194,123,255,.30)" }
+    { name:"Spider Stick",  bg:"#0d0a12", grid:"#1a1520", border:"#2d2335", accent:"#8b5cf6", accentGlow:"rgba(139,92,246,.46)", accentShadow:"rgba(139,92,246,.30)" },
+    { name:"Victory Stick", bg:"#0a1f0a", grid:"#1a4d2e", border:"#27ae60", accent:"#27ae60", accentGlow:"rgba(39,174,96,.55)", accentShadow:"rgba(39,174,96,.30)" }
   ];
 
   const STICK_COLORS = [
@@ -1195,6 +1194,402 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("😎", 0, 0);
+    
+    ctx.restore();
+  }
+  
+  // ======= SPARKLE STICK FUNCTIONS =======
+  function initSparkleStick(){
+    rainbows = [];
+    sparkleTrail = 0;
+    flowerRain = true; // ALWAYS ACTIVE now!
+    flowerRainParticles = [];
+    
+    // Create ONE rainbow arcing across the board
+    rainbows.push({
+      x: randInt(3, GRID_W - 8),
+      y: randInt(3, GRID_H - 5),
+      width: randInt(6, 9),
+      height: randInt(3, 5)
+    });
+  }
+  
+  function updateSparkleStick(){
+    const theme = currentLevelTheme().name;
+    if(theme !== "Sparkle Stick" && theme !== "Victory Stick") return;
+    
+    // Check if player walks through rainbow
+    rainbows.forEach(rainbow => {
+      const inRainbow = game.playerX >= rainbow.x && game.playerX < rainbow.x + rainbow.width &&
+                        game.playerY >= rainbow.y && game.playerY < rainbow.y + rainbow.height;
+      if(inRainbow && cupcakeMode === 0){
+        cupcakeMode = 600; // 10 seconds of CUPCAKE POWER!
+        logEvent("sparkle", "🧁 CUPCAKE POWER! All sticks worth 2× for 10 seconds!");
+        setHud("🧁 CUPCAKE MODE - 2× STICKS! 🧁");
+        
+        // Sweet magical sound - higher, sweeter tones
+        beep(700, 0.08, "sine", 0.25);
+        setTimeout(() => beep(900, 0.08, "sine", 0.25), 70);
+        setTimeout(() => beep(1100, 0.1, "sine", 0.3), 140);
+        setTimeout(() => beep(1300, 0.12, "sine", 0.35), 220);
+        setTimeout(() => beep(1500, 0.08, "sine", 0.25), 300);
+      }
+    });
+    
+    // Update cupcake mode timer
+    if(cupcakeMode > 0){
+      cupcakeMode--;
+    }
+    
+    // Update flower rain particles - CONSTANT soft shower
+    // Gentler spawn rate for constant effect
+    if(Math.random() < 0.15){
+      flowerRainParticles.push({
+        x: randInt(0, canvas.width),
+        y: -10,
+        size: randInt(8, 14),
+        speed: randInt(1, 2.5),
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.08
+        // No color stored - determined dynamically when drawing!
+      });
+    }
+    
+    // Update particles
+    flowerRainParticles = flowerRainParticles.filter(p => {
+      p.y += p.speed;
+      p.rotation += p.rotSpeed;
+      return p.y < canvas.height;
+    });
+  }
+  
+  function drawSparkleStick(){
+    const theme = currentLevelTheme().name;
+    if(theme !== "Sparkle Stick" && theme !== "Victory Stick") return;
+    
+    ctx.save();
+    
+    // Draw rainbows - 3D gradient effect
+    rainbows.forEach(rainbow => {
+      const colors = [
+        {base: "#ff0000", light: "#ff6666", dark: "#cc0000"}, // Red
+        {base: "#ff7f00", light: "#ffaa55", dark: "#cc6600"}, // Orange
+        {base: "#ffff00", light: "#ffff88", dark: "#cccc00"}, // Yellow
+        {base: "#00ff00", light: "#66ff66", dark: "#00cc00"}, // Green
+        {base: "#0000ff", light: "#6666ff", dark: "#0000cc"}, // Blue
+        {base: "#4b0082", light: "#8866cc", dark: "#330055"}, // Indigo
+        {base: "#9400d3", light: "#cc66ff", dark: "#6600aa"}  // Violet
+      ];
+      const cx = rainbow.x * TILE + (rainbow.width * TILE) / 2;
+      const cy = rainbow.y * TILE + (rainbow.height * TILE);
+      const radius = rainbow.width * TILE / 2;
+      
+      // Super bright, fun rainbow - NO GREY/SHADOW!
+      colors.forEach((color, i) => {
+        const arcRadius = radius - i * 7;
+        
+        // Bright solid colors with white highlights
+        ctx.strokeStyle = color.light; // Use light color only - super bright!
+        ctx.lineWidth = 9;
+        ctx.globalAlpha = 1; // Full opacity
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(cx, cy, arcRadius, Math.PI, 0);
+        ctx.stroke();
+        
+        // White highlight shimmer on top
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, arcRadius, Math.PI + 0.2, Math.PI + 1);
+        ctx.stroke();
+      });
+      ctx.globalAlpha = 1;
+    });
+    
+    
+    // Draw flower rain - simple pink flowers!
+    flowerRainParticles.forEach(flower => {
+      ctx.save();
+      ctx.translate(flower.x, flower.y);
+      ctx.rotate(flower.rotation);
+      
+      ctx.font = `${flower.size}px Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🌸", 0, 0);
+      ctx.restore();
+    });
+    
+    ctx.restore();
+  }
+  
+  // ======= CURSED STICK FUNCTIONS =======
+  function initCursedStick(){
+    ghosts = [];
+    skulls = [];
+    isSkeletonMode = false;
+    smokeParticles = [];
+    
+    // Create 2-3 ghosts
+    const numGhosts = randInt(2, 3);
+    for(let i = 0; i < numGhosts; i++){
+      ghosts.push({
+        x: randInt(0, GRID_W - 1),
+        y: randInt(0, GRID_H - 1),
+        moveTimer: randInt(0, 90),
+        float: Math.random() * Math.PI * 2
+      });
+    }
+    
+    // Create ONE moving skull that appears/disappears
+    skulls.push({
+      x: randInt(0, GRID_W - 1),
+      y: randInt(0, GRID_H - 1),
+      moveTimer: 0,
+      rotation: 0,
+      visible: true,
+      visibleTime: randInt(240, 360), // Start visible for 4-6 seconds
+      invisibleTime: randInt(60, 120)
+    });
+    
+    // Create smoke particles
+    for(let i = 0; i < 20; i++){
+      smokeParticles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: randInt(20, 40),
+        speed: Math.random() * 0.5 + 0.2,
+        opacity: Math.random() * 0.3
+      });
+    }
+  }
+  
+  function updateCursedStick(){
+    const theme = currentLevelTheme().name;
+    if(theme !== "Cursed Stick" && theme !== "Victory Stick") return;
+    
+    // Update ghosts
+    ghosts.forEach(ghost => {
+      ghost.float += 0.05;
+      ghost.moveTimer++;
+      
+      if(ghost.moveTimer >= 90){
+        ghost.moveTimer = 0;
+        // Slow random movement
+        const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+        const dir = dirs[randInt(0, 3)];
+        ghost.x = clamp(ghost.x + dir.dx, 0, GRID_W - 1);
+        ghost.y = clamp(ghost.y + dir.dy, 0, GRID_H - 1);
+      }
+      
+      // Check collision with player
+      if(ghost.x === game.playerX && ghost.y === game.playerY && !isSkeletonMode){
+        // TRANSFORM TO SKELETON!
+        isSkeletonMode = true;
+        logEvent("cursed", "💀 Ghost touched you! YOU'RE A SKELETON!");
+        logEvent("cursed", "⚠️ All sticks worth 0 points until next deposit!");
+        setHud("💀 SKELETON MODE! 💀");
+        
+        // Spooky transformation sound
+        beep(200, 0.15, "sawtooth", 0.5);
+        setTimeout(() => beep(150, 0.15, "sawtooth", 0.55), 100);
+        setTimeout(() => beep(100, 0.2, "sawtooth", 0.6), 200);
+        setTimeout(() => beep(80, 0.25, "sawtooth", 0.65), 320);
+        
+        // Remove the ghost that touched player
+        const idx = ghosts.indexOf(ghost);
+        if(idx > -1) ghosts.splice(idx, 1);
+      }
+    });
+    
+    // Update THE skull - appears and disappears on random grids
+    skulls.forEach(skull => {
+      skull.moveTimer++;
+      skull.rotation += 0.05; // Spinning effect
+      
+      // Disappear/reappear cycle - not too fast (4-6 seconds visible)
+      if(skull.visible){
+        // Visible for 240-360 frames (4-6 seconds)
+        if(skull.moveTimer >= skull.visibleTime){
+          skull.visible = false;
+          skull.moveTimer = 0;
+          skull.invisibleTime = randInt(60, 120); // 1-2 seconds invisible
+        }
+      } else {
+        // Invisible, waiting to reappear
+        if(skull.moveTimer >= skull.invisibleTime){
+          skull.visible = true;
+          skull.moveTimer = 0;
+          skull.visibleTime = randInt(240, 360); // 4-6 seconds visible
+          // Reappear at random location
+          skull.x = randInt(0, GRID_W - 1);
+          skull.y = randInt(0, GRID_H - 1);
+        }
+      }
+      
+      // Check collision with player - DRAMATIC DEATH!
+      if(skull.visible && skull.x === game.playerX && skull.y === game.playerY){
+        game.lives--;
+        logEvent("death", "💀💀💀 SKULL KILLED YOU! 💀💀💀");
+        setHud("☠️ DEATH! ☠️");
+        
+        // DRAMATIC sound sequence - death scream
+        beep(400, 0.2, "sawtooth", 0.7);
+        setTimeout(() => beep(300, 0.2, "sawtooth", 0.75), 150);
+        setTimeout(() => beep(200, 0.25, "sawtooth", 0.8), 300);
+        setTimeout(() => beep(100, 0.3, "sawtooth", 0.85), 480);
+        setTimeout(() => beep(50, 0.4, "sawtooth", 0.9), 700);
+        
+        // Flash the screen
+        game.holeFlash = 1.5;
+        
+        // Skull disappears after killing
+        skull.visible = false;
+        skull.moveTimer = 0;
+        skull.invisibleTime = randInt(180, 300); // 3-5 seconds before reappearing
+        
+        if(game.lives <= 0){
+          gameOver();
+        } else {
+          updateUI();
+        }
+      }
+    });
+    
+    // Update smoke
+    smokeParticles.forEach(smoke => {
+      smoke.y -= smoke.speed;
+      if(smoke.y < -smoke.size){
+        smoke.y = canvas.height + smoke.size;
+        smoke.x = Math.random() * canvas.width;
+      }
+    });
+  }
+  
+  function drawCursedStick(){
+    const theme = currentLevelTheme().name;
+    if(theme !== "Cursed Stick" && theme !== "Victory Stick") return;
+    
+    ctx.save();
+    
+    // Draw smoke - wispy and atmospheric
+    smokeParticles.forEach(smoke => {
+      // Multiple small circles for wispy effect
+      const gradient = ctx.createRadialGradient(smoke.x, smoke.y, 0, smoke.x, smoke.y, smoke.size);
+      gradient.addColorStop(0, `rgba(100, 0, 140, ${smoke.opacity * 0.4})`);
+      gradient.addColorStop(0.5, `rgba(80, 0, 120, ${smoke.opacity * 0.2})`);
+      gradient.addColorStop(1, `rgba(60, 0, 100, 0)`);
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(smoke.x, smoke.y, smoke.size, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Add smaller wispy bits
+      ctx.fillStyle = `rgba(100, 0, 140, ${smoke.opacity * 0.15})`;
+      ctx.beginPath();
+      ctx.arc(smoke.x + 8, smoke.y - 5, smoke.size * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(smoke.x - 6, smoke.y + 4, smoke.size * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    
+    // Draw THE skull - WHITE, spinning, highly visible (only when visible!)
+    skulls.forEach(skull => {
+      if(!skull.visible) return; // Don't draw if invisible
+      
+      const sx = skull.x * TILE + TILE/2;
+      const sy = skull.y * TILE + TILE/2;
+      
+      // Pulsing and rotating
+      const pulse = Math.sin(Date.now() * 0.005) * 0.15 + 1.1;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(skull.rotation); // SPINNING!
+      ctx.scale(pulse, pulse);
+      
+      // White glow for visibility
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 15;
+      
+      ctx.font = "34px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      
+      // White skull with red outline for danger
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#ff0000";
+      ctx.lineWidth = 2;
+      ctx.fillText("💀", 0, 0);
+      ctx.strokeText("💀", 0, 0);
+      
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+    
+    // Draw ghosts - PAC-MAN style classic sheet ghosts
+    ghosts.forEach(ghost => {
+      const gx = ghost.x * TILE + TILE/2;
+      const gy = ghost.y * TILE + TILE/2 + Math.sin(ghost.float) * 3;
+      
+      ctx.save();
+      ctx.translate(gx, gy);
+      
+      // White glow
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 12;
+      ctx.globalAlpha = 0.9;
+      
+      // Single continuous ghost body (NOT head + sheet)
+      ctx.fillStyle = "#f0f0f0"; // Off-white
+      ctx.strokeStyle = "#d0d0d0"; // Light gray outline
+      ctx.lineWidth = 1.5;
+      
+      ctx.beginPath();
+      
+      // Start at bottom left
+      ctx.moveTo(-12, 12);
+      
+      // Wavy bottom (classic ghost bottom with 4 waves)
+      ctx.lineTo(-12, 12);
+      ctx.quadraticCurveTo(-9, 8, -6, 12);
+      ctx.quadraticCurveTo(-3, 16, 0, 12);
+      ctx.quadraticCurveTo(3, 8, 6, 12);
+      ctx.quadraticCurveTo(9, 16, 12, 12);
+      
+      // Right side going up
+      ctx.lineTo(12, 0);
+      
+      // Rounded dome top (like Pac-Man ghost)
+      ctx.arc(0, 0, 12, 0, Math.PI, true);
+      
+      // Left side back down
+      ctx.lineTo(-12, 12);
+      
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Eyes INSIDE the ghost body (not separate)
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = "#000000";
+      
+      // Left eye - simple circle
+      ctx.beginPath();
+      ctx.arc(-4, -3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Right eye - simple circle
+      ctx.beginPath();
+      ctx.arc(4, -3, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    });
     
     ctx.restore();
   }
@@ -1761,7 +2156,7 @@
 
   function initBananas(){
     bananas = [];
-    const count = randInt(10, 15);
+    const count = randInt(18, 22); // More bananas like the screenshot!
     console.log('🍌 Spawning', count, 'bananas');
     for(let i = 0; i < count; i++){
       const pos = randomEmptyTile();
@@ -1976,7 +2371,9 @@
   }
 
   function updateMonkeys(){
-    if(currentLevelTheme().name !== "Banana Stick" || monkeys.length === 0) return;
+    const theme = currentLevelTheme().name;
+    if(theme !== "Banana Stick" && theme !== "Victory Stick") return;
+    if(monkeys.length === 0) return;
     
     // Don't update monkeys during stick/monster battles
     if(game.pendingMonster || game.inputLocked) return;
@@ -2280,7 +2677,9 @@
   }
 
   function drawMountains(){
-    if(currentLevelTheme().name !== "Mountain Stick") return;
+    const theme = currentLevelTheme().name;
+    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    if(mountains.length === 0) return;
     
     mountains.forEach(m => {
       const cx = m.x * TILE + TILE/2;
@@ -2354,27 +2753,51 @@
   }
 
   function drawBananas(){
-    if(currentLevelTheme().name !== "Banana Stick") return;
-    console.log("Drawing", bananas.length, "bananas");
+    const theme = currentLevelTheme().name;
+    if(theme !== "Banana Stick" && theme !== "Victory Stick") return;
+    if(bananas.length === 0) return; // Don't draw if no bananas
+    
+    const time = Date.now() * 0.001;
     
     bananas.forEach(b => {
       const cx = b.x * TILE + TILE/2;
       const cy = b.y * TILE + TILE/2;
       
       ctx.save();
+      ctx.translate(cx, cy);
+      
+      // Fun wiggle rotation - each banana wiggles uniquely
+      const wiggle = Math.sin(time * 2 + b.x + b.y) * 0.15; // Gentle back-and-forth
+      ctx.rotate(wiggle);
       
       // Banana emoji
       ctx.font = "20px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("🍌", cx, cy);
+      ctx.fillText("🍌", 0, 0);
+      
+      // STRONGER color overlay to dull the bananas more
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.globalAlpha = 0.5; // Increased from 0.25 to 0.5
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+      gradient.addColorStop(0, 'rgba(100, 150, 30, 0.6)'); // Darker green overlay
+      gradient.addColorStop(0.5, 'rgba(154, 205, 50, 0.5)'); // Yellow-green
+      gradient.addColorStop(1, 'rgba(180, 180, 60, 0.3)'); // Muted yellow-brown
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, 15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
       
       ctx.restore();
     });
   }
 
   function drawMonkeys(){
-    if(currentLevelTheme().name !== "Banana Stick" || monkeys.length === 0) return;
+    const theme = currentLevelTheme().name;
+    if(theme !== "Banana Stick" && theme !== "Victory Stick") return;
+    if(monkeys.length === 0) return;
     
     const time = Date.now() * 0.001;
     
@@ -2509,7 +2932,9 @@
   }
   
   function updateRams(){
-    if(currentLevelTheme().name !== "Mountain Stick" || rams.length === 0) return;
+    const theme = currentLevelTheme().name;
+    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    if(rams.length === 0) return;
     
     // Don't update during battles
     if(game.pendingMonster || game.inputLocked) return;
@@ -2592,7 +3017,9 @@
   }
   
   function drawMountainClouds(){
-    if(currentLevelTheme().name !== "Mountain Stick") return;
+    const theme = currentLevelTheme().name;
+    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    if(mountainClouds.length === 0) return;
     
     // Update cloud positions
     mountainClouds.forEach(cloud => {
@@ -2635,7 +3062,9 @@
   }
   
   function drawRams(){
-    if(currentLevelTheme().name !== "Mountain Stick" || rams.length === 0) return;
+    const theme = currentLevelTheme().name;
+    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    if(rams.length === 0) return;
     
     const time = Date.now() * 0.001;
     
@@ -3598,6 +4027,7 @@
   // ================================================================
   let sharks = [];
   let bubbles = [];
+  let scubaDiver = null; // Aesthetic swimming diver
   
   function initSharks(){
     sharks = [];
@@ -3629,6 +4059,17 @@
         speed: 0.3 + Math.random() * 0.5
       });
     }
+    
+    // Init scuba diver - just swims around for aesthetics
+    scubaDiver = {
+      x: randInt(0, GRID_W - 1),
+      y: randInt(0, GRID_H - 1),
+      targetX: randInt(0, GRID_W - 1),
+      targetY: randInt(0, GRID_H - 1),
+      moveTimer: 0,
+      swimAngle: 0,
+      flipX: false
+    };
   }
   
   function updateSharks(){
@@ -3725,6 +4166,31 @@
         b.x = Math.random() * CANVAS_W;
       }
     }
+    
+    // Update scuba diver - aesthetic swimming (VERY SLOW)
+    if(scubaDiver){
+      scubaDiver.moveTimer++;
+      scubaDiver.swimAngle += 0.02; // Swimming animation (very slow)
+      
+      // Move towards target
+      const dx = scubaDiver.targetX - scubaDiver.x;
+      const dy = scubaDiver.targetY - scubaDiver.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      if(distance > 0.1){
+        // Smooth swimming towards target (much slower)
+        const speed = 0.008;
+        scubaDiver.x += (dx / distance) * speed;
+        scubaDiver.y += (dy / distance) * speed;
+        
+        // Flip direction based on movement
+        scubaDiver.flipX = dx < 0;
+      } else {
+        // Reached target, pick a new one
+        scubaDiver.targetX = randInt(0, GRID_W - 1);
+        scubaDiver.targetY = randInt(0, GRID_H - 1);
+      }
+    }
   }
   
   function drawSharks(){
@@ -3798,9 +4264,1016 @@
       ctx.restore();
     }
     
+    // Draw modern scuba diver - aesthetic only!
+    if(scubaDiver){
+      const dx = scubaDiver.x * TILE + TILE / 2;
+      const dy = scubaDiver.y * TILE + TILE / 2;
+      const swimBob = Math.sin(scubaDiver.swimAngle) * 2;
+      
+      ctx.save();
+      ctx.translate(dx, dy + swimBob);
+      if(scubaDiver.flipX) ctx.scale(-1, 1);
+      
+      // Body (wetsuit - dark blue/black)
+      ctx.fillStyle = '#1a1a2e';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 6, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Tank on back (gray)
+      ctx.fillStyle = '#4a4a5a';
+      ctx.fillRect(-2, -4, 2, 6);
+      
+      // Head/mask (tan skin with blue mask)
+      ctx.fillStyle = '#ffdbac';
+      ctx.beginPath();
+      ctx.arc(0, -8, 4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Diving mask (cyan blue)
+      ctx.fillStyle = '#00bfff';
+      ctx.beginPath();
+      ctx.arc(0, -8, 3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Mask glass shine
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.beginPath();
+      ctx.arc(-1, -9, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Fins (bright orange/red)
+      ctx.fillStyle = '#ff6347';
+      const finAngle = Math.sin(scubaDiver.swimAngle * 2) * 0.3;
+      
+      // Left fin
+      ctx.save();
+      ctx.translate(-4, 8);
+      ctx.rotate(finAngle);
+      ctx.fillRect(-2, 0, 4, 6);
+      ctx.restore();
+      
+      // Right fin
+      ctx.save();
+      ctx.translate(4, 8);
+      ctx.rotate(-finAngle);
+      ctx.fillRect(-2, 0, 4, 6);
+      ctx.restore();
+      
+      // Arms (swimming motion)
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 2;
+      const armSwing = Math.sin(scubaDiver.swimAngle * 2) * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(-6, 0);
+      ctx.lineTo(-10, 2 + armSwing * 3);
+      ctx.moveTo(6, 0);
+      ctx.lineTo(10, 2 - armSwing * 3);
+      ctx.stroke();
+      
+      // Bubbles from tank
+      if(Math.random() < 0.1){
+        bubbles.push({
+          x: dx - 2,
+          y: dy - 4,
+          size: 1 + Math.random(),
+          speed: 0.5 + Math.random() * 0.3
+        });
+      }
+      
+      ctx.restore();
+    }
+    
     ctx.restore();
   }
 
+  // ================================================================
+
+  // ================================================================
+  // VICTORY STICK - Moving & Timed Lasers + Large Robotic Tank!
+  // ================================================================
+  let laserWalls = [];
+  let victoryTank = null;
+  
+  function initVictoryLasers(){
+    laserWalls = [];
+    
+    // Create 2 laser walls that MOVE to new positions
+    for(let i = 0; i < 2; i++){
+      const isVertical = Math.random() > 0.5;
+      
+      if(isVertical){
+        laserWalls.push({
+          type: 'vertical',
+          x: randInt(2, GRID_W - 3),
+          movable: true,
+          active: false,
+          ghostly: false,
+          ghostlyTimer: 0,
+          ghostlyDuration: 120, // 2 seconds vapor preview
+          activeTimer: 0,
+          activeDuration: 180, // 3 seconds active
+          inactiveTimer: randInt(0, 180),
+          inactiveDuration: 240
+        });
+      } else {
+        laserWalls.push({
+          type: 'horizontal',
+          y: randInt(2, GRID_H - 3),
+          movable: true,
+          active: false,
+          ghostly: false,
+          ghostlyTimer: 0,
+          ghostlyDuration: 120,
+          activeTimer: 0,
+          activeDuration: 180,
+          inactiveTimer: randInt(0, 180),
+          inactiveDuration: 240
+        });
+      }
+    }
+    
+    // Create 2 TIMED BEAM lasers (stationary, shoot beams periodically)
+    for(let i = 0; i < 2; i++){
+      const isVertical = Math.random() > 0.5;
+      
+      if(isVertical){
+        laserWalls.push({
+          type: 'vertical',
+          x: randInt(2, GRID_W - 3),
+          movable: false,
+          timed: true, // This one shoots timed beams!
+          active: false,
+          beamActive: false,
+          beamTimer: 0,
+          beamDuration: 90, // Beam lasts 1.5 seconds
+          cycleTimer: randInt(0, 180), // Staggered start
+          cycleDuration: 240, // Fires every 4 seconds
+          warningTimer: 0,
+          warningDuration: 60 // 1 second warning
+        });
+      } else {
+        laserWalls.push({
+          type: 'horizontal',
+          y: randInt(2, GRID_H - 3),
+          movable: false,
+          timed: true,
+          active: false,
+          beamActive: false,
+          beamTimer: 0,
+          beamDuration: 90,
+          cycleTimer: randInt(0, 180),
+          cycleDuration: 240,
+          warningTimer: 0,
+          warningDuration: 60
+        });
+      }
+    }
+    
+    // Create LARGE ROBOTIC tank
+    const startPos = {x: randInt(1, GRID_W - 2), y: randInt(1, GRID_H - 2)};
+    
+    victoryTank = {
+      x: startPos.x,
+      y: startPos.y,
+      moveTimer: 0,
+      moveInterval: 120, // Moves every 2 seconds
+      float: 0,
+      beamActive: false,
+      beamTimer: 0,
+      beamWarning: 0,
+      powerUpTimer: 0, // For power-up animation
+      rotation: 0,
+      shootRange: 8 // Can shoot from 8 squares away!
+    };
+  }
+  
+  function updateVictoryLasers(){
+    if(currentLevelTheme().name !== "Victory Stick") return;
+    
+    // FREEZE ALL HAZARDS during monster battles!
+    if(game.pendingMonster || game.inputLocked) return;
+    
+    // Update laser walls
+    laserWalls.forEach(wall => {
+      if(wall.movable){
+        // MOVING lasers
+        if(!wall.ghostly && !wall.active){
+          wall.inactiveTimer++;
+          if(wall.inactiveTimer >= wall.inactiveDuration){
+            // Move to NEW position!
+            if(wall.type === 'vertical'){
+              wall.x = randInt(2, GRID_W - 3);
+            } else {
+              wall.y = randInt(2, GRID_H - 3);
+            }
+            
+            wall.inactiveTimer = 0;
+            wall.ghostly = true;
+            wall.ghostlyTimer = 0;
+            beep(500, 0.06, "sine", 0.1);
+          }
+        } else if(wall.ghostly){
+          // Vapor preview phase - NO COLLISION YET!
+          wall.ghostlyTimer++;
+          if(wall.ghostlyTimer >= wall.ghostlyDuration){
+            wall.ghostly = false;
+            wall.active = true;
+            wall.activeTimer = 0;
+            beep(800, 0.1, "sine", 0.15);
+          }
+        } else if(wall.active){
+          // Fully active - CAN KILL!
+          wall.activeTimer++;
+          
+          let hit = false;
+          if(wall.type === 'vertical' && wall.x === game.playerX){
+            hit = true;
+          }
+          if(wall.type === 'horizontal' && wall.y === game.playerY){
+            hit = true;
+          }
+          
+          if(hit){
+            // Check shield first!
+            if(activeShield > 0){
+              logEvent("info", "Shield absorbed laser!");
+              setHud("🛡️ LASER BLOCKED!");
+              spawnSparks(game.playerX, game.playerY, 20, false);
+              
+              // Still move laser to new position
+              wall.active = false;
+              wall.ghostly = false;
+              wall.inactiveTimer = 0;
+              
+              if(wall.type === 'vertical'){
+                wall.x = randInt(2, GRID_W - 3);
+              } else {
+                wall.y = randInt(2, GRID_H - 3);
+              }
+            } else {
+              // No shield - take damage!
+              game.lives--;
+              logEvent("death", "⚡ VAPORIZED BY LASER WALL! ⚡");
+              setHud("☠️ LASER VAPORIZED YOU! ☠️");
+              
+              startDoomMusic(3000);
+              
+              // DRAMATIC LASER DEATH SOUND!
+              beep(1800, 0.2, "square", 0.7);
+              setTimeout(() => beep(1400, 0.18, "square", 0.7), 60);
+              setTimeout(() => beep(1000, 0.16, "square", 0.7), 120);
+              setTimeout(() => beep(600, 0.14, "square", 0.7), 180);
+              setTimeout(() => beep(200, 0.2, "square", 0.7), 240);
+              
+              game.holeFlash = 2.0;
+              spawnSparks(game.playerX, game.playerY, 45, true);
+              
+              // MOVE LASER TO NEW POSITION so player doesn't die again immediately!
+              wall.active = false;
+              wall.ghostly = false;
+              wall.inactiveTimer = 0;
+              
+              if(wall.type === 'vertical'){
+                wall.x = randInt(2, GRID_W - 3);
+              } else {
+                wall.y = randInt(2, GRID_H - 3);
+              }
+              
+              if(game.lives <= 0){
+                gameOver();
+              } else {
+                updateUI();
+              }
+            }
+          }
+          
+          if(wall.activeTimer >= wall.activeDuration){
+            wall.active = false;
+            wall.activeTimer = 0;
+            wall.inactiveTimer = 0;
+            beep(400, 0.06, "sine", 0.08);
+          }
+        }
+      } else if(wall.timed){
+        // TIMED BEAM lasers (like shark lanes - shoot beams periodically)
+        wall.cycleTimer++;
+        
+        if(!wall.beamActive && wall.warningTimer === 0){
+          if(wall.cycleTimer >= wall.cycleDuration){
+            wall.warningTimer = wall.warningDuration;
+            wall.cycleTimer = 0;
+            beep(600, 0.08, "sine", 0.12);
+          }
+        } else if(wall.warningTimer > 0){
+          wall.warningTimer--;
+          if(wall.warningTimer === 0){
+            wall.beamActive = true;
+            wall.beamTimer = 0;
+            beep(900, 0.12, "sine", 0.18);
+          }
+        } else if(wall.beamActive){
+          wall.beamTimer++;
+          
+          // Check collision when beam is active
+          let hit = false;
+          if(wall.type === 'vertical' && wall.x === game.playerX){
+            hit = true;
+          }
+          if(wall.type === 'horizontal' && wall.y === game.playerY){
+            hit = true;
+          }
+          
+          if(hit){
+            // Check shield first!
+            if(activeShield > 0){
+              logEvent("info", "Shield absorbed timed beam!");
+              setHud("🛡️ BEAM BLOCKED!");
+              spawnSparks(game.playerX, game.playerY, 20, false);
+              
+              // Still deactivate beam
+              wall.beamActive = false;
+              wall.beamTimer = 0;
+            } else {
+              // No shield - take damage!
+              game.lives--;
+              logEvent("death", "⚡ DISINTEGRATED BY BEAM! ⚡");
+              setHud("☠️ BEAM DISINTEGRATED YOU! ☠️");
+              
+              startDoomMusic(3000);
+              
+              // DRAMATIC BEAM DEATH SOUND!
+              beep(1800, 0.2, "square", 0.7);
+              setTimeout(() => beep(1400, 0.18, "square", 0.7), 60);
+              setTimeout(() => beep(1000, 0.16, "square", 0.7), 120);
+              setTimeout(() => beep(600, 0.14, "square", 0.7), 180);
+              setTimeout(() => beep(200, 0.2, "square", 0.7), 240);
+              
+              game.holeFlash = 2.0;
+              spawnSparks(game.playerX, game.playerY, 45, true);
+              
+              // DEACTIVATE BEAM IMMEDIATELY to prevent multi-kill!
+              wall.beamActive = false;
+              wall.beamTimer = 0;
+              
+              if(game.lives <= 0){
+                gameOver();
+              } else {
+                updateUI();
+              }
+            }
+          }
+          
+          if(wall.beamTimer >= wall.beamDuration){
+            wall.beamActive = false;
+            wall.beamTimer = 0;
+            beep(400, 0.06, "sine", 0.08);
+          }
+        }
+      }
+    });
+    
+    // Update LARGE ROBOTIC tank
+    if(victoryTank){
+      victoryTank.float = (victoryTank.float + 0.05) % (Math.PI * 2);
+      
+      // Tank CHASES player
+      victoryTank.moveTimer++;
+      if(victoryTank.moveTimer > victoryTank.moveInterval){
+        victoryTank.moveTimer = 0;
+        
+        const dx = game.playerX - victoryTank.x;
+        const dy = game.playerY - victoryTank.y;
+        
+        if(Math.abs(dx) >= Math.abs(dy)){
+          if(dx > 0 && victoryTank.x < GRID_W - 1){
+            victoryTank.x++;
+          } else if(dx < 0 && victoryTank.x > 0){
+            victoryTank.x--;
+          }
+        } else {
+          if(dy > 0 && victoryTank.y < GRID_H - 1){
+            victoryTank.y++;
+          } else if(dy < 0 && victoryTank.y > 0){
+            victoryTank.y--;
+          }
+        }
+      }
+      
+      const dx = game.playerX - victoryTank.x;
+      const dy = game.playerY - victoryTank.y;
+      victoryTank.rotation = Math.atan2(dy, dx);
+      
+      // Power-up animation
+      if(victoryTank.powerUpTimer > 0){
+        victoryTank.powerUpTimer--;
+      }
+      
+      // RED Beam mechanic
+      if(!victoryTank.beamActive){
+        victoryTank.beamWarning++;
+        if(victoryTank.beamWarning > randInt(180, 300)){
+          victoryTank.beamActive = true;
+          victoryTank.beamTimer = 0;
+          victoryTank.beamWarning = 0;
+          victoryTank.powerUpTimer = 90; // Start power-up animation
+          
+          // FUN POWER-UP SOUND!
+          beep(400, 0.1, "sine", 0.15);
+          setTimeout(() => beep(500, 0.1, "sine", 0.18), 100);
+          setTimeout(() => beep(600, 0.1, "sine", 0.2), 200);
+          setTimeout(() => beep(800, 0.12, "sine", 0.25), 300);
+          setTimeout(() => beep(1000, 0.15, "sine", 0.3), 400);
+          
+          logEvent("warn", "Tank powering up!");
+          setHud("⚠️ TANK CHARGING!");
+        }
+      } else {
+        victoryTank.beamTimer++;
+        
+        // Fun laser charging sound
+        if(victoryTank.beamTimer > 90 && victoryTank.beamTimer < 110){
+          if(victoryTank.beamTimer % 5 === 0){
+            beep(1000 + Math.random() * 300, 0.03, "sawtooth", 0.2);
+          }
+        }
+        
+        // Beam fires
+        if(victoryTank.beamTimer > 90){
+          const beamLength = victoryTank.shootRange;
+          const angle = victoryTank.rotation;
+          
+          let playerInBeam = false;
+          for(let i = 1; i <= beamLength; i++){
+            const checkX = Math.round(victoryTank.x + Math.cos(angle) * i);
+            const checkY = Math.round(victoryTank.y + Math.sin(angle) * i);
+            
+            if(checkX === game.playerX && checkY === game.playerY){
+              playerInBeam = true;
+              break;
+            }
+          }
+          
+          if(playerInBeam){
+            // MUCH MORE REASONABLE ODDS - roll 0-19
+            // 0 = TELEPORT (5% chance - 1/20) - Very rare!
+            // 1-19 = MISS (95% chance - 19/20) - Usually miss!
+            // NO KILL - removed completely, too punishing
+            const roll = randInt(0, 19);
+            
+            // Check shield first!
+            if(activeShield > 0){
+              logEvent("info", "Shield deflected tank beam!");
+              setHud("🛡️ BEAM DEFLECTED!");
+              spawnSparks(game.playerX, game.playerY, 15, false);
+            } else if(roll === 0){
+              // TELEPORT - Beam relocates you (rare!)
+              const newPos = randomEmptyTile();
+              game.playerX = newPos.x;
+              game.playerY = newPos.y;
+              
+              logEvent("info", "Tank beam teleported you!");
+              setHud("⚡ RELOCATED! ⚡");
+              
+              // Teleport sound
+              const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+              const osc = audioCtx.createOscillator();
+              const gain = audioCtx.createGain();
+              osc.connect(gain);
+              gain.connect(audioCtx.destination);
+              osc.type = "sine";
+              osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+              osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.3);
+              gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+              osc.start();
+              osc.stop(audioCtx.currentTime + 0.3);
+              
+              spawnSparks(game.playerX, game.playerY, 25, false);
+            }
+            // else: roll 1-19 = MISS (95% chance) - beam passes harmlessly!
+          }
+          
+          if(victoryTank.beamTimer >= 120){
+            victoryTank.beamActive = false;
+            victoryTank.beamTimer = 0;
+          }
+        }
+      }
+    }
+  }
+  
+  function drawVictoryLasers(){
+    if(currentLevelTheme().name !== "Victory Stick") return;
+    
+    ctx.save();
+    
+    // Draw laser walls
+    laserWalls.forEach(wall => {
+      if(wall.type === 'vertical'){
+        const sx = wall.x * TILE + TILE / 2;
+        
+        if(wall.timed){
+          // TIMED BEAM laser - draw emitter
+          const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+          
+          // Emitter base (top of screen)
+          ctx.fillStyle = '#27ae60';
+          ctx.strokeStyle = '#52ffa8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(sx, 15, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          
+          // Warning glow
+          if(wall.warningTimer > 0){
+            const warnPulse = Math.sin(wall.warningTimer * 0.2) * 0.5 + 0.5;
+            ctx.shadowColor = "#ffeb3b";
+            ctx.shadowBlur = 15 * warnPulse;
+            ctx.fillStyle = `rgba(255, 235, 59, ${0.3 + warnPulse * 0.4})`;
+            ctx.beginPath();
+            ctx.arc(sx, 15, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+          
+          // Beam when active
+          if(wall.beamActive){
+            const beamPulse = Math.sin(Date.now() * 0.015) * 0.2 + 0.8;
+            
+            // IMPRESSIVE beam effect!
+            ctx.shadowColor = "#27ae60";
+            ctx.shadowBlur = 25;
+            
+            // Outer glow
+            const outerGrad = ctx.createLinearGradient(sx, 15, sx, CANVAS_H);
+            outerGrad.addColorStop(0, `rgba(39, 174, 96, ${beamPulse * 0.9})`);
+            outerGrad.addColorStop(1, `rgba(39, 174, 96, ${beamPulse * 0.7})`);
+            ctx.strokeStyle = outerGrad;
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(sx, 15);
+            ctx.lineTo(sx, CANVAS_H);
+            ctx.stroke();
+            
+            // Inner core
+            const coreGrad = ctx.createLinearGradient(sx, 15, sx, CANVAS_H);
+            coreGrad.addColorStop(0, `rgba(82, 255, 168, ${beamPulse})`);
+            coreGrad.addColorStop(1, `rgba(82, 255, 168, ${beamPulse * 0.8})`);
+            ctx.strokeStyle = coreGrad;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(sx, 15);
+            ctx.lineTo(sx, CANVAS_H);
+            ctx.stroke();
+            
+            // Bright center
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = `rgba(200, 255, 220, ${beamPulse})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(sx, 15);
+            ctx.lineTo(sx, CANVAS_H);
+            ctx.stroke();
+          }
+        } else {
+          // MOVING laser
+          if(wall.ghostly){
+            // VAPOR preview (solid transparent, NOT dashed!)
+            const vaporPulse = Math.sin(wall.ghostlyTimer * 0.08) * 0.3 + 0.5;
+            const alpha = 0.2 + vaporPulse * 0.3;
+            
+            // Vapor effect - multiple layers
+            for(let i = 0; i < 3; i++){
+              const offset = i * 2;
+              const layerAlpha = alpha * (1 - i * 0.2);
+              ctx.strokeStyle = `rgba(39, 174, 96, ${layerAlpha})`;
+              ctx.lineWidth = 6 - i;
+              ctx.shadowColor = "#27ae60";
+              ctx.shadowBlur = 15 + vaporPulse * 10;
+              ctx.beginPath();
+              ctx.moveTo(sx - offset, 0);
+              ctx.lineTo(sx - offset, CANVAS_H);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(sx + offset, 0);
+              ctx.lineTo(sx + offset, CANVAS_H);
+              ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+          } else if(wall.active){
+            // Fully active laser - IMPRESSIVE!
+            const pulse = Math.sin(Date.now() * 0.008) * 0.2 + 0.8;
+            
+            ctx.shadowColor = "#27ae60";
+            ctx.shadowBlur = 25;
+            ctx.strokeStyle = `rgba(39, 174, 96, ${pulse * 0.9})`;
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(sx, 0);
+            ctx.lineTo(sx, CANVAS_H);
+            ctx.stroke();
+            
+            ctx.shadowBlur = 15;
+            ctx.strokeStyle = `rgba(82, 255, 168, ${pulse})`;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(sx, 0);
+            ctx.lineTo(sx, CANVAS_H);
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = `rgba(200, 255, 220, ${pulse})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(sx, 0);
+            ctx.lineTo(sx, CANVAS_H);
+            ctx.stroke();
+          }
+        }
+      } else {
+        // Horizontal laser
+        const sy = wall.y * TILE + TILE / 2;
+        
+        if(wall.timed){
+          // TIMED BEAM laser emitter
+          const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
+          
+          ctx.fillStyle = '#27ae60';
+          ctx.strokeStyle = '#52ffa8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(15, sy, 8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          
+          if(wall.warningTimer > 0){
+            const warnPulse = Math.sin(wall.warningTimer * 0.2) * 0.5 + 0.5;
+            ctx.shadowColor = "#ffeb3b";
+            ctx.shadowBlur = 15 * warnPulse;
+            ctx.fillStyle = `rgba(255, 235, 59, ${0.3 + warnPulse * 0.4})`;
+            ctx.beginPath();
+            ctx.arc(15, sy, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          }
+          
+          if(wall.beamActive){
+            const beamPulse = Math.sin(Date.now() * 0.015) * 0.2 + 0.8;
+            
+            ctx.shadowColor = "#27ae60";
+            ctx.shadowBlur = 25;
+            
+            const outerGrad = ctx.createLinearGradient(15, sy, CANVAS_W, sy);
+            outerGrad.addColorStop(0, `rgba(39, 174, 96, ${beamPulse * 0.9})`);
+            outerGrad.addColorStop(1, `rgba(39, 174, 96, ${beamPulse * 0.7})`);
+            ctx.strokeStyle = outerGrad;
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(15, sy);
+            ctx.lineTo(CANVAS_W, sy);
+            ctx.stroke();
+            
+            const coreGrad = ctx.createLinearGradient(15, sy, CANVAS_W, sy);
+            coreGrad.addColorStop(0, `rgba(82, 255, 168, ${beamPulse})`);
+            coreGrad.addColorStop(1, `rgba(82, 255, 168, ${beamPulse * 0.8})`);
+            ctx.strokeStyle = coreGrad;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(15, sy);
+            ctx.lineTo(CANVAS_W, sy);
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = `rgba(200, 255, 220, ${beamPulse})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(15, sy);
+            ctx.lineTo(CANVAS_W, sy);
+            ctx.stroke();
+          }
+        } else {
+          // MOVING laser
+          if(wall.ghostly){
+            const vaporPulse = Math.sin(wall.ghostlyTimer * 0.08) * 0.3 + 0.5;
+            const alpha = 0.2 + vaporPulse * 0.3;
+            
+            for(let i = 0; i < 3; i++){
+              const offset = i * 2;
+              const layerAlpha = alpha * (1 - i * 0.2);
+              ctx.strokeStyle = `rgba(39, 174, 96, ${layerAlpha})`;
+              ctx.lineWidth = 6 - i;
+              ctx.shadowColor = "#27ae60";
+              ctx.shadowBlur = 15 + vaporPulse * 10;
+              ctx.beginPath();
+              ctx.moveTo(0, sy - offset);
+              ctx.lineTo(CANVAS_W, sy - offset);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(0, sy + offset);
+              ctx.lineTo(CANVAS_W, sy + offset);
+              ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+          } else if(wall.active){
+            const pulse = Math.sin(Date.now() * 0.008) * 0.2 + 0.8;
+            
+            ctx.shadowColor = "#27ae60";
+            ctx.shadowBlur = 25;
+            ctx.strokeStyle = `rgba(39, 174, 96, ${pulse * 0.9})`;
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(0, sy);
+            ctx.lineTo(CANVAS_W, sy);
+            ctx.stroke();
+            
+            ctx.shadowBlur = 15;
+            ctx.strokeStyle = `rgba(82, 255, 168, ${pulse})`;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(0, sy);
+            ctx.lineTo(CANVAS_W, sy);
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = `rgba(200, 255, 220, ${pulse})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, sy);
+            ctx.lineTo(CANVAS_W, sy);
+            ctx.stroke();
+          }
+        }
+      }
+    });
+    
+    // Draw LARGE ROBOTIC tank (TWICE as large!)
+    if(victoryTank){
+      const tx = victoryTank.x * TILE + TILE / 2;
+      const ty = victoryTank.y * TILE + TILE / 2;
+      const hover = Math.sin(victoryTank.float) * 2;
+      
+      ctx.save();
+      ctx.translate(tx, ty + hover);
+      
+      // Metallic glow
+      const glowPulse = Math.sin(victoryTank.float * 2) * 0.3 + 0.7;
+      ctx.globalAlpha = 0.25 * glowPulse;
+      const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 35);
+      outerGlow.addColorStop(0, 'rgba(200,200,220,0.6)');
+      outerGlow.addColorStop(1, 'rgba(200,200,220,0)');
+      ctx.fillStyle = outerGlow;
+      ctx.beginPath();
+      ctx.arc(0, 0, 35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      
+      // Power-up glow effect
+      if(victoryTank.powerUpTimer > 0){
+        const powerPulse = victoryTank.powerUpTimer / 90;
+        ctx.shadowColor = '#ff3232';
+        ctx.shadowBlur = 20 * powerPulse;
+        ctx.globalAlpha = 0.4 * powerPulse;
+        ctx.fillStyle = 'rgba(255, 50, 50, 0.3)';
+        ctx.beginPath();
+        ctx.arc(0, 0, 30 * powerPulse, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+      }
+      
+      // LARGE ROBOTIC hexagonal body - TWICE as big!
+      
+      // VIBRANT RED AURA around the tank body
+      const redGlowPulse = Math.sin(victoryTank.float * 3) * 0.4 + 0.6;
+      const redGlowAlpha = victoryTank.beamActive ? 0.7 : 0.5; // Much more vibrant!
+      
+      // Outer glow layer
+      ctx.globalAlpha = redGlowAlpha * redGlowPulse * 0.6;
+      ctx.shadowColor = '#ff0000';
+      ctx.shadowBlur = 30;
+      ctx.strokeStyle = `rgba(255, 30, 30, ${redGlowAlpha * 0.8})`;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      for(let i = 0; i < 6; i++){
+        const angle = (i / 6) * Math.PI * 2;
+        const x = Math.cos(angle) * 24; // Larger glow
+        const y = Math.sin(angle) * 24;
+        if(i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      
+      // Inner glow layer (brighter)
+      ctx.shadowBlur = 15;
+      ctx.strokeStyle = `rgba(255, 60, 60, ${redGlowAlpha})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      for(let i = 0; i < 6; i++){
+        const angle = (i / 6) * Math.PI * 2;
+        const x = Math.cos(angle) * 22;
+        const y = Math.sin(angle) * 22;
+        if(i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+      
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+      
+      // Main metallic body
+      ctx.shadowColor = '#c0c0d0';
+      ctx.shadowBlur = 12 * glowPulse;
+      
+      // Metallic silver gradient
+      const metalGrad = ctx.createRadialGradient(-4, -4, 0, 0, 0, 20);
+      metalGrad.addColorStop(0, '#f0f0f8'); // Bright silver
+      metalGrad.addColorStop(0.4, '#d0d0e0'); // Mid silver
+      metalGrad.addColorStop(1, '#909098'); // Dark silver
+      ctx.fillStyle = metalGrad;
+      ctx.strokeStyle = '#e8e8f0';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for(let i = 0; i < 6; i++){
+        const angle = (i / 6) * Math.PI * 2;
+        const x = Math.cos(angle) * 20; // TWICE as large (was 10)
+        const y = Math.sin(angle) * 20;
+        if(i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      ctx.shadowBlur = 0;
+      
+      // RED FLOWING VEINS - animated energy coursing through the tank!
+      const veinPulse = Math.sin(victoryTank.float * 3) * 0.4 + 0.6;
+      const veinAlpha = 0.3 + veinPulse * 0.4;
+      const veinGlow = victoryTank.beamActive ? veinAlpha * 1.5 : veinAlpha;
+      const flowOffset = (Date.now() * 0.02) % 10; // Flowing animation offset
+      
+      ctx.strokeStyle = `rgba(255, 50, 50, ${veinGlow})`;
+      ctx.lineWidth = 1.5;
+      ctx.shadowColor = '#ff3232';
+      ctx.shadowBlur = 6 + veinPulse * 6;
+      ctx.setLineDash([4, 6]); // Dashed lines
+      ctx.lineDashOffset = -flowOffset; // Animate the dash flow!
+      
+      // Diagonal veins (flowing from edges to center)
+      ctx.beginPath();
+      ctx.moveTo(-14, -8);
+      ctx.lineTo(-4, 0);
+      ctx.lineTo(-14, 8);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(14, -8);
+      ctx.lineTo(4, 0);
+      ctx.lineTo(14, 8);
+      ctx.stroke();
+      
+      // Vertical center vein (flowing downward)
+      ctx.lineDashOffset = -flowOffset * 1.5; // Different speed
+      ctx.beginPath();
+      ctx.moveTo(0, -16);
+      ctx.lineTo(0, -8);
+      ctx.moveTo(0, 8);
+      ctx.lineTo(0, 16);
+      ctx.stroke();
+      
+      // Horizontal veins (flowing inward)
+      ctx.lineDashOffset = -flowOffset * 0.8; // Different speed
+      ctx.beginPath();
+      ctx.moveTo(-10, -4);
+      ctx.lineTo(10, -4);
+      ctx.moveTo(-10, 4);
+      ctx.lineTo(10, 4);
+      ctx.stroke();
+      
+      ctx.setLineDash([]); // Reset dashed lines
+      ctx.shadowBlur = 0;
+      
+      // Robotic panel details
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-12, 0);
+      ctx.lineTo(12, 0);
+      ctx.moveTo(0, -12);
+      ctx.lineTo(0, 12);
+      ctx.stroke();
+      
+      // Corner rivets
+      for(let i = 0; i < 6; i++){
+        const angle = (i / 6) * Math.PI * 2;
+        const x = Math.cos(angle) * 16;
+        const y = Math.sin(angle) * 16;
+        ctx.fillStyle = '#a0a0b0';
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      
+      // Rotating turret
+      ctx.save();
+      ctx.rotate(victoryTank.rotation);
+      
+      // Large turret base
+      const turretGrad = ctx.createRadialGradient(-3, -3, 0, 0, 0, 12);
+      turretGrad.addColorStop(0, '#e0e0e8');
+      turretGrad.addColorStop(1, '#a0a0b0');
+      ctx.fillStyle = turretGrad;
+      ctx.strokeStyle = '#f0f0f8';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, Math.PI * 2); // Larger turret
+      ctx.fill();
+      ctx.stroke();
+      
+      // Larger cannon barrel
+      const cannonGrad = ctx.createLinearGradient(0, -4, 0, 4);
+      cannonGrad.addColorStop(0, '#d0d0e0');
+      cannonGrad.addColorStop(0.5, '#909098');
+      cannonGrad.addColorStop(1, '#b0b0c0');
+      ctx.fillStyle = cannonGrad;
+      ctx.strokeStyle = '#c0c0d0';
+      ctx.lineWidth = 1;
+      ctx.fillRect(0, -4, 24, 8); // Larger cannon (was 18x6)
+      ctx.strokeRect(0, -4, 24, 8);
+      
+      // Metallic cannon opening (no goofy red nose!)
+      ctx.shadowColor = '#909098';
+      ctx.shadowBlur = 3;
+      const tipGrad = ctx.createRadialGradient(24, 0, 0, 24, 0, 4);
+      tipGrad.addColorStop(0, '#606068'); // Dark metallic center
+      tipGrad.addColorStop(0.6, '#808088'); // Mid tone
+      tipGrad.addColorStop(1, '#a0a0b0'); // Outer edge
+      ctx.fillStyle = tipGrad;
+      ctx.beginPath();
+      ctx.arc(24, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Barrel rim highlight
+      ctx.strokeStyle = '#c0c0d0';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(24, 0, 4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      
+      ctx.restore();
+      ctx.globalAlpha = 1;
+      
+      // IMPRESSIVE RED BEAM!
+      if(victoryTank.beamActive && victoryTank.beamTimer > 90){
+        const beamAlpha = Math.sin(victoryTank.beamTimer * 0.2) * 0.1 + 0.25;
+        const beamLength = victoryTank.shootRange * TILE;
+        const beamPulse = Math.sin(Date.now() * 0.02) * 0.3 + 0.7;
+        
+        ctx.save();
+        ctx.rotate(victoryTank.rotation);
+        
+        // Outer glow layer
+        ctx.shadowColor = "#ff0000";
+        ctx.shadowBlur = 30;
+        const outerBeamGrad = ctx.createLinearGradient(24, 0, beamLength, 0);
+        outerBeamGrad.addColorStop(0, `rgba(255, 50, 50, ${(beamAlpha + 0.15) * beamPulse})`);
+        outerBeamGrad.addColorStop(1, `rgba(200, 30, 30, ${beamAlpha * beamPulse})`);
+        ctx.fillStyle = outerBeamGrad;
+        ctx.fillRect(24, -6, beamLength, 12);
+        
+        // Middle layer
+        const midBeamGrad = ctx.createLinearGradient(24, 0, beamLength, 0);
+        midBeamGrad.addColorStop(0, `rgba(255, 100, 100, ${(beamAlpha + 0.2) * beamPulse})`);
+        midBeamGrad.addColorStop(1, `rgba(255, 50, 50, ${beamAlpha * beamPulse})`);
+        ctx.fillStyle = midBeamGrad;
+        ctx.fillRect(24, -4, beamLength, 8);
+        
+        // Core beam
+        ctx.shadowBlur = 0;
+        const coreBeamGrad = ctx.createLinearGradient(24, 0, beamLength, 0);
+        coreBeamGrad.addColorStop(0, `rgba(255, 200, 200, ${beamPulse})`);
+        coreBeamGrad.addColorStop(1, `rgba(255, 150, 150, ${beamPulse * 0.7})`);
+        ctx.fillStyle = coreBeamGrad;
+        ctx.fillRect(24, -2, beamLength, 4);
+        
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      }
+      
+      ctx.restore();
+    }
+    
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // ================================================================
+  // SUN BURSTS - Sun Stick (steal sticks!)
   // ================================================================
   // SUN BURSTS - Sun Stick (steal sticks!)
   // ================================================================
@@ -3809,6 +5282,19 @@
   let playerSunGlow = 0;
   let playerCloudEffect = 0; // Cloud drag effect on player
   let bananaMode = false; // Banana boost from defeating monkey
+  
+  // Sparkle Stick variables
+  let rainbows = [];
+  let sparkleTrail = 0; // Replaced by cupcakeMode
+  let flowerRain = false; // Flower rain active
+  let flowerRainParticles = [];
+  let cupcakeMode = 0; // Timer for cupcake transformation (10 seconds)
+  
+  // Cursed Stick variables
+  let ghosts = [];
+  let skulls = [];
+  let isSkeletonMode = false; // Player transformed into skeleton
+  let smokeParticles = [];
   const SUNBURST_WARNING_TIME = 150; // 2.5 seconds
   
   function initSunBursts(){
@@ -4300,16 +5786,18 @@
     
     // Snake Stick: No particles (snakes are the hazard)
     
-    // Victory Stick: Stars/sparkles
+    // Victory Stick: Green fireflies
     if (theme === "Victory Stick"){
-      for (let i = 0; i < 25; i++){
+      for (let i = 0; i < 20; i++){
         ambientParticles.push({
-          type: 'star',
+          type: 'firefly',
           x: Math.random() * CANVAS_W,
           y: Math.random() * CANVAS_H,
-          size: 1 + Math.random() * 2,
-          twinkle: Math.random() * Math.PI * 2,
-          twinkleSpeed: 0.05 + Math.random() * 0.05
+          size: 1 + Math.random() * 1.5,
+          glow: Math.random() * Math.PI * 2,
+          glowSpeed: 0.03 + Math.random() * 0.04,
+          drift: Math.random() * Math.PI * 2,
+          driftSpeed: 0.01 + Math.random() * 0.01
         });
       }
     }
@@ -4665,6 +6153,16 @@
         }
       } else if (p.type === 'star'){
         p.twinkle += p.twinkleSpeed;
+      } else if (p.type === 'firefly'){
+        p.glow += p.glowSpeed;
+        p.drift += p.driftSpeed;
+        p.x += Math.sin(p.drift) * 0.3;
+        p.y += Math.cos(p.drift * 1.3) * 0.2;
+        // Wrap around screen
+        if(p.x < 0) p.x = CANVAS_W;
+        if(p.x > CANVAS_W) p.x = 0;
+        if(p.y < 0) p.y = CANVAS_H;
+        if(p.y > CANVAS_H) p.y = 0;
       } else if (p.type === 'shootingStar'){
         p.x += p.vx;
         p.y += p.vy;
@@ -4703,24 +6201,38 @@
         ctx.fill();
         
         ctx.restore();
-      } else if (p.type === 'star'){
-        const twinkle = Math.sin(p.twinkle) * 0.5 + 0.5;
-        ctx.globalAlpha = 0.3 + twinkle * 0.5;
-        ctx.fillStyle = '#c27bff';
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Star points
-        if (twinkle > 0.5){
-          ctx.strokeStyle = '#c27bff';
-          ctx.lineWidth = 1;
+      } else if (p.type === 'star' || p.type === 'firefly'){
+        if(p.type === 'firefly'){
+          // Green firefly for Victory Stick
+          const glow = Math.sin(p.glow) * 0.5 + 0.5;
+          ctx.globalAlpha = 0.4 + glow * 0.4;
+          ctx.fillStyle = '#27ae60'; // Green
+          ctx.shadowColor = '#52ffa8';
+          ctx.shadowBlur = 8 * glow;
           ctx.beginPath();
-          ctx.moveTo(p.x - p.size * 2, p.y);
-          ctx.lineTo(p.x + p.size * 2, p.y);
-          ctx.moveTo(p.x, p.y - p.size * 2);
-          ctx.lineTo(p.x, p.y + p.size * 2);
-          ctx.stroke();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        } else {
+          // Purple star for other levels
+          const twinkle = Math.sin(p.twinkle) * 0.5 + 0.5;
+          ctx.globalAlpha = 0.3 + twinkle * 0.5;
+          ctx.fillStyle = '#c27bff';
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Star points
+          if (twinkle > 0.5){
+            ctx.strokeStyle = '#c27bff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(p.x - p.size * 2, p.y);
+            ctx.lineTo(p.x + p.size * 2, p.y);
+            ctx.moveTo(p.x, p.y - p.size * 2);
+            ctx.lineTo(p.x, p.y + p.size * 2);
+            ctx.stroke();
+          }
         }
       } else if (p.type === 'shootingStar'){
         const alpha = p.life / 60;
@@ -4891,7 +6403,7 @@
 
   /* ---- Music ---- */
   const MUSIC_STEP_MS = 245;
-  let musicOn = false;
+  let musicOn = true; // Start with music ON
   let musicTimer = null;
   let musicStep = 0;
 
@@ -5063,6 +6575,7 @@
     winOverlay: document.getElementById("winOverlay"),
     winText: document.getElementById("winText"),
     btnWinRestart: document.getElementById("btnWinRestart"),
+    btnWinClose: document.getElementById("btnWinClose"),
 
     leaderboard: document.getElementById("leaderboard"),
 
@@ -5909,6 +7422,35 @@
       spiders = [];
     }
     
+    // Init Banana Stick
+    if (currentLevelTheme().name === "Banana Stick"){
+      initBananas();
+      initMonkeys();
+    } else if (currentLevelTheme().name !== "Victory Stick") {
+      bananas = [];
+      monkeys = [];
+    }
+    
+    // Init Mountain Stick
+    if (currentLevelTheme().name === "Mountain Stick"){
+      initMountains();
+      initRams();
+    } else if (currentLevelTheme().name !== "Victory Stick") {
+      mountains = [];
+      mountainClouds = [];
+      rams = [];
+    }
+    
+    // Init Cursed Stick
+    if (currentLevelTheme().name === "Cursed Stick"){
+      initCursedStick();
+    } else if (currentLevelTheme().name !== "Victory Stick") {
+      ghosts = [];
+      skulls = [];
+      smokeParticles = [];
+      isSkeletonMode = false;
+    }
+    
     // Init Skunk Stick
     if (currentLevelTheme().name === "Skunk Stick"){
       initSkunks();
@@ -5917,52 +7459,6 @@
       stinkClouds = [];
     }
     
-    // Victory Stick - ALL HAZARDS!
-    if (currentLevelTheme().name === "Victory Stick"){
-      windTiles = [];
-      for(let i=0;i<2;i++) windTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()*Math.PI*2});
-      windGustTimer = 0;
-      
-      fireTiles = [];
-      for(let i=0;i<2;i++) fireTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()});
-      fireWarningTimer = 0;
-      
-      initSnakes();
-      snakes = snakes.slice(0,1);
-      snakeMoveTimer = 0;
-      
-      initFreezeTiles();
-      freezeTiles = freezeTiles.slice(0,2);
-      freezeWarningTimer = 0;
-      
-      initShadowMonsters();
-      shadowMonsters = shadowMonsters.slice(0,1);
-      
-      initSharks();
-      sharks = sharks.slice(0,2); // 2 sharks for Victory
-      
-      initSunBursts();
-      sunBurstTiles = sunBurstTiles.slice(0,3); // 3 sun bursts
-      
-      initSnowman();
-      
-      initSpiderWebs();
-      spiderWebs = spiderWebs.slice(0,3);
-      
-      initSpiders();
-      spiders = spiders.slice(0,2); // 2 spiders for Victory
-      
-      // Moving hole + teleports for Victory!
-      teleportTiles = [];
-      for(let i=0;i<4;i++) teleportTiles.push({
-        x:randInt(0,GRID_W-1),
-        y:randInt(0,GRID_H-1),
-        glow:Math.random()*Math.PI*2,
-        moveTimer:randInt(120,300)
-      });
-      holeMoveTimer = randInt(600,900);
-      holeFlashTimer = 0;
-    }
     
     // Initialize snowflakes if starting on Ice Stick
     if (currentLevelTheme().name === "Ice Stick"){
@@ -6042,9 +7538,9 @@
   function winGame(){
     commitScoreToLeaderboard();
 
-    burstFx(ui.winFx, "✨", 34);
+    burstFx(ui.winFx, "✨", 50); // More particles!
 
-    ui.winText.textContent = `YOU WIN — ${player.name}\nScore: ${game.score}\n\nThe sticks have been humbled. The hole is satisfied (for now).`;
+    ui.winText.textContent = `🏆 ULTIMATE VICTORY! 🏆\n${player.name}\nFinal Score: ${game.score}\n\n✨ ALL 15 LEVELS CONQUERED! ✨\n\nYou've mastered every stick.\nThe hole is satisfied.\nThe monster retreats... for now.\n\n🎮 LEGEND STATUS ACHIEVED! 🎮`;
     ui.winOverlay.style.display = "flex";
     game.inputLocked = true;
 
@@ -6052,19 +7548,19 @@
     ui.btnRoll.classList.remove("flashRoll");
     stopMonsterDoom();
 
-    setHud("VICTORY STICK!");
-    logEvent("win","Victory Stick cleared. You win.");
+    setHud("🏆 VICTORY! 🏆");
+    logEvent("win","Victory Stick cleared. COMPLETE VICTORY!");
 
-    spawnSparks(game.holeX, game.holeY, 46, false);
-    spawnSparks(game.playerX, game.playerY, 22, false);
+    spawnSparks(game.holeX, game.holeY, 60, false); // More sparks!
+    spawnSparks(game.playerX, game.playerY, 40, false);
 
     sfxWin();
-    startCelebrationMusic(8500);
+    startCelebrationMusic(12000); // Longer celebration!
   }
 
   function newLevel(){
     console.log("🎮 newLevel() called! Current game.level:", game.level);
-    if (game.level > 13){
+    if (game.level > 15){
       winGame();
       updateUI();
       return;
@@ -6087,6 +7583,17 @@
       starGridTiles = [];
       playerGlowTimer = 0;
       ufo = null;
+    }
+    
+    // Initialize Sparkle Stick features
+    if (currentLevelTheme().name === "Sparkle Stick"){
+      initSparkleStick();
+    } else {
+      rainbows = [];
+      sparkleTrail = 0;
+      flowerRain = false;
+      flowerRainParticles = [];
+      cupcakeMode = 0;
     }
     
     // Initialize snowflakes for Ice Stick theme
@@ -6118,6 +7625,7 @@
     } else {
       bananas = [];
       monkeys = [];
+      bananaMode = false; // Clear banana mode when leaving level
     }
     
     // Initialize wind tiles for Sky Stick
@@ -6132,6 +7640,16 @@
       skyClouds = [];
       cloudTrails = [];
       airplane.active = false;
+    }
+    
+    // Initialize Cursed Stick features
+    if (currentLevelTheme().name === "Cursed Stick"){
+      initCursedStick();
+    } else {
+      ghosts = [];
+      skulls = [];
+      isSkeletonMode = false;
+      smokeParticles = [];
     }
     
     // Initialize snakes for Snake Stick
@@ -6179,6 +7697,7 @@
     } else {
       sharks = [];
       bubbles = [];
+      scubaDiver = null;
     }
     
     // Initialize sun bursts for Sun Stick
@@ -6232,51 +7751,10 @@
       snowman = null;
     }
     
-    // Victory Stick - ALL HAZARDS!
+    // Victory Stick - LASER GRID! Completely new design
     if (currentLevelTheme().name === "Victory Stick"){
-      windTiles = [];
-      for(let i=0;i<2;i++) windTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()*Math.PI*2});
-      windGustTimer = 0;
-      
-      fireTiles = [];
-      for(let i=0;i<2;i++) fireTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()});
-      fireWarningTimer = 0;
-      
-      initSnakes();
-      snakes = snakes.slice(0,1);
-      snakeMoveTimer = 0;
-      
-      initFreezeTiles();
-      freezeTiles = freezeTiles.slice(0,2);
-      freezeWarningTimer = 0;
-      
-      initShadowMonsters();
-      shadowMonsters = shadowMonsters.slice(0,1);
-      
-      initSharks();
-      sharks = sharks.slice(0,2); // 2 sharks for Victory
-      
-      initSunBursts();
-      sunBurstTiles = sunBurstTiles.slice(0,3); // 3 sun bursts
-      
-      initSnowman();
-      
-      initSpiderWebs();
-      spiderWebs = spiderWebs.slice(0,3);
-      
-      initSpiders();
-      spiders = spiders.slice(0,2); // 2 spiders for Victory
-      
-      // Moving hole + teleports for Victory!
-      teleportTiles = [];
-      for(let i=0;i<4;i++) teleportTiles.push({
-        x:randInt(0,GRID_W-1),
-        y:randInt(0,GRID_H-1),
-        glow:Math.random()*Math.PI*2,
-        moveTimer:randInt(120,300)
-      });
-      holeMoveTimer = randInt(600,900);
-      holeFlashTimer = 0;
+      // Initialize laser system
+      initVictoryLasers();
     }
     
     // Initialize fire tiles for Fire Stick theme
@@ -6346,6 +7824,11 @@
     if (currentLevelTheme().name === "Night Stick"){
       initStarGrid();
       initUFO();
+    }
+    
+    // Start music automatically
+    if(musicOn){
+      startMusic();
     }
     
     updateUI();
@@ -6650,11 +8133,15 @@
 
         if (s){
           game.sticks.splice(index,1);
-          game.carry.push({ color: s.color, value: mult, fromMonster:true, streakAtWin: streak });
+          // CUPCAKE MODE: Apply 2x to monster sticks too!
+          const finalMult = cupcakeMode > 0 ? mult * 2 : mult;
+          game.carry.push({ color: s.color, value: finalMult, fromMonster:true, streakAtWin: streak });
         }
 
-        logEvent("bonus",`You beat the monster! Stick is worth ${mult}×. (Streak ${streak})`);
-        setHud(`MONSTER BEATEN! ${mult}× STICK`);
+        const cupcakeBonus = cupcakeMode > 0 ? " 🧁×2" : "";
+        const finalMult = cupcakeMode > 0 ? mult * 2 : mult;
+        logEvent("bonus",`You beat the monster! Stick is worth ${finalMult}×. (Streak ${streak})`);
+        setHud(`MONSTER BEATEN! ${finalMult}× STICK${cupcakeBonus}`);
         sfxPickup();
         startCelebrationMusic(6500);
 
@@ -6848,12 +8335,15 @@ gameSetTimeout(updateScrollHint, 30);
     if (isTreeTile(game.playerX, game.playerY)){
       if (game.carry.length === 0){
         const cap = carryCap();
+        // CUPCAKE MODE: 2x value for tree magic sticks!
+        const stickValue = cupcakeMode > 0 ? 2 : 1;
         for (let i=0;i<cap;i++){
           const color = STICK_COLORS[randInt(0, STICK_COLORS.length-1)];
-          game.carry.push({ color, value:1, fromMagic:true });
+          game.carry.push({ color, value:stickValue, fromMagic:true });
         }
+        const cupcakeBonus = cupcakeMode > 0 ? " 🧁×2" : "";
         logEvent("bonus",`Tree magic! Instantly filled to ${cap}.`);
-        setHud(`TREE LOAD (${cap})`);
+        setHud(`TREE LOAD${cupcakeBonus} (${cap})`);
         sfxPickup();
 
         if (game.sticks.length === 0){
@@ -6898,19 +8388,36 @@ gameSetTimeout(updateScrollHint, 30);
       }
       const n = game.carry.length;
       let pts = 0;
-      for (const st of game.carry){
-        let v = st.value || 1;
-        if (game.bonusActive) v *= 2;
-        pts += v;
+      
+      // SKELETON MODE: All sticks worth 0 points!
+      if(isSkeletonMode){
+        pts = 0;
+        logEvent("cursed", "💀 Skeleton deposited sticks for 0 points!");
+        setHud("💀 0 POINTS! 💀");
+      } else {
+        for (const st of game.carry){
+          let v = st.value || 1;
+          if (game.bonusActive) v *= 2;
+          pts += v;
+        }
       }
+      
       game.score += pts;
       game.carry = [];
+      
+      // End skeleton mode on deposit
+      if(isSkeletonMode){
+        isSkeletonMode = false;
+        logEvent("info", "✨ You're back to normal!");
+      }
       
       // Deactivate banana mode on deposit
       if(bananaMode){
         bananaMode = false;
         logEvent("info", "Banana boost ended.");
       }
+      
+      // Flower rain is constant on Sparkle Stick - no need to deactivate
       
       // Expire power-ups on deposit
       if (activeShield > 0){
@@ -6979,7 +8486,14 @@ gameSetTimeout(updateScrollHint, 30);
         pickupSpecialStick(s.special);
         game.sticks.splice(idx,1);return;
       }game.sticks.splice(idx,1);
-      game.carry.push({ color:s.color, value:1 });
+      
+      // CUPCAKE MODE: 2x stick value!
+      const stickValue = cupcakeMode > 0 ? 2 : 1;
+      game.carry.push({ color:s.color, value:stickValue });
+      
+      if(cupcakeMode > 0 && stickValue === 2){
+        logEvent("sparkle", "🧁 Cupcake power! 2x stick value!");
+      }
 
       sfxPickup();
 
@@ -6992,8 +8506,9 @@ gameSetTimeout(updateScrollHint, 30);
         logEvent("warn",`MAX LOAD (${cap}).`);
         setHud(`MAX LOAD (${cap})`);
       } else {
+        const cupcakeBonus = cupcakeMode > 0 ? " 🧁×2" : "";
         logEvent("pickup",`Picked up a stick. (${game.carry.length}/${cap})`);
-        setHud(`Picked up (${game.carry.length}/${cap})`);
+        setHud(`Picked up${cupcakeBonus} (${game.carry.length}/${cap})`);
       }
 
       updateUI();
@@ -7045,17 +8560,31 @@ gameSetTimeout(updateScrollHint, 30);
   function gameOver(){
     commitScoreToLeaderboard();
 
-    burstFx(ui.loseFx, "🪵", 30);
+    burstFx(ui.loseFx, "🪵", 40);
 
-    const taunts = [
-      "The Stick Monster claps slowly. Loudly. Rudely.",
-      "The sticks whisper: 'Skill issue.'",
-      "The monster does a little dance. It’s disrespectful.",
-      "The hole sighs. The monster cackles."
-    ];
-    const t = taunts[randInt(0, taunts.length-1)];
+    let message = "";
+    
+    if(game.level === 15){
+      const finalTaunts = [
+        "The Victory Stick laughs at your defeat.",
+        "So close... yet the sticks claimed you.",
+        "Level 15 proved fatal. Almost had it all.",
+        "The final challenge crushed you. Better luck next time."
+      ];
+      const t = finalTaunts[randInt(0, finalTaunts.length-1)];
+      message = `💀 DIED ON LEVEL 15! 💀\n${player.name} • Score: ${game.score}\n\n${t}`;
+    } else {
+      const taunts = [
+        "The Stick Monster claps slowly. Loudly. Rudely.",
+        "The sticks whisper: 'Skill issue.'",
+        "The monster does a little dance. It's disrespectful.",
+        "The hole sighs. The monster cackles."
+      ];
+      const t = taunts[randInt(0, taunts.length-1)];
+      message = `${player.name} • Score: ${game.score} • Level ${game.level}/15\n\n${t}`;
+    }
 
-    ui.gameOverText.textContent = `GAME OVER — ${player.name}\nScore: ${game.score} • Level: ${game.level}\n\n${t}`;
+    ui.gameOverText.textContent = message;
     ui.gameOverOverlay.style.display = "flex";
     ui.monsterEvent.style.display = "none";
     ui.btnRoll.classList.remove("flashRoll");
@@ -7065,10 +8594,10 @@ gameSetTimeout(updateScrollHint, 30);
     logEvent("bad", `Game Over. ${t}`);
     setHud("GAME OVER");
 
-    spawnSparks(game.playerX, game.playerY, 26, true);
-    spawnSparks(game.holeX, game.holeY, 16, true);
+    spawnSparks(game.playerX, game.playerY, 35, true);
+    spawnSparks(game.holeX, game.holeY, 25, true);
 
-    startDoomMusic(8500);
+    startDoomMusic(10000);
   }
 
   function spawnSparks(gx,gy,count=18, evil=false){
@@ -7409,6 +8938,7 @@ gameSetTimeout(updateScrollHint, 30);
     const isGlow = theme.name === "Glow Stick";
     const isVic  = theme.name === "Victory Stick";
     const isIce  = theme.name === "Ice Stick";
+    const isBanana = theme.name === "Banana Stick";
 
     let baseAlpha = 0.55;
     let pulseAdd  = 0.00;
@@ -7430,6 +8960,11 @@ gameSetTimeout(updateScrollHint, 30);
       pulseAdd  = 0.14;   // gentle pulse
       glowAlpha = 0.05 + osc*0.04;
       glowBlur  = 8 + osc*5;
+    } else if (isBanana){
+      baseAlpha = 0.85;   // More visible grid
+      pulseAdd  = 0.00;
+      glowAlpha = 0.00;
+      glowBlur  = 0;
     } else {
       baseAlpha = 0.55;
       pulseAdd  = 0.00;
@@ -7463,7 +8998,7 @@ gameSetTimeout(updateScrollHint, 30);
 
     // crisp pass (but softened via alpha + pulse)
     ctx.strokeStyle = theme.grid;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1; // Normal thickness for all themes
     ctx.globalAlpha = clamp(baseAlpha + (osc*pulseAdd), 0.06, 0.72);
 
     for (let x=0;x<=GRID_W;x++){
@@ -7499,10 +9034,18 @@ gameSetTimeout(updateScrollHint, 30);
     let holeStroke = "#f3f4f6";
     let glowColor = "rgba(243,244,246,0.4)";
     
-    if (theme.name === "Sun Stick") {
+    if (theme.name === "Sparkle Stick") {
+      holeColor = "#ffc0e0";
+      holeStroke = "#ff1493";
+      glowColor = "rgba(255,20,147,0.6)";
+    } else if (theme.name === "Sun Stick") {
       holeColor = "#2a1a00";
       holeStroke = "#ffd400";
       glowColor = "rgba(255,212,0,0.6)";
+    } else if (theme.name === "Cursed Stick") {
+      holeColor = "#1a0a2a";
+      holeStroke = "#8b00ff";
+      glowColor = "rgba(139,0,255,0.6)";
     } else if (theme.name === "Sea Stick") {
       holeColor = "#001a33";
       holeStroke = "#00bfff";
@@ -7520,9 +9063,9 @@ gameSetTimeout(updateScrollHint, 30);
       holeStroke = "#8b7355";
       glowColor = "rgba(139,115,85,0.6)";
     } else if (theme.name === "Banana Stick") {
-      holeColor = "#1a2e0a";
-      holeStroke = "#ffd700";
-      glowColor = "rgba(255,215,0,0.6)";
+      holeColor = "#1a2e0a"; // Dark green background
+      holeStroke = "#ffd700"; // Yellow border
+      glowColor = "rgba(255,215,0,0.7)";
     } else if (theme.name === "Snake Stick") {
       holeColor = "#001a0a";
       holeStroke = "#39ff95";
@@ -7544,9 +9087,9 @@ gameSetTimeout(updateScrollHint, 30);
       holeStroke = "#8b5cf6";
       glowColor = "rgba(139,92,246,0.6)";
     } else if (theme.name === "Victory Stick") {
-      holeColor = "#0a0015";
-      holeStroke = "#c27bff";
-      glowColor = "rgba(194,123,255,0.6)";
+      holeColor = "#0a1f0a"; // Dark green
+      holeStroke = "#27ae60"; // Bright green
+      glowColor = "rgba(39,174,96,0.6)"; // Green glow
     }
 
     ctx.save();
@@ -7780,7 +9323,108 @@ gameSetTimeout(updateScrollHint, 30);
     }
 
     const theme = currentLevelTheme();
-    const strokeBase = (theme.name === "Ice Stick") ? "#0b0f14" : "#f3f4f6";
+    
+    // CUPCAKE MODE: Cupcake emoji with stick figure arms and legs and PINK GLOW!
+    if(theme.name === "Sparkle Stick" && cupcakeMode > 0){
+      const time = Date.now();
+      const bounce = Math.sin(time * 0.005) * 2; // Gentle bounce
+      
+      // PINK GLOW OUTLINE - bright and visible!
+      const glowPulse = Math.sin(time * 0.004) * 0.3 + 0.7;
+      const alpha = (cupcakeMode / 600) * glowPulse;
+      
+      // Multiple layers for bright outline effect
+      // Outer bright pink ring
+      ctx.globalAlpha = alpha * 0.8;
+      ctx.strokeStyle = '#ff69b4'; // Theme border color
+      ctx.lineWidth = 8;
+      ctx.shadowColor = '#ff69b4';
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.arc(0, -5 + bounce, 28, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Middle pink ring
+      ctx.globalAlpha = alpha * 0.9;
+      ctx.lineWidth = 5;
+      ctx.shadowBlur = 15;
+      ctx.strokeStyle = '#ffc0e0'; // Grid color
+      ctx.beginPath();
+      ctx.arc(0, -5 + bounce, 23, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Inner bright core ring
+      ctx.globalAlpha = alpha * 1;
+      ctx.lineWidth = 3;
+      ctx.shadowBlur = 10;
+      ctx.strokeStyle = '#ffb6d9'; // Lighter pink
+      ctx.beginPath();
+      ctx.arc(0, -5 + bounce, 18, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      
+      // Draw cupcake emoji
+      ctx.font = "32px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🧁", 0, -5 + bounce);
+      
+      // Stick figure arms with pink glow
+      ctx.strokeStyle = "#ff1493"; // Hot pink
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.shadowColor = '#ff69b4';
+      ctx.shadowBlur = 6;
+      
+      const armSwing = Math.sin(time * 0.003) * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(-8, 0 + bounce);
+      ctx.lineTo(-14, 4 + bounce + armSwing * 3);
+      ctx.moveTo(8, 0 + bounce);
+      ctx.lineTo(14, 4 + bounce - armSwing * 3);
+      ctx.stroke();
+      
+      // Stick figure legs with pink glow
+      ctx.beginPath();
+      ctx.moveTo(-3, 10 + bounce);
+      ctx.lineTo(-6, 16 + bounce);
+      ctx.moveTo(3, 10 + bounce);
+      ctx.lineTo(6, 16 + bounce);
+      ctx.stroke();
+      
+      ctx.shadowBlur = 0;
+      
+      // Carry dots for cupcake
+      const cap = carryCap();
+      const carried = game.carry.length;
+      const slots = Math.min(6, cap);
+      const startX = -((slots-1)*4)/2;
+      const isFull = carried >= cap;
+      
+      for (let i=0;i<slots;i++){
+        ctx.beginPath();
+        const filled = i < carried;
+        if (isFull){
+          ctx.fillStyle = filled ? "#ff1f3a" : "rgba(255,31,58,0.25)";
+        } else {
+          ctx.fillStyle = filled ? "#ffd166" : "rgba(243,244,246,0.18)";
+        }
+        ctx.arc(startX + i*4, 18 + bounce, 1.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+      
+      ctx.restore();
+      return; // Don't draw normal stick figure
+    }
+    
+    // Normal stick figure drawing
+    let strokeBase = (theme.name === "Ice Stick") ? "#0b0f14" : 
+                     (theme.name === "Sparkle Stick") ? "#ff1493" : // Hot pink for visibility
+                     (theme.name === "Banana Stick") ? "#ffffff" : // White for banana
+                     "#f3f4f6";
+    
     ctx.strokeStyle = strokeBase;
     ctx.lineWidth = 2;
     ctx.lineCap = "round";
@@ -7915,7 +9559,69 @@ gameSetTimeout(updateScrollHint, 30);
       drawCarryDots();
     };
 
-    if (bananaMode){
+    // SKELETON MODE - cursed stick figure!
+    if (isSkeletonMode){
+      // Skull head
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#8b00ff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, -6, 6, 0, Math.PI*2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Eye sockets
+      ctx.fillStyle = "#000000";
+      ctx.beginPath();
+      ctx.arc(-2, -7, 1.5, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(2, -7, 1.5, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Nose hole (triangle)
+      ctx.beginPath();
+      ctx.moveTo(0, -5);
+      ctx.lineTo(-1, -3);
+      ctx.lineTo(1, -3);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Bone body
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, -1);
+      ctx.lineTo(0, 9);
+      ctx.stroke();
+      
+      // Rib cage lines
+      ctx.lineWidth = 1.5;
+      for(let i = 0; i < 3; i++){
+        ctx.beginPath();
+        ctx.moveTo(-4, 2 + i * 3);
+        ctx.lineTo(4, 2 + i * 3);
+        ctx.stroke();
+      }
+      
+      // Bone arms
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(-6, 2);
+      ctx.lineTo(6, 2);
+      ctx.stroke();
+      
+      // Bone legs
+      ctx.beginPath();
+      ctx.moveTo(0, 9);
+      ctx.lineTo(-6, 15);
+      ctx.moveTo(0, 9);
+      ctx.lineTo(6, 15);
+      ctx.stroke();
+      
+      drawCarryDots();
+    }
+    else if (bananaMode){
       drawBananaBody();
     }
     else if (skin === "alien"){
@@ -8255,13 +9961,23 @@ gameSetTimeout(updateScrollHint, 30);
   function loop(){
     rafId = requestAnimationFrame(loop);
 
-    // update
-    updateTreeTimers();
-    updateRollButton();
+    // Stop updating game logic if game over or victory overlay is showing
+    const isGameEnded = ui.gameOverOverlay.style.display === "flex" || 
+                        ui.winOverlay.style.display === "flex";
+    
+    if (!isGameEnded) {
+      // update
+      updateTreeTimers();
+      updateRollButton();
     
     // Update fire tiles for Fire Stick theme
     if (currentLevelTheme().name === "Fire Stick" && fireTiles.length > 0){
       updateFireTiles();
+    }
+    
+    // Update Sparkle Stick features
+    if (currentLevelTheme().name === "Sparkle Stick"){
+      updateSparkleStick();
     }
     
     // Update wind tiles for Sky Stick theme
@@ -8275,14 +9991,19 @@ gameSetTimeout(updateScrollHint, 30);
       updateSnakes();
     }
     
-    // Update monkey for Banana Stick theme
+    // Update Banana Stick features
     if (currentLevelTheme().name === "Banana Stick"){
       updateMonkeys();
     }
     
-    // Update ram for Mountain Stick theme
+    // Update Mountain Stick features
     if (currentLevelTheme().name === "Mountain Stick"){
       updateRams();
+    }
+    
+    // Update Cursed Stick features
+    if (currentLevelTheme().name === "Cursed Stick"){
+      updateCursedStick();
     }
     
     // Update freeze zones for Ice Stick theme
@@ -8342,30 +10063,13 @@ gameSetTimeout(updateScrollHint, 30);
       if (spiders.length > 0) updateSpiders();
     }
     
-    // Victory Stick - update ALL hazards
+    // Victory Stick - LASER GRID update
     if (currentLevelTheme().name === "Victory Stick"){
-      if (windTiles.length > 0) updateWindTiles();
-      if (fireTiles.length > 0) updateFireTiles();
-      if (snakes.length > 0) updateSnakes();
-      if (freezeTiles.length > 0) updateFreezeTiles();
-      if (shadowMonsters.length > 0) updateShadowMonsters();
-      if (sharks.length > 0) updateSharks();
-      if (sunBurstTiles.length > 0) updateSunBursts();
-      if (teleportTiles.length > 0) updateLevelHazards();
-      if (snowman) updateSnowman();
-      if (spiderWebs.length > 0) updateSpiderWebs();
-      if (spiders.length > 0) updateSpiders();
-      
-      // Moving hole like Spell Stick
-      if (holeMoveTimer > 0){
-        holeMoveTimer--;
-        if (holeMoveTimer <= 90){ holeFlashTimer++; holeVisible = (holeFlashTimer % 20) < 10; }
-      } else {
-        moveHole(); holeMoveTimer = randInt(600, 900); holeFlashTimer = 0; holeVisible = true;
-      }
+      updateVictoryLasers();
     }
+    } // End of !isGameEnded check
 
-    // draw
+    // draw (continue drawing even when game is ended)
     const theme = currentLevelTheme();
     drawGrid(theme);
     drawLifeHint(theme);
@@ -8377,6 +10081,11 @@ gameSetTimeout(updateScrollHint, 30);
     }
     if (theme.name === "Night Stick" && ufo){
       drawUFO();
+    }
+    
+    // Draw Sparkle Stick features (behind sticks)
+    if (theme.name === "Sparkle Stick"){
+      drawSparkleStick();
     }
 
     // sticks
@@ -8423,6 +10132,11 @@ gameSetTimeout(updateScrollHint, 30);
       drawShadowMonsters();
     }
     
+    // Draw Cursed Stick features
+    if (theme.name === "Cursed Stick"){
+      drawCursedStick();
+    }
+    
     // Draw sharks for Sea Stick
     if (theme.name === "Sea Stick" && sharks.length > 0){
       drawSharks();
@@ -8449,21 +10163,9 @@ gameSetTimeout(updateScrollHint, 30);
       if (spiders.length > 0) drawSpiders();
     }
     
-    // Victory Stick - draw ALL hazards
+    // Victory Stick - LASER GRID drawing
     if (theme.name === "Victory Stick"){
-      if (windTiles.length > 0) drawWindTiles();
-      if (fireTiles.length > 0) drawFireTiles();
-      if (snakes.length > 0) drawSnakes();
-    drawMountains();
-    drawBananas();
-    drawMonkeys();
-      if (freezeTiles.length > 0) drawFreezeTiles();
-      if (shadowMonsters.length > 0) drawShadowMonsters();
-      if (sharks.length > 0) drawSharks();
-      if (sunBurstTiles.length > 0) drawSunBursts();
-      if (snowman) drawSnowman();
-          if (spiderWebs.length > 0) drawSpiderWebs();
-      if (spiders.length > 0) drawSpiders();
+      drawVictoryLasers();
     }
 
     drawSparks();
@@ -8514,8 +10216,8 @@ gameSetTimeout(updateScrollHint, 30);
   }
 
   // Skip to Level functionality
-  const levelNames = ["Night", "Sun", "Sky", "Fire", "Mountain", "Banana", "Ice", "Glow", "Spell", "Sea", "Spider", "Snake", "Victory"];
-  const levelEmojis = ["🌙", "☀️", "☁️", "🔥", "⛰️", "🍌", "❄️", "✨", "🔮", "🌊", "🕷️", "🐍", "👑"];
+  const levelNames = ["Night", "Sparkle", "Sun", "Sky", "Fire", "Mountain", "Cursed", "Banana", "Ice", "Glow", "Spell", "Sea", "Spider", "Snake", "Victory"];
+  const levelEmojis = ["🌙", "✨", "☀️", "☁️", "🔥", "⛰️", "💀", "🍌", "❄️", "💫", "🔮", "🌊", "🕷️", "🐍", "👑"];
 
   function showSkipLevelMenu(){
     const modal = document.getElementById('skipLevelPanel');
@@ -8530,10 +10232,20 @@ gameSetTimeout(updateScrollHint, 30);
     
     for(let i = 0; i < levelNames.length; i++){
       const btn = document.createElement('button');
-      btn.style.cssText = 'padding:12px; background:linear-gradient(135deg, #1f2937 0%, #374151 100%); border:2px solid #3aa7ff; border-radius:8px; color:#fff; cursor:pointer; font-size:13px; font-weight:600; transition:all 0.2s;';
-      btn.innerHTML = `${levelEmojis[i]}<br>Level ${i + 1}<br><span style="font-size:10px; opacity:0.8;">${levelNames[i]}</span>`;
-      btn.onmouseover = () => btn.style.background = 'linear-gradient(135deg, #3aa7ff 0%, #60a5fa 100%)';
-      btn.onmouseout = () => btn.style.background = 'linear-gradient(135deg, #1f2937 0%, #374151 100%)';
+      
+      // Get theme colors for this level
+      const level = LEVELS[i];
+      const baseColor = level.border; // Use border color as the base
+      const accentColor = level.accent;
+      
+      // Create colored button matching the level theme
+      const defaultBg = `linear-gradient(135deg, ${baseColor}22 0%, ${baseColor}44 100%)`;
+      const hoverBg = `linear-gradient(135deg, ${baseColor} 0%, ${accentColor} 100%)`;
+      
+      btn.style.cssText = `padding:12px; background:${defaultBg}; border:2px solid ${baseColor}; border-radius:8px; color:#fff; cursor:pointer; font-size:13px; font-weight:600; transition:all 0.2s; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);`;
+      btn.innerHTML = `${levelEmojis[i]}<br>Level ${i + 1}<br><span style="font-size:10px; opacity:0.9;">${levelNames[i]}</span>`;
+      btn.onmouseover = () => btn.style.background = hoverBg;
+      btn.onmouseout = () => btn.style.background = defaultBg;
       btn.onclick = () => skipToLevel(i + 1);
       grid.appendChild(btn);
     }
@@ -8569,9 +10281,7 @@ gameSetTimeout(updateScrollHint, 30);
   ui.skin.addEventListener("change", (e) => setAndStoreSkin(e.target.value));
 
   ui.btnGameOverClose.addEventListener("click", () => {
-    ui.gameOverOverlay.style.display = "none";
-    game.inputLocked = false;
-    newGame(false);
+    window.close(); // Close the browser tab/window
   });
   document.getElementById('btnSkipLevel').addEventListener('click', showSkipLevelMenu);
   document.getElementById('closeSkipLevel')?.addEventListener('click', () => {
@@ -8588,6 +10298,10 @@ gameSetTimeout(updateScrollHint, 30);
     ui.winOverlay.style.display = "none";
     game.inputLocked = false;
     newGame(false);
+  });
+
+  ui.btnWinClose.addEventListener("click", () => {
+    window.close(); // Close the browser tab/window
   });
 
   ui.btnMusic.addEventListener("click", async () => {
