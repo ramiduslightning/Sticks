@@ -243,6 +243,24 @@
     .btn-info { background: linear-gradient(180deg,#f3f4f6,#cbd5e1); color:#0b0f14; }
 
     .titleBtns{ display:flex; align-items:center; gap:8px; }
+    
+    @media (max-width:720px){
+      .titleBtns{ 
+        flex-wrap:wrap; 
+        gap:6px;
+      }
+      .btn-mini{
+        font-size:12px;
+        padding:10px 12px;
+        min-width:60px;
+      }
+      #btnSkipLevel{
+        /* Make Level button more prominent on mobile */
+        padding:10px 14px;
+        font-size:13px;
+        box-shadow:0 2px 8px rgba(58,167,255,0.4);
+      }
+    }
     .btn-mini{
       padding:8px 10px;
       border-radius:12px;
@@ -737,10 +755,10 @@
         <div class="title">
           <div>STICKS <span class="badge">v2.41</span></div>
           <div class="titleBtns">
+            <button id="btnSkipLevel" class="btn-info btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff; font-weight:700;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="Info">Info</button>
             <button id="btnSave" class="btn-save btn-mini" aria-label="Save Game" title="Save (S)">Save</button>
             <button id="btnLoad" class="btn-load btn-mini" aria-label="Load Game" title="Load (L)">Load</button>
-            <button id="btnSkipLevel" class="btn-info btn-mini" aria-label="Skip to Level" title="Skip to Level" style="margin-left:4px;">Level</button>
           </div>
         </div>
         <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
@@ -756,18 +774,20 @@
   </div>
 
   <div id="skipLevelPanel" class="modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.9); z-index:10000; align-items:center; justify-content:center;">
-    <div class="modal-content" style="background:#161b22; border:2px solid #3aa7ff; border-radius:12px; padding:30px; max-width:600px; color:#fff;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-        <h2 style="margin:0; color:#3aa7ff;">🎯 Skip to Level</h2>
+    <div class="modal-content" style="background:#161b22; border:2px solid #3aa7ff; border-radius:12px; padding:20px; max-width:90%; width:600px; max-height:90vh; color:#fff; display:flex; flex-direction:column;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-shrink:0;">
+        <h2 style="margin:0; color:#3aa7ff; font-size:20px;">🎯 Skip to Level</h2>
         <button id="closeSkipLevel" style="background:#ff1f3a; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:16px; font-weight:600;">✕</button>
       </div>
       
-      <div style="color:#cdd9e5; margin-bottom:20px; line-height:1.5;">
+      <div style="color:#cdd9e5; margin-bottom:15px; line-height:1.5; font-size:14px; flex-shrink:0;">
         Jump to any level! Your progress will be reset.
       </div>
       
-      <div id="levelGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px;">
-        <!-- Levels inserted by JavaScript -->
+      <div style="overflow-y:auto; overflow-x:hidden; flex:1; -webkit-overflow-scrolling:touch;">
+        <div id="levelGrid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:12px; padding:5px;">
+          <!-- Levels inserted by JavaScript -->
+        </div>
       </div>
     </div>
   </div>
@@ -10280,6 +10300,13 @@ gameSetTimeout(updateScrollHint, 30);
   document.getElementById('btnSkipLevel').addEventListener('click', showSkipLevelMenu);
   document.getElementById('closeSkipLevel')?.addEventListener('click', () => {
     document.getElementById('skipLevelPanel').style.display = 'none';
+  });
+  
+  // Close level panel when clicking outside (mobile-friendly)
+  document.getElementById('skipLevelPanel')?.addEventListener('click', (e) => {
+    if(e.target.id === 'skipLevelPanel'){
+      document.getElementById('skipLevelPanel').style.display = 'none';
+    }
   });
 
   ui.btnRestart.addEventListener("click", () => {
