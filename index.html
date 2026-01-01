@@ -840,7 +840,7 @@
         <div style="margin:10px 0;"><span class="badge">Secret Life Tile</span> (Pulses when you stand on it with sticks)
           <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
             <li style="margin:3px 0;">Drop a stick on this square to gain <b>+1 life</b></li>
-            <li style="margin:3px 0;">If already at max lives, get bonus points instead</li>
+            <li style="margin:3px 0;">If already at max lives (5), get <b>+10 bonus points</b> instead</li>
             <li style="margin:3px 0;">One per level - find it!</li>
           </ul>
         </div>
@@ -856,18 +856,27 @@
         <div style="margin:10px 0;"><span class="badge">Mystery Tree</span> (Appears randomly during levels)
           <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
             <li style="margin:3px 0;">Standing on tree with sticks? Feed 1 stick for <b>+1 life</b></li>
-            <li style="margin:3px 0;">At max lives (5)? Get <b>+8 bonus points</b> instead!</li>
+            <li style="margin:3px 0;">At max lives (5)? Get <b>+10 bonus points</b> instead!</li>
             <li style="margin:3px 0;">Standing on tree with no sticks? Get a <b>full load</b> instantly</li>
             <li style="margin:3px 0;">Tree disappears after granting a life or full load</li>
           </ul>
         </div>
 
-        <div style="margin:10px 0 12px 0;"><span class="badge">Stick Monster</span> (Cursed sticks)
+        <div style="margin:10px 0 12px 0;"><span class="badge">Stick Monster</span> (Cursed sticks - hidden until picked!)
           <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
-            <li style="margin:3px 0;">Some sticks are cursed! Picking one triggers a monster battle</li>
-            <li style="margin:3px 0;">Roll 2-5 = WIN (keep a powered-up 2× stick)</li>
-            <li style="margin:3px 0;">Roll 0-1 = LOSE (lose 1 life)</li>
-            <li style="margin:3px 0;"><b>Streak bonus:</b> Win 3 in a row for +1 life. Keep winning for 3×, 4×, 5× sticks!</li>
+            <li style="margin:3px 0;">Some sticks are <b>cursed</b>! Picking one triggers a monster battle</li>
+            <li style="margin:3px 0;">Roll <b>2-5</b> = WIN (keep a powered-up stick)</li>
+            <li style="margin:3px 0;">Roll <b>0-1</b> = LOSE (lose 1 life)</li>
+            <li style="margin:3px 0;"><b>Win Streak Multipliers:</b>
+              <div style="margin:4px 0 0 12px; font-size:13px;">
+                • Wins 1-3: <b>2×</b> stick value<br>
+                • Win 4: <b>3×</b> stick value<br>
+                • Win 5: <b>4×</b> stick value<br>
+                • Continues scaling up to <b>8× at 9+ wins!</b><br>
+                • Win 3 in a row: <b>+1 life bonus</b><br>
+                • Streak resets only on a loss
+              </div>
+            </li>
           </ul>
         </div>
 
@@ -985,7 +994,7 @@
 
   /* ---- Level Themes + Stick Names ---- */
   const LEVELS = [
-    { name:"Night Stick",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.35)", accentShadow:"rgba(58,167,255,.28)" },
+    { name:"Night Stick",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#ffd700", accentGlow:"rgba(255,215,0,.35)", accentShadow:"rgba(255,215,0,.28)" },
     { name:"Sparkle Stick", bg:"#d84d9f", grid:"#ffffff", border:"#ff69b4", accent:"#ff1493", accentGlow:"rgba(255,255,255,.46)", accentShadow:"rgba(255,255,255,.30)" },
     { name:"Sun Stick",     bg:"#140a03", grid:"#4a3a06", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
     { name:"Sky Stick",     bg:"#041027", grid:"#0b234a", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
@@ -6391,8 +6400,8 @@
 
   /* ---- Max life bonus points (when a life reward is blocked) ---- */
   const MAX_LIVES = 5;
-  const LIFE_TILE_MAX_POINTS = 12;
-  const TREE_FEED_MAX_POINTS = 8;
+  const LIFE_TILE_MAX_POINTS = 10;
+  const TREE_FEED_MAX_POINTS = 10;
 
   /* ---- Music ---- */
   const MUSIC_STEP_MS = 245;
@@ -7067,10 +7076,10 @@
     return 6 + (level-1)*3;
   }
   function zeroChance(level){
-    return Math.min(0.18, 0.00 + (level-1)*0.015);
+    return Math.min(0.12, 0.00 + (level-1)*0.01); // Reduced: caps at 12% instead of 18%
   }
   function curseChance(level){
-    return Math.min(0.16, 0.08 + (level-1)*0.015);
+    return Math.min(0.11, 0.08 + (level-1)*0.006); // Reduced: caps at 11% instead of 16%
   }
   function bonusChance(level){
     return Math.min(0.22, 0.10 + (level-1)*0.01);
@@ -8082,7 +8091,7 @@
 
   function monsterStickValueForStreak(streak){
     if (streak <= 3) return 2;
-    return Math.min(12, (streak - 1));
+    return Math.min(8, (streak - 1)); // Cap at 8× (requires 9 consecutive wins)
   }
 
   function resolveMonsterRoll(){
@@ -9075,7 +9084,11 @@ gameSetTimeout(updateScrollHint, 30);
     let holeStroke = "#f3f4f6";
     let glowColor = "rgba(243,244,246,0.4)";
     
-    if (theme.name === "Sparkle Stick") {
+    if (theme.name === "Night Stick") {
+      holeColor = "#000000";
+      holeStroke = "#ffd700"; // Gold to match stars
+      glowColor = "rgba(255,215,0,0.5)"; // Gold glow
+    } else if (theme.name === "Sparkle Stick") {
       holeColor = "#ffc0e0";
       holeStroke = "#ff1493";
       glowColor = "rgba(255,20,147,0.6)";
@@ -9145,9 +9158,11 @@ gameSetTimeout(updateScrollHint, 30);
 
     if (flash > 0){
       ctx.globalAlpha = 0.25 + flash*0.55;
-      // Use green flash for Victory Stick, red for others
+      // Theme-specific flash colors
       if(theme.name === "Victory Stick"){
         ctx.fillStyle = "#27ae60"; // Green flash!
+      } else if(theme.name === "Night Stick"){
+        ctx.fillStyle = "#ffd700"; // Gold flash to match stars!
       } else {
         ctx.fillStyle = "#ff1f3a"; // Red flash
       }
