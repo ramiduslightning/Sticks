@@ -6626,41 +6626,180 @@
   let doomUntil = 0;
   let doomStep = 0;
 
+  // Game-inspired melodies with actual hooks and rhythm!
+  // MUSIC_A: "Adventure Theme" - Inspired by Super Mario / Zelda
+  // Bouncy, memorable, uses rests and jumps
   const MUSIC_A = [
-    { chord:[262,330,392], bass:98, dur:0.18, gain:0.040 },
-    { lead:392, bass:98, dur:0.16, gain:0.040 },
-    { lead:330, bass:98, dur:0.16, gain:0.038 },
-    { lead:294, bass:98, dur:0.16, gain:0.038 },
-    { chord:[294,370,440], bass:110, dur:0.18, gain:0.040 },
-    { lead:440, bass:110, dur:0.16, gain:0.040 },
-    { lead:392, bass:110, dur:0.16, gain:0.038 },
-    { lead:330, bass:110, dur:0.16, gain:0.038 },
-    { chord:[330,392,494], bass:82, dur:0.20, gain:0.040 },
-    { lead:494, bass:82, dur:0.16, gain:0.040 },
-    { lead:440, bass:82, dur:0.16, gain:0.038 },
-    { lead:392, bass:82, dur:0.16, gain:0.038 },
-    { chord:[262,330,392], bass:98, dur:0.18, gain:0.040 },
-    { lead:392, bass:98, dur:0.16, gain:0.038 },
-    { lead:330, bass:98, dur:0.16, gain:0.036 },
+    // Hook: Iconic opening (E-E-rest-E pattern like Mario)
+    { lead:659, bass:131, dur:0.14, gain:0.042 },      // E
+    { lead:659, bass:131, dur:0.14, gain:0.042 },      // E
+    { lead:0, dur:0.14 },                               // rest
+    { lead:659, bass:131, dur:0.14, gain:0.042 },      // E
+    { lead:0, dur:0.14 },                               // rest
+    { lead:523, bass:131, dur:0.14, gain:0.040 },      // C
+    { lead:659, bass:131, dur:0.16, gain:0.044 },      // E
+    { lead:0, dur:0.14 },                               // rest
+    
+    // Phrase: Jump up high!
+    { lead:784, bass:196, dur:0.18, gain:0.046 },      // G (high)
+    { lead:0, dur:0.14 },                               // rest
+    { lead:0, dur:0.14 },                               // rest
+    { lead:392, bass:98, dur:0.18, gain:0.040 },       // G (low)
+    { lead:0, dur:0.14 },                               // rest
+    { lead:0, dur:0.14 },                               // rest
+    { lead:0, dur:0.14 },                               // rest
+    { lead:0, dur:0.14 },                               // rest
+    
+    // Response: Descending melodic answer
+    { lead:523, bass:131, dur:0.16, gain:0.042 },      // C
+    { lead:0, dur:0.14 },                               // rest
+    { lead:392, bass:98, dur:0.16, gain:0.040 },       // G
+    { lead:0, dur:0.14 },                               // rest
+    { lead:330, bass:82, dur:0.16, gain:0.038 },       // E
+    { lead:440, bass:110, dur:0.14, gain:0.040 },      // A
+    { lead:494, bass:123, dur:0.14, gain:0.042 },      // B
+    { lead:466, bass:116, dur:0.14, gain:0.040 },      // A#
+    
+    // Variation: Rhythmic pattern
+    { lead:440, bass:110, dur:0.16, gain:0.042 },      // A
+    { lead:392, bass:98, dur:0.16, gain:0.040 },       // G
+    { lead:330, bass:82, dur:0.18, gain:0.040 },       // E
+    { lead:415, bass:104, dur:0.16, gain:0.040 },      // G#
+    { lead:392, bass:98, dur:0.16, gain:0.040 },       // G
+    { lead:330, bass:82, dur:0.16, gain:0.038 },       // E
+    { lead:262, bass:65, dur:0.20, gain:0.040 },       // C
     { lead:0 }
   ];
 
+  // MUSIC_B: "Calm Theme" - Inspired by Zelda Fairy Fountain
+  // Flowing, gentle, harp-like arpeggios
   const MUSIC_B = [
-    { chord:[294,370,440], bass:110, dur:0.18, gain:0.040 },
-    { lead:440, bass:110, dur:0.16, gain:0.040 },
-    { lead:494, bass:110, dur:0.16, gain:0.038 },
-    { lead:523, bass:110, dur:0.16, gain:0.038 },
-    { chord:[330,392,494], bass:82, dur:0.20, gain:0.040 },
-    { lead:494, bass:82, dur:0.16, gain:0.040 },
-    { lead:440, bass:82, dur:0.16, gain:0.038 },
-    { lead:392, bass:82, dur:0.16, gain:0.038 },
-    { chord:[262,330,392], bass:98, dur:0.18, gain:0.040 },
-    { lead:392, bass:98, dur:0.16, gain:0.038 },
-    { lead:330, bass:98, dur:0.16, gain:0.036 },
-    { lead:294, bass:98, dur:0.16, gain:0.036 },
-    { chord:[247,311,370], bass:92, dur:0.18, gain:0.040 },
-    { lead:370, bass:92, dur:0.16, gain:0.038 },
-    { lead:330, bass:92, dur:0.16, gain:0.036 },
+    // Flowing arpeggio pattern (like water/fairies)
+    { lead:523, bass:131, dur:0.14, gain:0.038 },      // C
+    { lead:659, bass:131, dur:0.14, gain:0.040 },      // E
+    { lead:784, bass:131, dur:0.14, gain:0.042 },      // G
+    { lead:659, bass:131, dur:0.14, gain:0.040 },      // E
+    { lead:523, bass:131, dur:0.14, gain:0.038 },      // C
+    { lead:659, bass:131, dur:0.14, gain:0.040 },      // E
+    { lead:784, bass:131, dur:0.14, gain:0.042 },      // G
+    { lead:1047, bass:131, dur:0.16, gain:0.044 },     // C (high)
+    
+    // Second arpeggio (different chord)
+    { lead:494, bass:123, dur:0.14, gain:0.038 },      // B
+    { lead:587, bass:123, dur:0.14, gain:0.040 },      // D
+    { lead:784, bass:123, dur:0.14, gain:0.042 },      // G
+    { lead:587, bass:123, dur:0.14, gain:0.040 },      // D
+    { lead:494, bass:123, dur:0.14, gain:0.038 },      // B
+    { lead:587, bass:123, dur:0.14, gain:0.040 },      // D
+    { lead:784, bass:123, dur:0.14, gain:0.042 },      // G
+    { lead:988, bass:123, dur:0.16, gain:0.044 },      // B (high)
+    
+    // Gentle melody over the top
+    { lead:880, bass:110, dur:0.16, gain:0.042 },      // A
+    { lead:784, bass:110, dur:0.16, gain:0.040 },      // G
+    { lead:659, bass:110, dur:0.16, gain:0.040 },      // E
+    { lead:784, bass:110, dur:0.16, gain:0.040 },      // G
+    { lead:880, bass:110, dur:0.18, gain:0.042 },      // A
+    { lead:0, dur:0.14 },                               // rest
+    { lead:659, bass:82, dur:0.20, gain:0.042 },       // E
+    { lead:0, dur:0.14 },                               // rest
+    
+    // Resolve peacefully
+    { lead:523, bass:131, dur:0.14, gain:0.040 },      // C
+    { lead:659, bass:131, dur:0.14, gain:0.040 },      // E
+    { lead:784, bass:131, dur:0.16, gain:0.042 },      // G
+    { lead:1047, bass:131, dur:0.18, gain:0.044 },     // C (high)
+    { lead:784, bass:131, dur:0.16, gain:0.040 },      // G
+    { lead:659, bass:131, dur:0.16, gain:0.038 },      // E
+    { lead:523, bass:131, dur:0.22, gain:0.042 },      // C
+    { lead:0 }
+  ];
+
+  // MUSIC_C: "Action Theme" - Inspired by Mega Man
+  // Driving, energetic, rock-style rhythm
+  const MUSIC_C = [
+    // Power chord intro (E power chord rhythm)
+    { chord:[659,1319], bass:164, dur:0.12, gain:0.048 },  // E power chord
+    { chord:[659,1319], bass:164, dur:0.12, gain:0.048 },
+    { lead:0, dur:0.12 },                                   // rest
+    { chord:[659,1319], bass:164, dur:0.12, gain:0.048 },
+    { chord:[659,1319], bass:164, dur:0.12, gain:0.048 },
+    { lead:0, dur:0.12 },                                   // rest
+    { chord:[659,1319], bass:164, dur:0.12, gain:0.048 },
+    { lead:0, dur:0.12 },                                   // rest
+    
+    // Driving melody
+    { lead:659, bass:164, dur:0.14, gain:0.044 },          // E
+    { lead:784, bass:164, dur:0.14, gain:0.044 },          // G
+    { lead:880, bass:220, dur:0.14, gain:0.046 },          // A
+    { lead:784, bass:196, dur:0.14, gain:0.044 },          // G
+    { lead:659, bass:164, dur:0.14, gain:0.044 },          // E
+    { lead:587, bass:147, dur:0.14, gain:0.042 },          // D
+    { lead:659, bass:164, dur:0.16, gain:0.044 },          // E
+    { lead:0, dur:0.12 },                                   // rest
+    
+    // Power rhythm section
+    { chord:[587,1175], bass:147, dur:0.12, gain:0.046 },  // D power chord
+    { chord:[587,1175], bass:147, dur:0.12, gain:0.046 },
+    { lead:0, dur:0.12 },
+    { chord:[523,1047], bass:131, dur:0.12, gain:0.046 },  // C power chord
+    { chord:[523,1047], bass:131, dur:0.12, gain:0.046 },
+    { lead:0, dur:0.12 },
+    { chord:[494,988], bass:123, dur:0.16, gain:0.046 },   // B power chord
+    { lead:0, dur:0.12 },
+    
+    // Heroic finish
+    { lead:784, bass:196, dur:0.14, gain:0.046 },          // G
+    { lead:880, bass:220, dur:0.14, gain:0.046 },          // A
+    { lead:988, bass:247, dur:0.14, gain:0.048 },          // B
+    { lead:1047, bass:262, dur:0.16, gain:0.050 },         // C (high)
+    { lead:988, bass:247, dur:0.14, gain:0.046 },          // B
+    { lead:880, bass:220, dur:0.14, gain:0.044 },          // A
+    { lead:659, bass:164, dur:0.20, gain:0.046 },          // E
+    { lead:0 }
+  ];
+
+  // MUSIC_D: "Spooky Theme" - Inspired by Castlevania
+  // Minor key, ominous, with dramatic pauses
+  const MUSIC_D = [
+    // Dark opening (minor chord)
+    { chord:[330,392,494], bass:82, dur:0.18, gain:0.042 },   // E minor
+    { lead:0, dur:0.14 },                                      // rest
+    { lead:494, bass:82, dur:0.14, gain:0.040 },              // B
+    { lead:523, bass:82, dur:0.14, gain:0.042 },              // C
+    { lead:587, bass:82, dur:0.16, gain:0.044 },              // D
+    { lead:0, dur:0.14 },                                      // rest
+    { lead:523, bass:82, dur:0.14, gain:0.040 },              // C
+    { lead:494, bass:82, dur:0.14, gain:0.040 },              // B
+    
+    // Descending ominous line
+    { lead:466, bass:116, dur:0.16, gain:0.042 },             // A#
+    { lead:440, bass:110, dur:0.16, gain:0.042 },             // A
+    { lead:392, bass:98, dur:0.16, gain:0.040 },              // G
+    { lead:370, bass:92, dur:0.16, gain:0.040 },              // F#
+    { lead:330, bass:82, dur:0.18, gain:0.042 },              // E
+    { lead:0, dur:0.14 },                                      // rest
+    { lead:0, dur:0.14 },                                      // rest
+    { lead:0, dur:0.14 },                                      // rest
+    
+    // Dramatic jump (like Bach Toccata)
+    { lead:330, bass:82, dur:0.14, gain:0.044 },              // E
+    { lead:494, bass:123, dur:0.14, gain:0.044 },             // B
+    { lead:659, bass:164, dur:0.16, gain:0.046 },             // E (high)
+    { lead:0, dur:0.14 },                                      // rest
+    { lead:587, bass:147, dur:0.14, gain:0.042 },             // D
+    { lead:494, bass:123, dur:0.14, gain:0.040 },             // B
+    { lead:440, bass:110, dur:0.16, gain:0.040 },             // A
+    { lead:0, dur:0.14 },                                      // rest
+    
+    // Creepy resolution
+    { lead:392, bass:98, dur:0.16, gain:0.040 },              // G
+    { lead:370, bass:92, dur:0.16, gain:0.038 },              // F#
+    { lead:330, bass:82, dur:0.16, gain:0.040 },              // E
+    { lead:294, bass:73, dur:0.16, gain:0.038 },              // D
+    { lead:330, bass:82, dur:0.22, gain:0.044 },              // E
+    { lead:0, dur:0.14 },                                      // rest
+    { lead:0, dur:0.14 },                                      // rest
     { lead:0 }
   ];
 
@@ -6703,13 +6842,37 @@
   }
 
   function pickMusicStep(stepIdx){
-    const block = Math.floor(stepIdx / 32);
-    const useB = (block % 2 === 1);
-    const seq = useB ? MUSIC_B : MUSIC_A;
+    const theme = currentLevelTheme();
+    let seq;
+    
+    // Match music style to theme groups!
+    // Calm/Peaceful themes: Flowing arpeggios (MUSIC_B)
+    if(theme.name === "Night Stick" || theme.name === "Sparkle Stick" || 
+       theme.name === "Sky Stick" || theme.name === "Sea Stick"){
+      seq = MUSIC_B;
+    }
+    // Spooky/Dark themes: Ominous minor key (MUSIC_D)
+    else if(theme.name === "Cursed Stick" || theme.name === "Spider Stick" || 
+            theme.name === "Snake Stick"){
+      seq = MUSIC_D;
+    }
+    // Action/Energy themes: Driving rock style (MUSIC_C)
+    else if(theme.name === "Fire Stick" || theme.name === "Sun Stick" || 
+            theme.name === "Mountain Stick" || theme.name === "Victory Stick"){
+      seq = MUSIC_C;
+    }
+    // Fun/Upbeat themes: Bouncy adventure theme (MUSIC_A)
+    else {
+      seq = MUSIC_A;
+    }
+    
     const s = seq[stepIdx % seq.length];
-    if (s && s.lead && Math.random() < 0.10){
+    
+    // Occasional octave jump on lead notes for extra variety
+    if (s && s.lead && s.lead > 0 && Math.random() < 0.08){
       return { ...s, lead: s.lead * 2 };
     }
+    
     return s;
   }
   function pickCelebrationStep(){
@@ -7176,6 +7339,13 @@
 
   function sfxExtraLife(){ chord([523,659,784],0.20,0.06,"triangle"); chord([659,784,988],0.22,0.06,"triangle"); }
   function sfxMonsterHit(){ beep(70,0.16,"sawtooth",0.08); beep(55,0.18,"sawtooth",0.08); }
+  function sfxMonsterVictory(){
+    // Heroic fanfare for beating a monster (Mega Man power-up style)
+    setTimeout(() => beep(523, 0.10, "square", 0.12), 0);    // C
+    setTimeout(() => beep(659, 0.10, "square", 0.12), 100);  // E
+    setTimeout(() => beep(784, 0.10, "square", 0.12), 200);  // G
+    setTimeout(() => beep(1047, 0.15, "square", 0.14), 300); // C high - victory!
+  }
   function sfxLevelUp(){
     chord([440,660,880],0.18,0.06,"triangle");
     chord([494,740,988],0.18,0.06,"triangle");
@@ -8421,7 +8591,7 @@
         const finalMult = cupcakeMode > 0 ? mult * 2 : mult;
         logEvent("bonus",`You beat the monster! Stick is worth ${finalMult}×. (Streak ${streak})`);
         setHud(`MONSTER BEATEN! ${finalMult}× STICK${cupcakeBonus}`);
-        sfxPickup();
+        sfxMonsterVictory(); // Heroic victory fanfare!
         startCelebrationMusic(6500);
 
         if (streak === 3){
