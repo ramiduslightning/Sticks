@@ -3698,86 +3698,297 @@
   }
 
   // ================================================================
-  // SPIDER WEBS - Spider Stick (sticky traps)
+  // SPIDER WEBS - Spider Stick (sticky traps with zones!)
   // ================================================================
   let spiderWebs = [];
   
   function initSpiderWebs(){
     spiderWebs = [];
-    const num = randInt(4, 6);
-    for (let i = 0; i < num; i++){
+    
+    // Create webs of various sizes - spider's den!
+    // 1-2 large webs (3x3)
+    const numLarge = randInt(1, 2);
+    for(let i = 0; i < numLarge; i++){
+      const centerX = randInt(2, GRID_W - 3); // Leave room for 3x3
+      const centerY = randInt(2, GRID_H - 3);
       spiderWebs.push({
-        x: randInt(0, GRID_W - 1),
-        y: randInt(0, GRID_H - 1),
-        pulse: Math.random() * Math.PI * 2
+        centerX: centerX,
+        centerY: centerY,
+        size: 3,
+        pulse: Math.random() * Math.PI * 2,
+        zones: [] // Will track which zones are broken
+      });
+    }
+    
+    // 2-3 medium webs (2x2)
+    const numMedium = randInt(2, 3);
+    for(let i = 0; i < numMedium; i++){
+      const centerX = randInt(1, GRID_W - 2); // Leave room for 2x2
+      const centerY = randInt(1, GRID_H - 2);
+      spiderWebs.push({
+        centerX: centerX,
+        centerY: centerY,
+        size: 2,
+        pulse: Math.random() * Math.PI * 2,
+        zones: []
+      });
+    }
+    
+    // 2-3 small webs (1x1)
+    const numSmall = randInt(2, 3);
+    for(let i = 0; i < numSmall; i++){
+      spiderWebs.push({
+        centerX: randInt(0, GRID_W - 1),
+        centerY: randInt(0, GRID_H - 1),
+        size: 1,
+        pulse: Math.random() * Math.PI * 2,
+        zones: []
       });
     }
   }
   
   function updateSpiderWebs(){
-    for (let i = spiderWebs.length - 1; i >= 0; i--){
-      const web = spiderWebs[i];
+    for(let web of spiderWebs){
       web.pulse = (web.pulse + 0.05) % (Math.PI * 2);
+    }
+    
+    // Check if player is in any web
+    for(let web of spiderWebs){
+      const inWeb = isInWeb(game.playerX, game.playerY, web);
+      if(!inWeb) continue;
       
-      if (web.x === game.playerX && web.y === game.playerY && 
-          !(game.playerX === game.holeX && game.playerY === game.holeY)){
-        if (activeShield > 0){
-          logEvent("info", "Shield broke through web!");
-          setHud("SHIELD!");
-          spiderWebs.splice(i, 1); // Remove web
-        } else if (!game.webbed){
-          // Lose all remaining actions immediately
-          const lostActions = game.actions;
-          game.actions = 0;
-          game.webbed = true;
+      // Don't trigger if on hole
+      if(game.playerX === game.holeX && game.playerY === game.holeY) continue;
+      
+      // Shield breaks through!
+      if(activeShield > 0){
+        logEvent("info", "Shield tore through the web!");
+        setHud("🛡️ WEB DESTROYED!");
+        // Mark this zone as broken
+        const zoneKey = `${game.playerX},${game.playerY}`;
+        if(!web.zones.includes(zoneKey)){
+          web.zones.push(zoneKey);
+        }
+        continue;
+      }
+      
+      // Check if player is stuck (hasn't rolled to escape yet)
+      if(game.webStuck){
+        // Player needs to roll to escape
+        continue; // Wait for their roll
+      }
+      
+      // Determine if center or edge
+      const isCenter = (web.size === 3 && 
+                       game.playerX === web.centerX && 
+                       game.playerY === web.centerY);
+      
+      // Check if this zone is already broken
+      const zoneKey = `${game.playerX},${game.playerY}`;
+      if(web.zones.includes(zoneKey)) continue;
+      
+      // Trap the player!
+      game.webStuck = true;
+      game.webZone = isCenter ? 'center' : 'edge';
+      game.webLocation = {x: game.playerX, y: game.playerY, webRef: web};
+      game.actions = 0; // Lose remaining actions
+      
+      if(isCenter){
+        logEvent("bad", "🕸️ STUCK IN WEB CENTER! Roll 4-5 to escape!");
+        setHud("🕸️ TRAPPED! ROLL 4-5!");
+      } else {
+        logEvent("bad", "🕸️ Caught in web! Roll 2-5 to escape!");
+        setHud("🕸️ WEBBED! ROLL 2-5!");
+      }
+      
+      beep(200, 0.12, "sawtooth", 0.08);
+      setTimeout(() => beep(150, 0.10, "sawtooth", 0.06), 100);
+      
+      updateUI();
+    }
+  }
+  
+  function isInWeb(x, y, web){
+    if(web.size === 1){
+      return x === web.centerX && y === web.centerY;
+    } else if(web.size === 2){
+      // 2x2: center is top-left
+      return x >= web.centerX && x <= web.centerX + 1 &&
+             y >= web.centerY && y <= web.centerY + 1;
+    } else if(web.size === 3){
+      // 3x3: center is actual center
+      return x >= web.centerX - 1 && x <= web.centerX + 1 &&
+             y >= web.centerY - 1 && y <= web.centerY + 1;
+    }
+    return false;
+  }
+  
+  function drawSpiderWebs(){
+    for(let web of spiderWebs){
+      const pulse = Math.sin(web.pulse) * 0.3 + 0.7;
+      
+      ctx.save();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      
+      if(web.size === 1){
+        // Small 1x1 web - just a single simple web
+        const x = web.centerX * TILE + TILE / 2;
+        const y = web.centerY * TILE + TILE / 2;
+        const zoneKey = `${web.centerX},${web.centerY}`;
+        
+        if(!web.zones.includes(zoneKey)){
+          ctx.globalAlpha = 0.4 + pulse * 0.2;
           
-          if (lostActions > 0){
-            logEvent("bad", `TRAPPED IN WEB! Lost ${lostActions} actions. Next roll will be halved!`);
-            setHud("WEB TRAP!");
-            beep(200, 0.10, "sawtooth", 0.06);
-          } else {
-            logEvent("bad", "Stuck in web! Next roll will be halved!");
-            setHud("WEBBED!");
-            beep(200, 0.10, "sawtooth", 0.06);
+          // Radial strands
+          for(let i = 0; i < 8; i++){
+            const angle = (Math.PI * 2 / 8) * i;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + Math.cos(angle) * 10, y + Math.sin(angle) * 10);
+            ctx.stroke();
           }
           
-          // REMOVE the web after it traps you (single use)
-          spiderWebs.splice(i, 1);
+          // Concentric circles
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(x, y, 8, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      } else if(web.size === 2){
+        // 2x2 web - real connected web spanning 2x2 grid
+        drawLargeWeb(web, pulse, 2);
+      } else if(web.size === 3){
+        // 3x3 web - large connected web spanning 3x3 grid
+        drawLargeWeb(web, pulse, 3);
+      }
+      
+      ctx.restore();
+    }
+  }
+  
+  function drawLargeWeb(web, pulse, size){
+    // Calculate bounds in pixels
+    const startX = (size === 2 ? web.centerX : web.centerX - 1) * TILE;
+    const startY = (size === 2 ? web.centerY : web.centerY - 1) * TILE;
+    const endX = startX + size * TILE;
+    const endY = startY + size * TILE;
+    const centerPxX = (startX + endX) / 2;
+    const centerPxY = (startY + endY) / 2;
+    
+    // Check if any zones are broken
+    const allBroken = checkAllZonesBroken(web, size);
+    if(allBroken) return; // Don't draw if completely destroyed
+    
+    ctx.globalAlpha = 0.5 + pulse * 0.2;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1.5;
+    
+    // Draw anchor points at corners and edges
+    const anchors = [
+      {x: startX, y: startY}, // Top-left
+      {x: endX, y: startY},   // Top-right
+      {x: endX, y: endY},     // Bottom-right
+      {x: startX, y: endY},   // Bottom-left
+      {x: centerPxX, y: startY}, // Top-center
+      {x: centerPxX, y: endY},   // Bottom-center
+      {x: startX, y: centerPxY}, // Left-center
+      {x: endX, y: centerPxY}    // Right-center
+    ];
+    
+    // Draw radial strands from center to all anchor points
+    ctx.globalAlpha = 0.4 + pulse * 0.15;
+    for(let anchor of anchors){
+      ctx.beginPath();
+      ctx.moveTo(centerPxX, centerPxY);
+      ctx.lineTo(anchor.x, anchor.y);
+      ctx.stroke();
+    }
+    
+    // Draw concentric spiral rings
+    const numRings = size === 3 ? 4 : 3;
+    const maxRadius = (Math.min(endX - startX, endY - startY) / 2) * 0.9;
+    
+    for(let ring = 1; ring <= numRings; ring++){
+      const radius = (maxRadius / numRings) * ring;
+      const segments = 24; // Segments for the ring
+      
+      ctx.globalAlpha = 0.35 + pulse * 0.15;
+      ctx.beginPath();
+      
+      for(let i = 0; i <= segments; i++){
+        const angle = (i / segments) * Math.PI * 2;
+        const x = centerPxX + Math.cos(angle) * radius;
+        const y = centerPxY + Math.sin(angle) * radius;
+        
+        if(i === 0){
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+    }
+    
+    // Draw center danger zone for 3x3 webs
+    if(size === 3){
+      const centerGridX = web.centerX;
+      const centerGridY = web.centerY;
+      const centerKey = `${centerGridX},${centerGridY}`;
+      
+      if(!web.zones.includes(centerKey)){
+        // Purple glowing center
+        ctx.globalAlpha = 0.6 + pulse * 0.3;
+        ctx.strokeStyle = "#d8b3ff";
+        ctx.lineWidth = 2.5;
+        
+        const centerSize = TILE * 0.4;
+        ctx.beginPath();
+        ctx.arc(centerPxX, centerPxY, centerSize, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Inner danger ring
+        ctx.beginPath();
+        ctx.arc(centerPxX, centerPxY, centerSize * 0.6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+    
+    // Draw broken zones as torn web sections
+    for(let dx = (size === 3 ? -1 : 0); dx < (size === 3 ? 2 : 2); dx++){
+      for(let dy = (size === 3 ? -1 : 0); dy < (size === 3 ? 2 : 2); dy++){
+        const gx = (size === 3 ? web.centerX + dx : web.centerX + dx);
+        const gy = (size === 3 ? web.centerY + dy : web.centerY + dy);
+        const zoneKey = `${gx},${gy}`;
+        
+        if(web.zones.includes(zoneKey)){
+          // Draw torn/broken effect
+          const zoneX = gx * TILE + TILE / 2;
+          const zoneY = gy * TILE + TILE / 2;
           
-          updateUI();
+          ctx.globalAlpha = 0.2;
+          ctx.strokeStyle = "#666666";
+          ctx.lineWidth = 1;
+          
+          // Draw tattered strands
+          for(let i = 0; i < 4; i++){
+            const angle = Math.random() * Math.PI * 2;
+            const len = 5 + Math.random() * 5;
+            ctx.beginPath();
+            ctx.moveTo(zoneX, zoneY);
+            ctx.lineTo(zoneX + Math.cos(angle) * len, zoneY + Math.sin(angle) * len);
+            ctx.stroke();
+          }
         }
       }
     }
   }
   
-  function drawSpiderWebs(){
-    for (let web of spiderWebs){
-      const x = web.x * TILE + TILE / 2;
-      const y = web.y * TILE + TILE / 2;
-      const pulse = Math.sin(web.pulse) * 0.3 + 0.7;
-      
-      ctx.save();
-      ctx.globalAlpha = 0.4 + pulse * 0.2;
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.5;
-      
-      for (let i = 0; i < 8; i++){
-        const angle = (Math.PI * 2 / 8) * i;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + Math.cos(angle) * 10, y + Math.sin(angle) * 10);
-        ctx.stroke();
-      }
-      
-      ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(x, y, 8, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      ctx.restore();
-    }
+  function checkAllZonesBroken(web, size){
+    let totalZones = size * size;
+    return web.zones.length >= totalZones;
   }
   
   // ================================================================
@@ -7061,6 +7272,11 @@
 
     inputLocked: false,
     
+    // Spider Stick: web trap state
+    webStuck: false,
+    webZone: null, // 'edge' or 'center'
+    webLocation: null, // {x, y, webRef}
+    
     // Mountain Stick: track traversal progress
     mountainTraversal: null // {x, y, total, remaining}
   };
@@ -7134,6 +7350,18 @@
       if (fireTiles && fireTiles.some(f => f.x === x && f.y === y)) continue;
       if (windTiles && windTiles.some(w => w.x === x && w.y === y)) continue;
       if (freezeTiles && freezeTiles.some(f => f.x === x && f.y === y)) continue;
+      
+      // Avoid spider webs - sticks should never spawn in webs!
+      if (spiderWebs && spiderWebs.length > 0){
+        let inWeb = false;
+        for(let web of spiderWebs){
+          if(isInWeb(x, y, web)){
+            inWeb = true;
+            break;
+          }
+        }
+        if(inWeb) continue;
+      }
       
       return {x,y};
     }
@@ -7426,9 +7654,15 @@
     if (currentLevelTheme().name === "Spider Stick"){
       initSpiderWebs();
       initSpiders();
+      game.webStuck = false;
+      game.webZone = null;
+      game.webLocation = null;
     } else {
       spiderWebs = [];
       spiders = [];
+      game.webStuck = false;
+      game.webZone = null;
+      game.webLocation = null;
     }
     
     // Init Banana Stick
@@ -7911,19 +8145,53 @@
           handleZeroPenalty();
           game.actions = 0;
         } else {
-          game.actions = r;
-          
-          // Spider web effect - halve the roll
-          if (game.webbed){
-            const before = game.actions;
-            game.actions = Math.floor(game.actions / 2);
-            logEvent("bad", `WEB TRAPPED! Roll halved: ${before} → ${game.actions}`);
-            setHud("WEBBED!");
-            beep(300, 0.15, "sawtooth", 0.08);
-            game.webbed = false;
+          // Check if stuck in web - need to roll to escape!
+          if(game.webStuck){
+            const escapeRoll = r;
+            const needRoll = game.webZone === 'center' ? 4 : 2;
+            
+            if(escapeRoll >= needRoll){
+              // ESCAPED!
+              logEvent("good", `🕸️ Rolled ${escapeRoll}! ESCAPED from web ${game.webZone}!`);
+              setHud(`ESCAPED! (${escapeRoll})`);
+              
+              // Break this zone
+              const zoneKey = `${game.webLocation.x},${game.webLocation.y}`;
+              if(!game.webLocation.webRef.zones.includes(zoneKey)){
+                game.webLocation.webRef.zones.push(zoneKey);
+              }
+              
+              game.webStuck = false;
+              game.webZone = null;
+              game.webLocation = null;
+              game.actions = 0; // Used your roll to escape
+              
+              beep(600, 0.12, "sine", 0.15);
+              setTimeout(() => beep(800, 0.12, "sine", 0.15), 100);
+            } else {
+              // STILL STUCK!
+              const need = game.webZone === 'center' ? '4-5' : '2-5';
+              logEvent("bad", `🕸️ Rolled ${escapeRoll}! Still stuck! Need ${need} to escape.`);
+              setHud(`STUCK! NEED ${need}!`);
+              game.actions = 0;
+              
+              beep(200, 0.12, "sawtooth", 0.08);
+            }
+          } else {
+            game.actions = r;
+            
+            // Spider web effect - halve the roll
+            if (game.webbed){
+              const before = game.actions;
+              game.actions = Math.floor(game.actions / 2);
+              logEvent("bad", `WEB TRAPPED! Roll halved: ${before} → ${game.actions}`);
+              setHud("WEBBED!");
+              beep(300, 0.15, "sawtooth", 0.08);
+              game.webbed = false;
+            }
+            
+            logEvent("roll",`Rolled ${r}.`);
           }
-          
-          logEvent("roll",`Rolled ${r}.`);
         }
       }
 
