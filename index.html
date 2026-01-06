@@ -1019,7 +1019,7 @@
     "#95d5b2","#ff9f1c","#b08cff","#f3f4f6"
   ];
 
-  const TILE = 24, GRID_W = 24, GRID_H = 24;
+  const TILE = 28, GRID_W = 24, GRID_H = 24; // TILE increased from 24 to 28 for better visibility
   const CANVAS_W = GRID_W * TILE, CANVAS_H = GRID_H * TILE;
 
   // Snowflakes for Ice Stick theme
@@ -11182,6 +11182,10 @@ gameSetTimeout(updateScrollHint, 30);
     ctx.save();
     ctx.translate(cx, cy);
     
+    // Scale up player figure for better visibility (1.25 = 25% larger)
+    const playerScale = 1.25;
+    ctx.scale(playerScale, playerScale);
+    
     // Sun glow effect - VIBRANT!
     if (playerSunGlow > 0){
       const glowAlpha = (playerSunGlow / 180) * 0.9; // Much stronger alpha
@@ -11457,30 +11461,29 @@ gameSetTimeout(updateScrollHint, 30);
       
       // Different skeleton for each character type
       if(skin === "rex"){
-        // DOG SKELETON - SAME SIZE as regular Rex!
-        // Regular Rex: head at y=-10 (radius 6), ears to y=-18, body to y=2, legs to y=6
-        ctx.strokeStyle = "#f0f0f0";
-        ctx.fillStyle = "#ffffff";
+        // DOG SKELETON - Regular Rex but with white skull head and larger eye holes
         ctx.lineWidth = 2;
         ctx.lineCap = "round";
         
-        // Skull - same size as Rex head (radius 6 at y=-10), just outline
+        // Skull head - WHITE filled circle with eye holes
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = strokeBase;
         ctx.beginPath();
         ctx.arc(0, -10, 6, 0, Math.PI * 2);
+        ctx.fill();
         ctx.stroke();
         
-        // Eye sockets only - two dark holes (no nose/mouth, keeps it simple like Rex)
+        // Eye socket holes - larger for better skull look
         ctx.fillStyle = "#000000";
         ctx.beginPath();
-        ctx.arc(-2.5, -10, 2, 0, Math.PI * 2);
+        ctx.arc(-2, -10, 2.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.arc(2.5, -10, 2, 0, Math.PI * 2);
+        ctx.arc(2, -10, 2.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Ears - bone versions, same position as regular (to y=-18)
-        ctx.strokeStyle = "#f0f0f0";
-        ctx.lineWidth = 1.5;
+        // Ears - same as regular
+        ctx.strokeStyle = strokeBase;
         ctx.beginPath();
         ctx.moveTo(-4, -14);
         ctx.lineTo(-5, -18);
@@ -11488,25 +11491,13 @@ gameSetTimeout(updateScrollHint, 30);
         ctx.lineTo(5, -18);
         ctx.stroke();
         
-        // Short body/spine (same as regular: y=-4 to y=2)
-        ctx.lineWidth = 2.5;
+        // Short body - same as regular
         ctx.beginPath();
         ctx.moveTo(0, -4);
         ctx.lineTo(0, 2);
         ctx.stroke();
         
-        // Small ribs to make it look skeletal
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-3, -2);
-        ctx.quadraticCurveTo(0, -3, 3, -2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(-2.5, 0);
-        ctx.quadraticCurveTo(0, -1, 2.5, 0);
-        ctx.stroke();
-        
-        // Minimal legs (same as regular: to y=6)
+        // Minimal legs - same as regular
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(-2, 2);
@@ -11515,7 +11506,7 @@ gameSetTimeout(updateScrollHint, 30);
         ctx.lineTo(2, 6);
         ctx.stroke();
         
-        // Wagging tail - same style as regular Rex!
+        // Wagging tail - same as regular Rex
         const waggle = Math.sin(time * 5) * 0.8;
         ctx.save();
         ctx.translate(0, -1);
@@ -11533,42 +11524,42 @@ gameSetTimeout(updateScrollHint, 30);
         ctx.fillStyle = "#333333";
         ctx.lineWidth = 2;
         
-        // Head frame
+        // Head frame - dark metal
         ctx.beginPath();
-        ctx.rect(-6, -14, 12, 11);
+        ctx.rect(-6, -13, 12, 10);
         ctx.fill();
         ctx.stroke();
         
-        // Antenna on TOP of head
+        // Antenna
         ctx.strokeStyle = "#666666";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(0, -14);
-        ctx.lineTo(0, -20);
+        ctx.moveTo(0, -13);
+        ctx.lineTo(0, -18);
         ctx.stroke();
         
-        // Blinking LED at TOP of antenna
+        // Blinking LED at top
         const blink = Math.sin(time * 5) > 0;
         ctx.fillStyle = blink ? "#ff0000" : "#440000";
         ctx.beginPath();
-        ctx.arc(0, -20, 2, 0, Math.PI * 2);
+        ctx.arc(0, -19, 1.8, 0, Math.PI * 2);
         ctx.fill();
         
         // Exposed circuit board inside head
         ctx.fillStyle = "#1a4a1a";
-        ctx.fillRect(-5, -13, 10, 9);
+        ctx.fillRect(-5, -12, 10, 8);
         
         // Circuit traces
         ctx.strokeStyle = "#00ff00";
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(-4, -12);
-        ctx.lineTo(0, -10);
-        ctx.lineTo(4, -12);
-        ctx.moveTo(-3, -8);
-        ctx.lineTo(3, -8);
-        ctx.moveTo(0, -10);
-        ctx.lineTo(0, -6);
+        ctx.moveTo(-4, -11);
+        ctx.lineTo(0, -9);
+        ctx.lineTo(4, -11);
+        ctx.moveTo(-3, -7);
+        ctx.lineTo(3, -7);
+        ctx.moveTo(0, -9);
+        ctx.lineTo(0, -5);
         ctx.stroke();
         
         // Body frame
@@ -11576,10 +11567,10 @@ gameSetTimeout(updateScrollHint, 30);
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, -3);
-        ctx.lineTo(0, 10);
+        ctx.lineTo(0, 9);
         ctx.stroke();
         
-        // Exposed wires
+        // Exposed wires dangling
         ctx.strokeStyle = "#ff0000";
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -11602,54 +11593,51 @@ gameSetTimeout(updateScrollHint, 30);
         
         // Leg frames
         ctx.beginPath();
-        ctx.moveTo(0, 10);
-        ctx.lineTo(-5, 16);
-        ctx.moveTo(0, 10);
-        ctx.lineTo(5, 16);
+        ctx.moveTo(0, 9);
+        ctx.lineTo(-6, 15);
+        ctx.moveTo(0, 9);
+        ctx.lineTo(6, 15);
         ctx.stroke();
         
       } else if(skin === "alien"){
-        // ALIEN SKELETON - SAME SIZE as regular alien!
-        // Regular alien: head radius 7 at y=-7, antennae to y=-19/20, body to y=9, legs to y=15
-        ctx.strokeStyle = "#00ffaa";
-        ctx.lineWidth = 2;
+        // ALIEN SKELETON - Neon glowing skeleton!
         ctx.shadowColor = "#00ff88";
         ctx.shadowBlur = 6;
+        ctx.strokeStyle = "#00ffaa";
+        ctx.fillStyle = "#00ff88";
+        ctx.lineWidth = 2;
         
-        // Head - same size as regular (radius 7 at y=-7), just outline with glow
+        // Glowing skull
         ctx.beginPath();
         ctx.arc(0, -7, 7, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Eye sockets
-        ctx.fillStyle = "#000000";
+        // Eye sockets - dark with glow outline
         ctx.shadowBlur = 0;
+        ctx.fillStyle = "#003322";
         ctx.beginPath();
-        ctx.ellipse(-2.5, -8, 2, 2.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(-2.5, -8, 2.5, 3, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.ellipse(2.5, -8, 2, 2.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(2.5, -8, 2.5, 3, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        // TWO ANTENNAE - same position as regular (from y=-14 to y=-19/20)
+        // TWO ANTENNAE with glowing tips
         const antennaBob = Math.sin(time * 3) * 0.5;
         ctx.shadowBlur = 0;
-        ctx.strokeStyle = "#ffffff";
-        ctx.lineWidth = 1.5;
-        // Left antenna
+        ctx.strokeStyle = "#00ffaa";
         ctx.beginPath();
         ctx.moveTo(-3, -14);
         ctx.lineTo(-6, -19 + antennaBob);
         ctx.stroke();
-        // Right antenna
         ctx.beginPath();
         ctx.moveTo(3, -14);
         ctx.lineTo(6, -19 - antennaBob);
         ctx.stroke();
         
-        // Glowing green tips (same position as regular gold tips)
+        // Glowing green tips
         ctx.shadowColor = "#00ff88";
-        ctx.shadowBlur = 6;
+        ctx.shadowBlur = 8;
         ctx.fillStyle = "#00ffaa";
         ctx.beginPath();
         ctx.arc(-6, -20 + antennaBob, 1.6, 0, Math.PI * 2);
@@ -11658,22 +11646,33 @@ gameSetTimeout(updateScrollHint, 30);
         ctx.arc(6, -20 - antennaBob, 1.6, 0, Math.PI * 2);
         ctx.fill();
         
-        // Spine/body - same as regular (y=0 to y=9)
-        ctx.strokeStyle = "#00ffaa";
+        // Glowing spine
         ctx.shadowBlur = 4;
+        ctx.strokeStyle = "#00ffaa";
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(0, 0);
         ctx.lineTo(0, 9);
         ctx.stroke();
         
-        // Arms - same position as regular (around y=2-3)
+        // Subtle ribs - same style as classic skeleton
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(-7, 3);
-        ctx.lineTo(7, 1);
+        ctx.moveTo(-4, 3);
+        ctx.quadraticCurveTo(0, 2, 4, 3);
+        ctx.moveTo(-3.5, 5);
+        ctx.quadraticCurveTo(0, 4, 3.5, 5);
+        ctx.stroke();
+        ctx.lineWidth = 2;
+        
+        // Arms
+        const armWave = Math.sin(time * 2) * 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-7, 3 + armWave * 0.5);
+        ctx.lineTo(7, 1 - armWave * 0.5);
         ctx.stroke();
         
-        // Legs - same as regular (to y=15)
+        // Legs
         ctx.beginPath();
         ctx.moveTo(0, 9);
         ctx.lineTo(-6, 15);
@@ -11684,128 +11683,134 @@ gameSetTimeout(updateScrollHint, 30);
         ctx.shadowBlur = 0;
         
       } else if(skin === "rick"){
-        // RICK SKELETON - Human skeleton but keeps spiky hair
-        ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#cccccc";
-        ctx.lineWidth = 1.5;
+        // RICK SKELETON - White skull with spiky hair, nose cavity, and ribs
+        ctx.lineWidth = 2;
         
-        // Skull
+        // White skull head
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = strokeBase;
         ctx.beginPath();
-        ctx.ellipse(0, -7, 5, 6, 0, 0, Math.PI * 2);
+        ctx.arc(0, -6, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         
         // KEEP THE SPIKY HAIR!
-        ctx.strokeStyle = strokeBase;
-        ctx.lineWidth = 2;
+        const hairWave = Math.sin(time * 4) * 0.5;
         ctx.beginPath();
-        ctx.moveTo(-4, -12);
-        ctx.lineTo(-2, -16);
-        ctx.moveTo(-1, -13);
-        ctx.lineTo(1, -18);
-        ctx.moveTo(2, -12);
-        ctx.lineTo(4, -16);
+        ctx.moveTo(-4, -11);
+        ctx.lineTo(-2, -14 - hairWave);
+        ctx.moveTo(-1, -11);
+        ctx.lineTo(1, -15 + hairWave);
+        ctx.moveTo(2, -11);
+        ctx.lineTo(4, -14 - hairWave);
         ctx.stroke();
         
-        // Eye sockets - classic skull style
+        // Eye sockets - dark rectangles like his glasses
         ctx.fillStyle = "#000000";
-        ctx.beginPath();
-        ctx.ellipse(-2, -8, 1.5, 2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(2, -8, 1.5, 2, 0, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect(-4, -9, 3, 3);
+        ctx.fillRect(1, -9, 3, 3);
         
-        // Nose cavity - triangle
+        // Nose cavity - small triangle
         ctx.beginPath();
-        ctx.moveTo(0, -5);
-        ctx.lineTo(-1, -3);
-        ctx.lineTo(1, -3);
+        ctx.moveTo(0, -4);
+        ctx.lineTo(-1, -2);
+        ctx.lineTo(1, -2);
         ctx.closePath();
         ctx.fill();
         
-        // Spine and body
-        ctx.strokeStyle = "#f0f0f0";
-        ctx.lineWidth = 2.5;
+        // Body
         ctx.beginPath();
-        ctx.moveTo(0 + rattle, 1);
-        ctx.lineTo(0 - rattle, 12);
+        ctx.moveTo(0, -1);
+        ctx.lineTo(0, 9);
         ctx.stroke();
         
-        // Ribs - positioned lower, don't overlap skull
-        ctx.lineWidth = 1.5;
-        for(let i = 0; i < 3; i++){
-          ctx.beginPath();
-          ctx.moveTo(-4, 4 + i * 2.5);
-          ctx.quadraticCurveTo(0, 3 + i * 2.5, 4, 4 + i * 2.5);
-          ctx.stroke();
-        }
+        // Subtle ribs
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-4, 3);
+        ctx.quadraticCurveTo(0, 2, 4, 3);
+        ctx.moveTo(-3.5, 5);
+        ctx.quadraticCurveTo(0, 4, 3.5, 5);
+        ctx.stroke();
+        ctx.lineWidth = 2;
         
         // Arms
-        ctx.lineWidth = 2;
+        const armSwing = Math.sin(time * 2) * 1.2;
         ctx.beginPath();
-        ctx.moveTo(-6, 5);
-        ctx.lineTo(6, 5);
+        ctx.moveTo(-6, 2 + armSwing * 0.4);
+        ctx.lineTo(6, 2 - armSwing * 0.4);
         ctx.stroke();
         
         // Legs
         ctx.beginPath();
-        ctx.moveTo(0, 12);
-        ctx.lineTo(-5, 18);
-        ctx.moveTo(0, 12);
-        ctx.lineTo(5, 18);
+        ctx.moveTo(0, 9);
+        ctx.lineTo(-6, 15);
+        ctx.moveTo(0, 9);
+        ctx.lineTo(6, 15);
         ctx.stroke();
         
       } else if(skin === "sally"){
-        // SALLY SKELETON - Keeps her WHITE dress, SAME SIZE as regular Sally!
-        ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#dddddd";
-        ctx.lineWidth = 1;
+        // SALLY SKELETON - White skull with dress, nose cavity, and ribs showing through
+        ctx.lineWidth = 2;
         
-        // Skull - smaller to match Sally's head (radius 4.5 at y=-8)
+        // White skull head
+        const sway = Math.sin(time * 2) * 0.3;
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = strokeBase;
         ctx.beginPath();
-        ctx.ellipse(0, -8, 4.5, 5, 0, 0, Math.PI * 2);
+        ctx.arc(0, -8 + sway, 4.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         
         // Eye sockets
         ctx.fillStyle = "#000000";
         ctx.beginPath();
-        ctx.ellipse(-1.5, -9, 1.5, 2, 0, 0, Math.PI * 2);
+        ctx.arc(-1.5, -9 + sway, 1.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.ellipse(1.5, -9, 1.5, 2, 0, 0, Math.PI * 2);
+        ctx.arc(1.5, -9 + sway, 1.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Nose cavity
+        // Nose cavity - small triangle
         ctx.beginPath();
-        ctx.moveTo(0, -6);
-        ctx.lineTo(-1, -4);
-        ctx.lineTo(1, -4);
+        ctx.moveTo(0, -6 + sway);
+        ctx.lineTo(-0.8, -4.5 + sway);
+        ctx.lineTo(0.8, -4.5 + sway);
         ctx.closePath();
         ctx.fill();
         
-        // HER DRESS - WHITE like regular Sally! Same size: y=-3 to y=9
-        ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#cccccc";
-        ctx.lineWidth = 1;
+        // HER DRESS - same as regular Sally
         ctx.beginPath();
-        ctx.moveTo(0, -3);
+        ctx.moveTo(0, -3 + sway * 0.5);
         ctx.lineTo(-7, 9);
         ctx.lineTo(7, 9);
         ctx.closePath();
+        ctx.fillStyle = strokeBase;
+        ctx.globalAlpha = 0.16;
         ctx.fill();
+        ctx.globalAlpha = 1;
         ctx.stroke();
         
-        // Skeleton arms coming out of dress (same position as regular: y=2)
-        ctx.strokeStyle = "#f0f0f0";
+        // Subtle ribs showing through dress - same style as classic
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-4, 3 + sway * 0.3);
+        ctx.quadraticCurveTo(0, 2 + sway * 0.3, 4, 3 + sway * 0.3);
+        ctx.moveTo(-3.5, 5 + sway * 0.3);
+        ctx.quadraticCurveTo(0, 4 + sway * 0.3, 3.5, 5 + sway * 0.3);
+        ctx.stroke();
         ctx.lineWidth = 2;
+        
+        // Arms
+        const armSwing = Math.sin(time * 2.5) * 1;
         ctx.beginPath();
         ctx.moveTo(-7, 2);
-        ctx.lineTo(7, 2);
+        ctx.lineTo(-11, 4 + armSwing);
+        ctx.moveTo(7, 2);
+        ctx.lineTo(11, 4 - armSwing);
         ctx.stroke();
         
-        // Skeleton legs poking out under dress (same as regular: to y=13)
+        // Legs
         ctx.beginPath();
         ctx.moveTo(-3, 9);
         ctx.lineTo(-6, 13);
@@ -11814,76 +11819,62 @@ gameSetTimeout(updateScrollHint, 30);
         ctx.stroke();
         
       } else {
-        // DEFAULT SKELETON (classic) - Classic skull look
-        ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#dddddd";
-        ctx.lineWidth = 1;
+        // DEFAULT SKELETON (classic) - White skull with nose cavity and ribs
+        ctx.lineWidth = 2;
         
-        // Skull - classic round
+        // White skull head
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = strokeBase;
         ctx.beginPath();
-        ctx.ellipse(0, -8, 6, 7, 0, 0, Math.PI * 2);
+        ctx.arc(0, -6, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         
-        // Eye sockets - classic skull style (large, dark)
+        // Eye sockets
         ctx.fillStyle = "#000000";
         ctx.beginPath();
-        ctx.ellipse(-2, -9, 2, 2.5, 0, 0, Math.PI * 2);
+        ctx.arc(-2, -7, 1.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.beginPath();
-        ctx.ellipse(2, -9, 2, 2.5, 0, 0, Math.PI * 2);
+        ctx.arc(2, -7, 1.5, 0, Math.PI * 2);
         ctx.fill();
         
-        // Nose cavity - inverted triangle
+        // Nose cavity - small triangle
         ctx.beginPath();
-        ctx.moveTo(0, -6);
-        ctx.lineTo(-1.5, -3);
-        ctx.lineTo(1.5, -3);
+        ctx.moveTo(0, -4);
+        ctx.lineTo(-1, -2);
+        ctx.lineTo(1, -2);
         ctx.closePath();
         ctx.fill();
         
-        // Jaw area / teeth
-        ctx.fillStyle = "#ffffff";
-        ctx.strokeStyle = "#cccccc";
-        ctx.lineWidth = 0.5;
-        for(let i = -2; i <= 2; i++){
-          ctx.beginPath();
-          ctx.rect(-3 + i * 1.4, -2, 1, 2);
-          ctx.fill();
-          ctx.stroke();
-        }
-        
-        // Spine - thinner
-        ctx.strokeStyle = "#f0f0f0";
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = "round";
+        // Body
         ctx.beginPath();
-        ctx.moveTo(0 + rattle, 2);
-        ctx.lineTo(0 - rattle, 12);
+        ctx.moveTo(0, -1);
+        ctx.lineTo(0, 9);
         ctx.stroke();
         
-        // Ribs - positioned lower so they don't overlap skull
-        ctx.lineWidth = 1.5;
-        for(let i = 0; i < 3; i++){
-          ctx.beginPath();
-          ctx.moveTo(-4, 5 + i * 2.2);
-          ctx.quadraticCurveTo(0, 4 + i * 2.2, 4, 5 + i * 2.2);
-          ctx.stroke();
-        }
+        // Subtle ribs
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-4, 3);
+        ctx.quadraticCurveTo(0, 2, 4, 3);
+        ctx.moveTo(-3.5, 5);
+        ctx.quadraticCurveTo(0, 4, 3.5, 5);
+        ctx.stroke();
+        ctx.lineWidth = 2;
         
         // Arms
-        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(-6, 5);
-        ctx.lineTo(6, 5);
+        ctx.moveTo(-7, 2);
+        ctx.lineTo(7, 2);
         ctx.stroke();
         
         // Legs
         ctx.beginPath();
-        ctx.moveTo(0, 12);
-        ctx.lineTo(-5, 18);
-        ctx.moveTo(0, 12);
-        ctx.lineTo(5, 18);
+        ctx.moveTo(0, 9);
+        ctx.lineTo(-6, 15);
+        ctx.moveTo(0, 9);
+        ctx.lineTo(6, 15);
         ctx.stroke();
       }
       
