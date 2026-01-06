@@ -1071,6 +1071,14 @@
   let fireWarningTimer = 0;
   const FIRE_WARNING_TIME = 150; // 2 seconds warning
   
+  // Demon - attacks player
+  let fireDemon = { 
+    x: 0, y: 0, active: false, moveTimer: 0, 
+    attacking: false, attackTimer: 0, attackPhase: 'none',
+    targetX: 0, targetY: 0
+  };
+  const DEMON_WARNING_TIME = 180; // 3 seconds to escape
+  
   // Sun Stick - Roaming sun character
   let sunCharacter = { x: 0, y: 0, active: false, moveTimer: 0 };
   const positiveMessages = [
@@ -1151,7 +1159,8 @@
             color: STICK_COLORS[randInt(0, STICK_COLORS.length - 1)],
             cursed: false,
             bonus: false,
-            value: 1
+            value: 1,
+            sunBlessed: true // Mark as already sun blessed
           };
           game.carry.push(newStick);
         }
@@ -1168,20 +1177,31 @@
         
         updateUI();
       } else {
-        // Holding sticks? DOUBLE THEIR VALUE!
+        // Holding sticks? DOUBLE VALUE - but only for sticks not already sun blessed!
+        let doubledCount = 0;
         game.carry.forEach(stick => {
-          stick.value = (stick.value || 1) * 2;
+          if(!stick.sunBlessed){
+            stick.value = (stick.value || 1) * 2;
+            stick.sunBlessed = true;
+            doubledCount++;
+          }
         });
         
-        logEvent("sun", `☀️ SUN POWER! Your ${game.carry.length} sticks are now 2× value!`);
-        setHud("☀️ STICKS DOUBLED! ☀️");
-        
-        // Powerful ascending sound
-        beep(500, 0.08, "sine", 0.2);
-        setTimeout(() => beep(600, 0.08, "sine", 0.2), 80);
-        setTimeout(() => beep(700, 0.08, "sine", 0.2), 160);
-        setTimeout(() => beep(800, 0.1, "sine", 0.25), 240);
-        setTimeout(() => beep(900, 0.12, "sine", 0.3), 340);
+        if(doubledCount > 0){
+          logEvent("sun", `☀️ SUN POWER! ${doubledCount} sticks are now 2× value!`);
+          setHud("☀️ STICKS DOUBLED! ☀️");
+          
+          // Powerful ascending sound
+          beep(500, 0.08, "sine", 0.2);
+          setTimeout(() => beep(600, 0.08, "sine", 0.2), 80);
+          setTimeout(() => beep(700, 0.08, "sine", 0.2), 160);
+          setTimeout(() => beep(800, 0.1, "sine", 0.25), 240);
+          setTimeout(() => beep(900, 0.12, "sine", 0.3), 340);
+        } else {
+          logEvent("sun", `☀️ Sun warmth! (Sticks already blessed)`);
+          setHud("☀️ ALREADY BLESSED! ☀️");
+          beep(400, 0.08, "sine", 0.15);
+        }
       }
     }
   }
@@ -1586,41 +1606,117 @@
     const theme = currentLevelTheme().name;
     if(theme !== "Cursed Stick" && theme !== "Victory Stick") return;
     
+    // PAUSE all activity during monster battles
+    if(game.pendingMonster || game.inputLocked) return;
+    
     // Update ghosts
     ghosts.forEach(ghost => {
       ghost.float += 0.05;
       ghost.moveTimer++;
       
-      if(ghost.moveTimer >= 90){
-        ghost.moveTimer = 0;
-        // Slow random movement
-        const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
-        const dir = dirs[randInt(0, 3)];
-        ghost.x = clamp(ghost.x + dir.dx, 0, GRID_W - 1);
-        ghost.y = clamp(ghost.y + dir.dy, 0, GRID_H - 1);
+      // Initialize attack state if needed
+      if(ghost.attacking === undefined){
+        ghost.attacking = false;
+        ghost.attackTimer = 0;
       }
       
-      // Check collision with player
-      if(ghost.x === game.playerX && ghost.y === game.playerY && !isSkeletonMode){
-        // TRANSFORM TO SKELETON!
-        isSkeletonMode = true;
-        logEvent("cursed", "💀 Ghost touched you! YOU'RE A SKELETON!");
-        logEvent("cursed", "⚠️ All sticks worth 0 points until next deposit!");
-        setHud("💀 SKELETON MODE! 💀");
+      const dist = Math.abs(ghost.x - game.playerX) + Math.abs(ghost.y - game.playerY);
+      
+      // Check if player escaped ghost attack (moved more than 1 square away)
+      if(ghost.attacking && dist > 1){
+        ghost.attacking = false;
+        ghost.attackTimer = 0;
+        logEvent("cursed", "👻 Escaped the ghost!");
+        setHud("ESCAPED GHOST!");
+        beep(500, 0.08, "sine", 0.12);
+      }
+      
+      // Ghost is attacking (within 1 square)
+      if(ghost.attacking){
+        ghost.attackTimer++;
+        const secondsLeft = Math.ceil((180 - ghost.attackTimer) / 60);
         
-        // Spooky transformation sound
-        beep(200, 0.15, "sawtooth", 0.5);
-        setTimeout(() => beep(150, 0.15, "sawtooth", 0.55), 100);
-        setTimeout(() => beep(100, 0.2, "sawtooth", 0.6), 200);
-        setTimeout(() => beep(80, 0.25, "sawtooth", 0.65), 320);
+        if(game.carry.length > 0){
+          setHud(`GHOST! MOVE! (${secondsLeft}s)`);
+        } else {
+          setHud(`GHOST! (${secondsLeft}s)`);
+        }
         
-        // Remove the ghost that touched player
-        const idx = ghosts.indexOf(ghost);
-        if(idx > -1) ghosts.splice(idx, 1);
+        if(ghost.attackTimer >= 180){ // 3 seconds
+          if(game.carry.length > 0){
+            // Has sticks - STEAL them, then ghost disappears
+            const stolen = game.carry.length;
+            game.carry = [];
+            logEvent("cursed", `👻 Ghost stole ${stolen} sticks!`);
+            setHud("STICKS STOLEN!");
+            beep(200, 0.15, "sawtooth", 0.4);
+            spawnSparks(game.playerX, game.playerY, 18, true);
+            updateUI();
+            
+            // Ghost disappears after stealing
+            const idx = ghosts.indexOf(ghost);
+            if(idx > -1) ghosts.splice(idx, 1);
+          } else {
+            // No sticks - turn to SKELETON, then ghost disappears
+            if(!isSkeletonMode){
+              isSkeletonMode = true;
+              logEvent("cursed", "👻 Ghost transformed you into SKELETON!");
+              logEvent("cursed", "⚠️ All sticks worth 0 until you deposit!");
+              setHud("💀 SKELETON! 💀");
+              beep(150, 0.15, "sawtooth", 0.5);
+              setTimeout(() => beep(100, 0.2, "sawtooth", 0.6), 150);
+            } else {
+              logEvent("cursed", "👻 Ghost passed through you...");
+              setHud("ALREADY SKELETON");
+            }
+            
+            // Ghost disappears after transforming
+            const idx = ghosts.indexOf(ghost);
+            if(idx > -1) ghosts.splice(idx, 1);
+          }
+        }
+      } else {
+        // Not attacking yet
+        if(dist <= 1){
+          // Within 1 square - START ATTACKING
+          ghost.attacking = true;
+          ghost.attackTimer = 0;
+          
+          if(game.carry.length > 0){
+            logEvent("warn", "👻 GHOST! Move in 3 seconds or lose sticks!");
+            setHud("GHOST! MOVE! (3s)");
+          } else {
+            logEvent("warn", "👻 GHOST! Move or become skeleton!");
+            setHud("GHOST! (3s)");
+          }
+          beep(250, 0.12, "sawtooth", 0.15);
+        } else {
+          // Normal movement - but move TOWARD player when close
+          if(ghost.moveTimer >= 90){
+            ghost.moveTimer = 0;
+            
+            if(dist <= 4){
+              // Close to player - chase them!
+              const dx = game.playerX - ghost.x;
+              const dy = game.playerY - ghost.y;
+              if(Math.abs(dx) > Math.abs(dy)){
+                ghost.x = clamp(ghost.x + (dx > 0 ? 1 : -1), 0, GRID_W - 1);
+              } else {
+                ghost.y = clamp(ghost.y + (dy > 0 ? 1 : -1), 0, GRID_H - 1);
+              }
+            } else {
+              // Far from player - random movement
+              const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
+              const dir = dirs[randInt(0, 3)];
+              ghost.x = clamp(ghost.x + dir.dx, 0, GRID_W - 1);
+              ghost.y = clamp(ghost.y + dir.dy, 0, GRID_H - 1);
+            }
+          }
+        }
       }
     });
     
-    // Update THE skull - appears and disappears on random grids
+    // Update THE skull - appears and disappears, targets player more
     skulls.forEach(skull => {
       skull.moveTimer++;
       skull.rotation += 0.05; // Spinning effect
@@ -1639,9 +1735,23 @@
           skull.visible = true;
           skull.moveTimer = 0;
           skull.visibleTime = randInt(240, 360); // 4-6 seconds visible
-          // Reappear at random location
-          skull.x = randInt(0, GRID_W - 1);
-          skull.y = randInt(0, GRID_H - 1);
+          
+          // 40% chance to spawn near player (increased odds)
+          if(Math.random() < 0.4){
+            // Spawn within 2 squares of player
+            const offsetX = randInt(-2, 2);
+            const offsetY = randInt(-2, 2);
+            skull.x = clamp(game.playerX + offsetX, 0, GRID_W - 1);
+            skull.y = clamp(game.playerY + offsetY, 0, GRID_H - 1);
+            // Don't spawn directly on player
+            if(skull.x === game.playerX && skull.y === game.playerY){
+              skull.x = clamp(skull.x + 1, 0, GRID_W - 1);
+            }
+          } else {
+            // Random location
+            skull.x = randInt(0, GRID_W - 1);
+            skull.y = randInt(0, GRID_H - 1);
+          }
         }
       }
       
@@ -1822,6 +1932,16 @@
         intensity: Math.random() // for animation
       });
     }
+    
+    // Initialize demon
+    const demonPos = randomEmptyTile();
+    fireDemon.x = demonPos.x;
+    fireDemon.y = demonPos.y;
+    fireDemon.active = true;
+    fireDemon.moveTimer = 0;
+    fireDemon.attacking = false;
+    fireDemon.attackTimer = 0;
+    fireDemon.attackPhase = 'none';
   }
   
   let fireCrackleInterval = null;
@@ -1889,6 +2009,80 @@
       if (fireCrackleInterval){
         clearInterval(fireCrackleInterval);
         fireCrackleInterval = null;
+      }
+    }
+    
+    // Update demon
+    if(fireDemon.active){
+      // Check if player escaped attack
+      if(fireDemon.attacking){
+        const dist = Math.abs(fireDemon.x - game.playerX) + Math.abs(fireDemon.y - game.playerY);
+        if(dist > 1){
+          fireDemon.attacking = false;
+          fireDemon.attackPhase = 'none';
+          fireDemon.attackTimer = 0;
+          logEvent("fire", "😈 Escaped the demon!");
+          setHud("ESCAPED DEMON!");
+          beep(500, 0.1, "sine", 0.15);
+        } else {
+          fireDemon.attackTimer++;
+          const secondsLeft = Math.ceil((DEMON_WARNING_TIME - fireDemon.attackTimer) / 60);
+          
+          if(fireDemon.attackPhase === 'warning'){
+            setHud(`DEMON! MOVE! (${secondsLeft}s)`);
+          }
+          
+          if(fireDemon.attackTimer >= DEMON_WARNING_TIME){
+            // Attack!
+            if(game.carry.length > 0){
+              const burned = game.carry.length;
+              game.carry = [];
+              logEvent("bad", `😈 Demon burned ${burned} sticks!`);
+              setHud("STICKS BURNED!");
+              beep(150, 0.15, "sawtooth", 0.1);
+              spawnSparks(game.playerX, game.playerY, 20, true);
+              updateUI();
+            } else {
+              game.lives--;
+              logEvent("bad", "😈 Demon attacked! -1 life");
+              setHud("DEMON ATTACK!");
+              beep(100, 0.2, "sawtooth", 0.12);
+              spawnSparks(game.playerX, game.playerY, 25, true);
+              if(game.lives <= 0) gameOver();
+              else updateUI();
+            }
+            fireDemon.attacking = false;
+            fireDemon.attackPhase = 'none';
+            fireDemon.attackTimer = 0;
+          }
+        }
+      } else {
+        // Normal movement - chase player slowly
+        fireDemon.moveTimer++;
+        if(fireDemon.moveTimer >= 120){ // Move every 2 seconds
+          fireDemon.moveTimer = 0;
+          
+          const dx = game.playerX - fireDemon.x;
+          const dy = game.playerY - fireDemon.y;
+          
+          if(Math.abs(dx) > Math.abs(dy)){
+            fireDemon.x = clamp(fireDemon.x + (dx > 0 ? 1 : -1), 0, GRID_W - 1);
+          } else if(dy !== 0){
+            fireDemon.y = clamp(fireDemon.y + (dy > 0 ? 1 : -1), 0, GRID_H - 1);
+          }
+        }
+        
+        // Check if within 1 square of player - start attack warning
+        const dist = Math.abs(fireDemon.x - game.playerX) + Math.abs(fireDemon.y - game.playerY);
+        if(dist <= 1 && !fireDemon.attacking){
+          fireDemon.attacking = true;
+          fireDemon.attackPhase = 'warning';
+          fireDemon.attackTimer = 0;
+          logEvent("warn", "😈 DEMON NEARBY! Move away in 3 seconds!");
+          setHud("DEMON! MOVE! (3s)");
+          beep(200, 0.12, "sawtooth", 0.15);
+          setTimeout(() => beep(180, 0.1, "sawtooth", 0.12), 100);
+        }
       }
     }
   }
@@ -1966,6 +2160,202 @@
       }
     }
     
+    // Draw FIRE DEMON - ULTRA BLACK engulfed in flames
+    if(fireDemon.active){
+      const dx = fireDemon.x * TILE + TILE/2;
+      const dy = fireDemon.y * TILE + TILE/2;
+      const time = Date.now() * 0.001;
+      const hover = Math.sin(time * 2) * 1.5;
+      const breathe = Math.sin(time * 1.5) * 0.05 + 1;
+      
+      ctx.save();
+      ctx.translate(dx, dy + hover);
+      ctx.scale(breathe, breathe);
+      
+      // FLAMES RISING FROM BODY - demon is ON FIRE
+      ctx.shadowColor = "#ff6600";
+      ctx.shadowBlur = 15;
+      
+      // Multiple flame tongues rising up from the body
+      for(let i = 0; i < 7; i++){
+        const flameX = -9 + i * 3;
+        const flicker = Math.sin(time * 12 + i * 1.5) * 0.4 + 0.6;
+        const flameHeight = 15 + Math.sin(time * 10 + i * 2) * 8;
+        const flameWidth = 4 + Math.sin(time * 8 + i) * 2;
+        
+        // Outer flame (red/orange)
+        const outerGrad = ctx.createLinearGradient(flameX, 20, flameX, -flameHeight);
+        outerGrad.addColorStop(0, 'rgba(255, 100, 0, 0)');
+        outerGrad.addColorStop(0.3, `rgba(255, 80, 0, ${flicker * 0.8})`);
+        outerGrad.addColorStop(0.7, `rgba(255, 150, 0, ${flicker * 0.6})`);
+        outerGrad.addColorStop(1, 'rgba(255, 200, 50, 0)');
+        
+        ctx.fillStyle = outerGrad;
+        ctx.beginPath();
+        ctx.moveTo(flameX - flameWidth, 15);
+        ctx.quadraticCurveTo(flameX - flameWidth * 1.2, 0, flameX, -flameHeight);
+        ctx.quadraticCurveTo(flameX + flameWidth * 1.2, 0, flameX + flameWidth, 15);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Inner flame (yellow/white core)
+        if(i % 2 === 0){
+          const innerGrad = ctx.createLinearGradient(flameX, 10, flameX, -flameHeight * 0.6);
+          innerGrad.addColorStop(0, 'rgba(255, 220, 100, 0)');
+          innerGrad.addColorStop(0.5, `rgba(255, 240, 150, ${flicker * 0.7})`);
+          innerGrad.addColorStop(1, 'rgba(255, 255, 200, 0)');
+          
+          ctx.fillStyle = innerGrad;
+          ctx.beginPath();
+          ctx.moveTo(flameX - flameWidth * 0.5, 10);
+          ctx.quadraticCurveTo(flameX - flameWidth * 0.6, 0, flameX, -flameHeight * 0.6);
+          ctx.quadraticCurveTo(flameX + flameWidth * 0.6, 0, flameX + flameWidth * 0.5, 10);
+          ctx.closePath();
+          ctx.fill();
+        }
+      }
+      
+      ctx.shadowBlur = 0;
+      
+      // Warning glow if attacking
+      if(fireDemon.attacking){
+        const pulse = Math.sin(time * 10) * 0.4 + 0.6;
+        ctx.globalAlpha = 0.5 * pulse;
+        ctx.fillStyle = "#ff0000";
+        ctx.beginPath();
+        ctx.arc(0, 0, 18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      
+      // Shadowy cloak/body - PURE BLACK (visible through flames)
+      ctx.fillStyle = "#000000";
+      ctx.strokeStyle = "#333333";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-10, -5);
+      ctx.quadraticCurveTo(-12, 5, -8, 18);
+      ctx.lineTo(8, 18);
+      ctx.quadraticCurveTo(12, 5, 10, -5);
+      ctx.quadraticCurveTo(0, -8, -10, -5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // Tattered cloak edges
+      ctx.strokeStyle = "#111111";
+      ctx.lineWidth = 2;
+      for(let i = 0; i < 5; i++){
+        const x = -8 + i * 4;
+        const waver = Math.sin(time * 3 + i) * 2;
+        ctx.beginPath();
+        ctx.moveTo(x, 18);
+        ctx.lineTo(x + waver, 23 + Math.abs(waver));
+        ctx.stroke();
+      }
+      
+      // Gaunt face - pure black
+      ctx.fillStyle = "#000000";
+      ctx.strokeStyle = "#222222";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(0, -10, 7, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Horns
+      ctx.fillStyle = "#000000";
+      ctx.strokeStyle = "#333333";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-5, -15);
+      ctx.quadraticCurveTo(-10, -18, -9, -26);
+      ctx.quadraticCurveTo(-7, -22, -6, -25);
+      ctx.quadraticCurveTo(-4, -18, -3, -15);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(5, -15);
+      ctx.quadraticCurveTo(10, -18, 9, -26);
+      ctx.quadraticCurveTo(7, -22, 6, -25);
+      ctx.quadraticCurveTo(4, -18, 3, -15);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      
+      // GLOWING RED EYES
+      const eyeFlicker = Math.sin(time * 12) * 0.3 + 0.7;
+      ctx.shadowColor = "#ff0000";
+      ctx.shadowBlur = 15 * eyeFlicker;
+      
+      ctx.fillStyle = `rgba(255, 0, 0, ${0.5 * eyeFlicker})`;
+      ctx.beginPath();
+      ctx.arc(-3, -11, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(3, -11, 5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = `rgb(255, ${Math.floor(50 * eyeFlicker)}, 0)`;
+      ctx.beginPath();
+      ctx.ellipse(-3, -11, 3, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(3, -11, 3, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = "#ffaa00";
+      ctx.beginPath();
+      ctx.arc(-3, -11, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(3, -11, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.shadowBlur = 0;
+      
+      // Dark void mouth
+      ctx.fillStyle = "#220000";
+      ctx.beginPath();
+      ctx.ellipse(0, -5, 3, 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Clawed hands at sides
+      ctx.strokeStyle = "#111111";
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(-10, 2);
+      ctx.lineTo(-14, 6);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-14, 6);
+      ctx.lineTo(-16, 4);
+      ctx.moveTo(-14, 6);
+      ctx.lineTo(-17, 7);
+      ctx.moveTo(-14, 6);
+      ctx.lineTo(-16, 9);
+      ctx.stroke();
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(10, 2);
+      ctx.lineTo(14, 6);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(14, 6);
+      ctx.lineTo(16, 4);
+      ctx.moveTo(14, 6);
+      ctx.lineTo(17, 7);
+      ctx.moveTo(14, 6);
+      ctx.lineTo(16, 9);
+      ctx.stroke();
+      
+      ctx.restore();
+    }
+    
     ctx.restore();
   }
 
@@ -1978,10 +2368,11 @@
   let windGustTimer = 0;
   const WIND_WARNING_TIME = 300; // 5 seconds
   
-  // Sky Stick - Clouds and Airplane
+  // Sky Stick - Clouds, Airplane, and Birds
   let skyClouds = [];
   let cloudTrails = []; // Player trails through clouds
   let airplane = { x: 0, y: 0, active: false, moveTimer: 0, dx: 1, dy: 0 };
+  let skyBirds = [];
   
   function initSkyClouds(){
     skyClouds = [];
@@ -1994,13 +2385,35 @@
       });
     }
     
-    // Init airplane
+    // Init airplane - horizontal or vertical only
     airplane.x = randInt(0, GRID_W - 1);
     airplane.y = randInt(0, GRID_H - 1);
     airplane.active = true;
     airplane.moveTimer = 0;
-    airplane.dx = Math.random() > 0.5 ? 1 : -1;
-    airplane.dy = Math.random() > 0.5 ? 1 : -1;
+    // Start either horizontal or vertical, not diagonal
+    if(Math.random() > 0.5){
+      airplane.dx = Math.random() > 0.5 ? 1 : -1;
+      airplane.dy = 0;
+    } else {
+      airplane.dx = 0;
+      airplane.dy = Math.random() > 0.5 ? 1 : -1;
+    }
+    
+    // Init birds
+    skyBirds = [];
+    const birdCount = randInt(3, 5);
+    for(let i = 0; i < birdCount; i++){
+      skyBirds.push({
+        x: randInt(0, GRID_W - 1),
+        y: randInt(0, GRID_H - 1),
+        dx: Math.random() > 0.5 ? 1 : -1,
+        dy: 0,
+        moveTimer: randInt(0, 60),
+        wingPhase: Math.random() * Math.PI * 2,
+        carryingStick: null, // {index, targetX, targetY}
+        color: ['#2d2d2d', '#4a3728', '#1a1a2e'][randInt(0, 2)]
+      });
+    }
   }
   
   function updateSkyClouds(){
@@ -2031,7 +2444,7 @@
       return trail.lifetime > 0;
     });
     
-    // Update airplane
+    // Update airplane - only horizontal or vertical movement
     if(!airplane.carrying){
       airplane.moveTimer++;
       if(airplane.moveTimer >= 90){ // Move every 1.5 seconds (much slower)
@@ -2043,16 +2456,23 @@
         if(airplane.x <= 0 || airplane.x >= GRID_W - 1) airplane.dx *= -1;
         if(airplane.y <= 0 || airplane.y >= GRID_H - 1) airplane.dy *= -1;
         
-        // Random direction change
-        if(Math.random() < 0.1){
-          airplane.dx = Math.random() > 0.5 ? 1 : -1;
-          airplane.dy = Math.random() > 0.5 ? 1 : -1;
+        // Random direction change - but only horizontal OR vertical, never both
+        if(Math.random() < 0.15){
+          if(Math.random() > 0.5){
+            // Switch to horizontal
+            airplane.dx = Math.random() > 0.5 ? 1 : -1;
+            airplane.dy = 0;
+          } else {
+            // Switch to vertical
+            airplane.dx = 0;
+            airplane.dy = Math.random() > 0.5 ? 1 : -1;
+          }
         }
       }
     }
     
-    // Check if player hit airplane
-    if(airplane.x === game.playerX && airplane.y === game.playerY && !airplane.carrying){
+    // Check if player hit airplane (with cooldown after drop-off)
+    if(airplane.x === game.playerX && airplane.y === game.playerY && !airplane.carrying && !airplane.dropCooldown){
       airplane.carrying = true;
       airplane.tripProgress = 0;
       airplane.tripSteps = 0;
@@ -2060,6 +2480,11 @@
       setHud("AIRPLANE RIDE!");
       beep(600, 0.1, "sine", 0.2);
       setTimeout(() => beep(800, 0.1, "sine", 0.2), 100);
+    }
+    
+    // Decrement drop cooldown
+    if(airplane.dropCooldown > 0){
+      airplane.dropCooldown--;
     }
     
     // Animate airplane trip if carrying player
@@ -2081,14 +2506,15 @@
         }
         
         if(airplane.tripSteps >= 10){
-          // Trip complete! Move airplane 1 square away immediately
+          // Trip complete! Move airplane away
           airplane.carrying = false;
           airplane.tripProgress = 0;
           airplane.tripSteps = 0;
+          airplane.dropCooldown = 60; // 1 second cooldown before can pick up again
           
-          // Move airplane 1 square in its direction
-          airplane.x = clamp(airplane.x + airplane.dx, 0, GRID_W - 1);
-          airplane.y = clamp(airplane.y + airplane.dy, 0, GRID_H - 1);
+          // Move airplane 2 squares in its direction (more separation)
+          airplane.x = clamp(airplane.x + airplane.dx * 2, 0, GRID_W - 1);
+          airplane.y = clamp(airplane.y + airplane.dy * 2, 0, GRID_H - 1);
           airplane.moveTimer = 0; // Resume normal movement
           
           logEvent("airplane", "✈️ Arrived at destination!");
@@ -2098,6 +2524,72 @@
         }
       }
     }
+    
+    // Update birds
+    skyBirds.forEach(bird => {
+      bird.wingPhase += 0.2;
+      bird.moveTimer++;
+      
+      if(bird.carryingStick){
+        // Bird is carrying a stick - move toward target
+        if(bird.moveTimer >= 30){
+          bird.moveTimer = 0;
+          const tdx = bird.carryingStick.targetX - bird.x;
+          const tdy = bird.carryingStick.targetY - bird.y;
+          
+          if(Math.abs(tdx) > 0) bird.x += tdx > 0 ? 1 : -1;
+          else if(Math.abs(tdy) > 0) bird.y += tdy > 0 ? 1 : -1;
+          
+          bird.dx = tdx > 0 ? 1 : (tdx < 0 ? -1 : bird.dx);
+          
+          // Reached target?
+          if(bird.x === bird.carryingStick.targetX && bird.y === bird.carryingStick.targetY){
+            // Drop the stick here
+            const stickIdx = bird.carryingStick.index;
+            if(stickIdx < game.sticks.length){
+              game.sticks[stickIdx].x = bird.x;
+              game.sticks[stickIdx].y = bird.y;
+              logEvent("bird", `🐦 Bird dropped a stick at new location!`);
+              setHud("BIRD DROPPED STICK!");
+              beep(400, 0.08, "sine", 0.12);
+            }
+            bird.carryingStick = null;
+          }
+        }
+      } else {
+        // Normal flying
+        if(bird.moveTimer >= 60){
+          bird.moveTimer = 0;
+          bird.x = clamp(bird.x + bird.dx, 0, GRID_W - 1);
+          bird.y = clamp(bird.y + bird.dy, 0, GRID_H - 1);
+          
+          if(bird.x <= 0 || bird.x >= GRID_W - 1) bird.dx *= -1;
+          if(bird.y <= 0 || bird.y >= GRID_H - 1) bird.dy *= -1;
+          
+          if(Math.random() < 0.15){
+            bird.dy = randInt(-1, 1);
+          }
+          
+          // Chance to pick up a stick
+          if(Math.random() < 0.03 && game.sticks.length > 0){
+            // Find a stick at bird's position
+            const stickIdx = game.sticks.findIndex(s => s.x === bird.x && s.y === bird.y);
+            if(stickIdx > -1){
+              // Pick up this stick and choose random destination
+              bird.carryingStick = {
+                index: stickIdx,
+                targetX: randInt(0, GRID_W - 1),
+                targetY: randInt(0, GRID_H - 1)
+              };
+              logEvent("bird", `🐦 A bird picked up a stick!`);
+              setHud("BIRD TOOK STICK!");
+              beep(600, 0.08, "sine", 0.1);
+              setTimeout(() => beep(500, 0.06, "sine", 0.08), 80);
+            }
+          }
+        }
+      }
+    });
   }
   
   function drawSkyClouds(){
@@ -2161,23 +2653,122 @@
       ctx.restore();
     });
     
-    // Draw airplane
+    // Draw airplane - emoji nose points BOTTOM-RIGHT by default
     const ax = airplane.x * TILE + TILE/2;
     const ay = airplane.y * TILE + TILE/2;
     
     ctx.save();
-    ctx.font = "24px Arial";
+    ctx.translate(ax, ay);
+    
+    // Emoji naturally points to BOTTOM-RIGHT (roughly 135 degrees or 3π/4)
+    // We need to rotate from that default to match travel direction
+    // Default angle is about 135° (pointing down-right)
+    const defaultAngle = Math.PI * 0.75; // 135 degrees
+    
+    let targetAngle = 0;
+    if(airplane.dx > 0 && airplane.dy === 0) targetAngle = 0; // Right = 0°
+    else if(airplane.dx < 0 && airplane.dy === 0) targetAngle = Math.PI; // Left = 180°
+    else if(airplane.dy > 0 && airplane.dx === 0) targetAngle = Math.PI / 2; // Down = 90°
+    else if(airplane.dy < 0 && airplane.dx === 0) targetAngle = -Math.PI / 2; // Up = -90°
+    
+    // Rotate from default to target (ADD Math.PI to reverse direction)
+    ctx.rotate(targetAngle - defaultAngle + Math.PI);
+    
+    ctx.font = "26px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("✈️", ax, ay);
+    ctx.fillText("✈️", 0, 0);
+    
+    ctx.restore();
     
     // If carrying player, draw stick figure attached
     if(airplane.carrying){
-      ctx.font = "16px Arial";
-      ctx.fillText("🧍", ax + TILE * 0.3, ay);
+      ctx.font = "14px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("🧍", ax, ay + TILE * 0.4);
     }
     
-    ctx.restore();
+    // Draw birds - lighter colors for visibility
+    skyBirds.forEach(bird => {
+      const bx = bird.x * TILE + TILE/2;
+      const by = bird.y * TILE + TILE/2;
+      const wingFlap = Math.sin(bird.wingPhase) * 0.4;
+      
+      ctx.save();
+      ctx.translate(bx, by);
+      
+      // Flip bird based on direction
+      if(bird.dx < 0) ctx.scale(-1, 1);
+      
+      // Light colors - tan/grey/light brown
+      const birdColor = ['#a89080', '#8899aa', '#b8a090'][skyBirds.indexOf(bird) % 3];
+      
+      ctx.fillStyle = birdColor;
+      ctx.strokeStyle = birdColor;
+      ctx.lineWidth = 2;
+      ctx.lineCap = "round";
+      
+      // Body
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 8, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Head
+      ctx.beginPath();
+      ctx.arc(7, -2, 4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Beak
+      ctx.fillStyle = "#ff9800";
+      ctx.beginPath();
+      ctx.moveTo(11, -2);
+      ctx.lineTo(15, -1);
+      ctx.lineTo(11, 0);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Eye
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(8, -3, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#000000";
+      ctx.beginPath();
+      ctx.arc(8.5, -3, 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Wings (flapping)
+      ctx.fillStyle = birdColor;
+      ctx.beginPath();
+      ctx.moveTo(-2, -3);
+      ctx.quadraticCurveTo(-6, -8 - wingFlap * 10, -10, -5 - wingFlap * 8);
+      ctx.quadraticCurveTo(-6, -2, -2, 0);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Tail
+      ctx.beginPath();
+      ctx.moveTo(-8, 0);
+      ctx.lineTo(-14, -2);
+      ctx.lineTo(-14, 2);
+      ctx.closePath();
+      ctx.fill();
+      
+      ctx.restore();
+      
+      // If carrying stick, draw it
+      if(bird.carryingStick){
+        ctx.save();
+        ctx.strokeStyle = "#8B4513";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(bx - 5, by + 8);
+        ctx.lineTo(bx + 5, by + 12);
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
   }
   
   function initWindTiles(){
@@ -6699,6 +7290,102 @@
     ctx.fill();
     ctx.restore();
     ctx.globalAlpha = 1;
+  }
+  
+  // Draw monster stick figure when there's a pending monster battle
+  function drawMonsterFigure(){
+    if(!game.pendingMonster) return;
+    
+    const idx = game.pendingMonster.index;
+    if(idx >= game.sticks.length) return;
+    
+    const stick = game.sticks[idx];
+    const mx = stick.x * TILE + TILE/2;
+    const my = stick.y * TILE + TILE/2;
+    const time = Date.now() * 0.001;
+    const bounce = Math.sin(time * 5) * 3;
+    const pulse = Math.sin(time * 8) * 0.2 + 0.8;
+    
+    ctx.save();
+    ctx.translate(mx, my + bounce);
+    
+    // Danger glow
+    ctx.globalAlpha = 0.4 * pulse;
+    ctx.fillStyle = "#ff0000";
+    ctx.beginPath();
+    ctx.arc(0, 0, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    
+    // Monster body - dark evil stick figure
+    ctx.strokeStyle = "#4a0000";
+    ctx.fillStyle = "#8b0000";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
+    
+    // Scary head with horns
+    ctx.beginPath();
+    ctx.arc(0, -8, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Horns
+    ctx.beginPath();
+    ctx.moveTo(-5, -12);
+    ctx.lineTo(-8, -20);
+    ctx.lineTo(-3, -14);
+    ctx.moveTo(5, -12);
+    ctx.lineTo(8, -20);
+    ctx.lineTo(3, -14);
+    ctx.stroke();
+    
+    // Evil eyes (glowing)
+    ctx.fillStyle = "#ff0000";
+    ctx.shadowColor = "#ff0000";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(-3, -9, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(3, -9, 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    
+    // Body
+    ctx.strokeStyle = "#8b0000";
+    ctx.beginPath();
+    ctx.moveTo(0, -1);
+    ctx.lineTo(0, 10);
+    ctx.stroke();
+    
+    // Arms (menacing pose)
+    ctx.beginPath();
+    ctx.moveTo(-8, 0);
+    ctx.lineTo(0, 4);
+    ctx.lineTo(8, 0);
+    ctx.stroke();
+    
+    // Clawed hands
+    ctx.beginPath();
+    ctx.moveTo(-8, 0);
+    ctx.lineTo(-10, -3);
+    ctx.moveTo(-8, 0);
+    ctx.lineTo(-11, 1);
+    ctx.moveTo(8, 0);
+    ctx.lineTo(10, -3);
+    ctx.moveTo(8, 0);
+    ctx.lineTo(11, 1);
+    ctx.stroke();
+    
+    // Legs
+    ctx.beginPath();
+    ctx.moveTo(0, 10);
+    ctx.lineTo(-6, 18);
+    ctx.moveTo(0, 10);
+    ctx.lineTo(6, 18);
+    ctx.stroke();
+    
+    ctx.restore();
   } // 3-6 seconds (more frequent!)
   
   function updateAmbientParticles(){
@@ -8091,7 +8778,7 @@
     return 6 + (level-1)*3;
   }
   function zeroChance(level){
-    return Math.min(0.12, 0.00 + (level-1)*0.01); // Reduced: caps at 12% instead of 18%
+    return Math.min(0.08, 0.00 + (level-1)*0.007); // Reduced: caps at 8% instead of 12%
   }
   function curseChance(level){
     return Math.min(0.11, 0.08 + (level-1)*0.006); // Reduced: caps at 11% instead of 16%
@@ -9251,7 +9938,6 @@
         logEvent("bonus",`You beat the monster! Stick is worth ${finalMult}×. (Streak ${streak})`);
         setHud(`MONSTER BEATEN! ${finalMult}× STICK${cupcakeBonus}`);
         sfxMonsterVictory(); // Heroic victory fanfare!
-        startCelebrationMusic(6500);
 
         if (streak === 3){
           if (game.lives < MAX_LIVES){
@@ -9288,6 +9974,11 @@ gameSetTimeout(updateScrollHint, 30);
 
   function move(dx,dy){
     if (game.inputLocked) return;
+    
+    // Reset life tile sound if moving off it
+    if(game.playerX !== game.lifeTileX || game.playerY !== game.lifeTileY){
+      lifeTileSoundPlayed = false;
+    }
     
     // Calculate new position
     const newX = clamp(game.playerX + dx, 0, GRID_W-1);
@@ -9528,7 +10219,11 @@ gameSetTimeout(updateScrollHint, 30);
         game.score += TREE_FEED_MAX_POINTS;
         logEvent("bonus",`Fed the tree (max lives). +${TREE_FEED_MAX_POINTS} points.`);
         setHud(`TREE FED (+${TREE_FEED_MAX_POINTS})`);
-        sfxPickup();
+        // Fun coin/points sound!
+        beep(523, 0.08, "square", 0.15);
+        setTimeout(() => beep(659, 0.08, "square", 0.15), 80);
+        setTimeout(() => beep(784, 0.1, "square", 0.18), 160);
+        setTimeout(() => beep(880, 0.12, "square", 0.2), 240);
         commitScoreToLeaderboard();
       }
 
@@ -10325,6 +11020,9 @@ gameSetTimeout(updateScrollHint, 30);
     ctx.globalAlpha = 1;
   }
 
+  // Track if we've played the life tile sound
+  let lifeTileSoundPlayed = false;
+
   function drawLifeHint(theme){
     if (game.lifeTileUsed) return;
     if (game.carry.length <= 0) return;
@@ -10334,17 +11032,58 @@ gameSetTimeout(updateScrollHint, 30);
     const y = game.lifeTileY*TILE;
 
     const t = (performance.now ? performance.now() : Date.now()) / 1000;
-    const osc = (Math.sin(t*4) + 1) / 2;
+    const osc = (Math.sin(t*6) + 1) / 2; // Faster pulse
+    const fastOsc = (Math.sin(t*12) + 1) / 2;
 
     ctx.save();
-    ctx.globalAlpha = 0.15 + osc*0.25;
-    ctx.strokeStyle = theme.accent;
-    ctx.lineWidth = 2;
+    
+    // VIBRANT GLOW in theme color when player is on it
+    // Outer glow ring
+    ctx.globalAlpha = 0.4 + osc * 0.4;
+    const gradient = ctx.createRadialGradient(
+      x + TILE/2, y + TILE/2, 0,
+      x + TILE/2, y + TILE/2, TILE * 0.8
+    );
+    gradient.addColorStop(0, theme.accent);
+    gradient.addColorStop(0.5, theme.accent + '80');
+    gradient.addColorStop(1, 'transparent');
+    ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.rect(x+3, y+3, TILE-6, TILE-6);
+    ctx.arc(x + TILE/2, y + TILE/2, TILE * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Inner bright glow
+    ctx.globalAlpha = 0.6 + fastOsc * 0.4;
+    ctx.strokeStyle = theme.accent;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = theme.accent;
+    ctx.shadowBlur = 15 + osc * 10;
+    ctx.beginPath();
+    ctx.rect(x+2, y+2, TILE-4, TILE-4);
     ctx.stroke();
+    
+    // Pulsing corner sparkles
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = 0.5 + fastOsc * 0.5;
+    const sparkSize = 2 + osc * 2;
+    ctx.fillRect(x + 4, y + 4, sparkSize, sparkSize);
+    ctx.fillRect(x + TILE - 6 - sparkSize, y + 4, sparkSize, sparkSize);
+    ctx.fillRect(x + 4, y + TILE - 6 - sparkSize, sparkSize, sparkSize);
+    ctx.fillRect(x + TILE - 6 - sparkSize, y + TILE - 6 - sparkSize, sparkSize, sparkSize);
+    
+    ctx.shadowBlur = 0;
     ctx.restore();
     ctx.globalAlpha = 1;
+    
+    // Play sound when first stepping on life tile
+    if(!lifeTileSoundPlayed){
+      lifeTileSoundPlayed = true;
+      // Magical discovery sound
+      beep(523, 0.1, "sine", 0.2);
+      setTimeout(() => beep(659, 0.1, "sine", 0.2), 80);
+      setTimeout(() => beep(784, 0.12, "sine", 0.25), 160);
+      logEvent("bonus", "✨ Secret life tile discovered!");
+    }
   }
 
   function drawTree(theme){
@@ -10593,25 +11332,35 @@ gameSetTimeout(updateScrollHint, 30);
     };
 
     const drawClassicBody = () => {
+      const time = Date.now() * 0.001;
+      const breathe = Math.sin(time * 2) * 0.8; // Gentle breathing
+      const armSwing = Math.sin(time * 2.5) * 2; // Very visible arm swing
+      const legShift = Math.sin(time * 3) * 1.5; // Leg shifting
+      
+      // Head with gentle bob
       ctx.beginPath();
-      ctx.arc(0, -6, 5, 0, Math.PI*2);
+      ctx.arc(0, -6 + breathe * 0.3, 5, 0, Math.PI*2);
       ctx.stroke();
 
+      // Body
       ctx.beginPath();
-      ctx.moveTo(0, -1);
+      ctx.moveTo(0, -1 + breathe * 0.15);
       ctx.lineTo(0, 9);
       ctx.stroke();
 
+      // Arms - swing back and forth visibly
       ctx.beginPath();
-      ctx.moveTo(-6, 2);
-      ctx.lineTo(6, 2);
+      ctx.moveTo(-6, 2 + armSwing * 0.5);
+      ctx.lineTo(0, 2);
+      ctx.lineTo(6, 2 - armSwing * 0.5);
       ctx.stroke();
 
+      // Legs - slight shifting weight
       ctx.beginPath();
       ctx.moveTo(0, 9);
-      ctx.lineTo(-6, 15);
+      ctx.lineTo(-6 + legShift * 0.3, 15);
       ctx.moveTo(0, 9);
-      ctx.lineTo(6, 15);
+      ctx.lineTo(6 - legShift * 0.3, 15);
       ctx.stroke();
 
       drawCarryDots();
@@ -10702,63 +11451,441 @@ gameSetTimeout(updateScrollHint, 30);
 
     // SKELETON MODE - cursed stick figure!
     if (isSkeletonMode){
-      // Skull head
-      ctx.fillStyle = "#ffffff";
-      ctx.strokeStyle = "#8b00ff";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, -6, 6, 0, Math.PI*2);
-      ctx.fill();
-      ctx.stroke();
+      const time = Date.now() * 0.001;
+      const rattle = Math.sin(time * 8) * 0.3;
+      const skin = game.playerSkin || "classic";
       
-      // Eye sockets
-      ctx.fillStyle = "#000000";
-      ctx.beginPath();
-      ctx.arc(-2, -7, 1.5, 0, Math.PI*2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(2, -7, 1.5, 0, Math.PI*2);
-      ctx.fill();
-      
-      // Nose hole (triangle)
-      ctx.beginPath();
-      ctx.moveTo(0, -5);
-      ctx.lineTo(-1, -3);
-      ctx.lineTo(1, -3);
-      ctx.closePath();
-      ctx.fill();
-      
-      // Bone body
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(0, -1);
-      ctx.lineTo(0, 9);
-      ctx.stroke();
-      
-      // Rib cage lines
-      ctx.lineWidth = 1.5;
-      for(let i = 0; i < 3; i++){
+      // Different skeleton for each character type
+      if(skin === "rex"){
+        // DOG SKELETON - SAME SIZE as regular Rex!
+        // Regular Rex: head at y=-10 (radius 6), ears to y=-18, body to y=2, legs to y=6
+        ctx.strokeStyle = "#f0f0f0";
+        ctx.fillStyle = "#ffffff";
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        
+        // Skull - same size as Rex head (radius 6 at y=-10), just outline
         ctx.beginPath();
-        ctx.moveTo(-4, 2 + i * 3);
-        ctx.lineTo(4, 2 + i * 3);
+        ctx.arc(0, -10, 6, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Eye sockets only - two dark holes (no nose/mouth, keeps it simple like Rex)
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.arc(-2.5, -10, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(2.5, -10, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Ears - bone versions, same position as regular (to y=-18)
+        ctx.strokeStyle = "#f0f0f0";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-4, -14);
+        ctx.lineTo(-5, -18);
+        ctx.moveTo(4, -14);
+        ctx.lineTo(5, -18);
+        ctx.stroke();
+        
+        // Short body/spine (same as regular: y=-4 to y=2)
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -4);
+        ctx.lineTo(0, 2);
+        ctx.stroke();
+        
+        // Small ribs to make it look skeletal
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-3, -2);
+        ctx.quadraticCurveTo(0, -3, 3, -2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-2.5, 0);
+        ctx.quadraticCurveTo(0, -1, 2.5, 0);
+        ctx.stroke();
+        
+        // Minimal legs (same as regular: to y=6)
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-2, 2);
+        ctx.lineTo(-2, 6);
+        ctx.moveTo(2, 2);
+        ctx.lineTo(2, 6);
+        ctx.stroke();
+        
+        // Wagging tail - same style as regular Rex!
+        const waggle = Math.sin(time * 5) * 0.8;
+        ctx.save();
+        ctx.translate(0, -1);
+        ctx.rotate(waggle);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(3, -1, 6, -4);
+        ctx.stroke();
+        ctx.restore();
+        
+      } else if(skin === "robot"){
+        // ROBOT SKELETON - Exposed circuits and wires
+        ctx.strokeStyle = "#444444";
+        ctx.fillStyle = "#333333";
+        ctx.lineWidth = 2;
+        
+        // Head frame
+        ctx.beginPath();
+        ctx.rect(-6, -14, 12, 11);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Antenna on TOP of head
+        ctx.strokeStyle = "#666666";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, -14);
+        ctx.lineTo(0, -20);
+        ctx.stroke();
+        
+        // Blinking LED at TOP of antenna
+        const blink = Math.sin(time * 5) > 0;
+        ctx.fillStyle = blink ? "#ff0000" : "#440000";
+        ctx.beginPath();
+        ctx.arc(0, -20, 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Exposed circuit board inside head
+        ctx.fillStyle = "#1a4a1a";
+        ctx.fillRect(-5, -13, 10, 9);
+        
+        // Circuit traces
+        ctx.strokeStyle = "#00ff00";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-4, -12);
+        ctx.lineTo(0, -10);
+        ctx.lineTo(4, -12);
+        ctx.moveTo(-3, -8);
+        ctx.lineTo(3, -8);
+        ctx.moveTo(0, -10);
+        ctx.lineTo(0, -6);
+        ctx.stroke();
+        
+        // Body frame
+        ctx.strokeStyle = "#444444";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -3);
+        ctx.lineTo(0, 10);
+        ctx.stroke();
+        
+        // Exposed wires
+        ctx.strokeStyle = "#ff0000";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-2, 2);
+        ctx.quadraticCurveTo(-4, 5, -2, 8);
+        ctx.stroke();
+        ctx.strokeStyle = "#0000ff";
+        ctx.beginPath();
+        ctx.moveTo(2, 2);
+        ctx.quadraticCurveTo(4, 5, 2, 8);
+        ctx.stroke();
+        
+        // Arm frames
+        ctx.strokeStyle = "#444444";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-7, 2);
+        ctx.lineTo(7, 2);
+        ctx.stroke();
+        
+        // Leg frames
+        ctx.beginPath();
+        ctx.moveTo(0, 10);
+        ctx.lineTo(-5, 16);
+        ctx.moveTo(0, 10);
+        ctx.lineTo(5, 16);
+        ctx.stroke();
+        
+      } else if(skin === "alien"){
+        // ALIEN SKELETON - SAME SIZE as regular alien!
+        // Regular alien: head radius 7 at y=-7, antennae to y=-19/20, body to y=9, legs to y=15
+        ctx.strokeStyle = "#00ffaa";
+        ctx.lineWidth = 2;
+        ctx.shadowColor = "#00ff88";
+        ctx.shadowBlur = 6;
+        
+        // Head - same size as regular (radius 7 at y=-7), just outline with glow
+        ctx.beginPath();
+        ctx.arc(0, -7, 7, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Eye sockets
+        ctx.fillStyle = "#000000";
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.ellipse(-2.5, -8, 2, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(2.5, -8, 2, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // TWO ANTENNAE - same position as regular (from y=-14 to y=-19/20)
+        const antennaBob = Math.sin(time * 3) * 0.5;
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        // Left antenna
+        ctx.beginPath();
+        ctx.moveTo(-3, -14);
+        ctx.lineTo(-6, -19 + antennaBob);
+        ctx.stroke();
+        // Right antenna
+        ctx.beginPath();
+        ctx.moveTo(3, -14);
+        ctx.lineTo(6, -19 - antennaBob);
+        ctx.stroke();
+        
+        // Glowing green tips (same position as regular gold tips)
+        ctx.shadowColor = "#00ff88";
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = "#00ffaa";
+        ctx.beginPath();
+        ctx.arc(-6, -20 + antennaBob, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(6, -20 - antennaBob, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Spine/body - same as regular (y=0 to y=9)
+        ctx.strokeStyle = "#00ffaa";
+        ctx.shadowBlur = 4;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, 9);
+        ctx.stroke();
+        
+        // Arms - same position as regular (around y=2-3)
+        ctx.beginPath();
+        ctx.moveTo(-7, 3);
+        ctx.lineTo(7, 1);
+        ctx.stroke();
+        
+        // Legs - same as regular (to y=15)
+        ctx.beginPath();
+        ctx.moveTo(0, 9);
+        ctx.lineTo(-6, 15);
+        ctx.moveTo(0, 9);
+        ctx.lineTo(6, 15);
+        ctx.stroke();
+        
+        ctx.shadowBlur = 0;
+        
+      } else if(skin === "rick"){
+        // RICK SKELETON - Human skeleton but keeps spiky hair
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#cccccc";
+        ctx.lineWidth = 1.5;
+        
+        // Skull
+        ctx.beginPath();
+        ctx.ellipse(0, -7, 5, 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // KEEP THE SPIKY HAIR!
+        ctx.strokeStyle = strokeBase;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-4, -12);
+        ctx.lineTo(-2, -16);
+        ctx.moveTo(-1, -13);
+        ctx.lineTo(1, -18);
+        ctx.moveTo(2, -12);
+        ctx.lineTo(4, -16);
+        ctx.stroke();
+        
+        // Eye sockets - classic skull style
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.ellipse(-2, -8, 1.5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(2, -8, 1.5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Nose cavity - triangle
+        ctx.beginPath();
+        ctx.moveTo(0, -5);
+        ctx.lineTo(-1, -3);
+        ctx.lineTo(1, -3);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Spine and body
+        ctx.strokeStyle = "#f0f0f0";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(0 + rattle, 1);
+        ctx.lineTo(0 - rattle, 12);
+        ctx.stroke();
+        
+        // Ribs - positioned lower, don't overlap skull
+        ctx.lineWidth = 1.5;
+        for(let i = 0; i < 3; i++){
+          ctx.beginPath();
+          ctx.moveTo(-4, 4 + i * 2.5);
+          ctx.quadraticCurveTo(0, 3 + i * 2.5, 4, 4 + i * 2.5);
+          ctx.stroke();
+        }
+        
+        // Arms
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-6, 5);
+        ctx.lineTo(6, 5);
+        ctx.stroke();
+        
+        // Legs
+        ctx.beginPath();
+        ctx.moveTo(0, 12);
+        ctx.lineTo(-5, 18);
+        ctx.moveTo(0, 12);
+        ctx.lineTo(5, 18);
+        ctx.stroke();
+        
+      } else if(skin === "sally"){
+        // SALLY SKELETON - Keeps her WHITE dress, SAME SIZE as regular Sally!
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#dddddd";
+        ctx.lineWidth = 1;
+        
+        // Skull - smaller to match Sally's head (radius 4.5 at y=-8)
+        ctx.beginPath();
+        ctx.ellipse(0, -8, 4.5, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Eye sockets
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.ellipse(-1.5, -9, 1.5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(1.5, -9, 1.5, 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Nose cavity
+        ctx.beginPath();
+        ctx.moveTo(0, -6);
+        ctx.lineTo(-1, -4);
+        ctx.lineTo(1, -4);
+        ctx.closePath();
+        ctx.fill();
+        
+        // HER DRESS - WHITE like regular Sally! Same size: y=-3 to y=9
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#cccccc";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, -3);
+        ctx.lineTo(-7, 9);
+        ctx.lineTo(7, 9);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Skeleton arms coming out of dress (same position as regular: y=2)
+        ctx.strokeStyle = "#f0f0f0";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-7, 2);
+        ctx.lineTo(7, 2);
+        ctx.stroke();
+        
+        // Skeleton legs poking out under dress (same as regular: to y=13)
+        ctx.beginPath();
+        ctx.moveTo(-3, 9);
+        ctx.lineTo(-6, 13);
+        ctx.moveTo(3, 9);
+        ctx.lineTo(6, 13);
+        ctx.stroke();
+        
+      } else {
+        // DEFAULT SKELETON (classic) - Classic skull look
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#dddddd";
+        ctx.lineWidth = 1;
+        
+        // Skull - classic round
+        ctx.beginPath();
+        ctx.ellipse(0, -8, 6, 7, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Eye sockets - classic skull style (large, dark)
+        ctx.fillStyle = "#000000";
+        ctx.beginPath();
+        ctx.ellipse(-2, -9, 2, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(2, -9, 2, 2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Nose cavity - inverted triangle
+        ctx.beginPath();
+        ctx.moveTo(0, -6);
+        ctx.lineTo(-1.5, -3);
+        ctx.lineTo(1.5, -3);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Jaw area / teeth
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#cccccc";
+        ctx.lineWidth = 0.5;
+        for(let i = -2; i <= 2; i++){
+          ctx.beginPath();
+          ctx.rect(-3 + i * 1.4, -2, 1, 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+        
+        // Spine - thinner
+        ctx.strokeStyle = "#f0f0f0";
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(0 + rattle, 2);
+        ctx.lineTo(0 - rattle, 12);
+        ctx.stroke();
+        
+        // Ribs - positioned lower so they don't overlap skull
+        ctx.lineWidth = 1.5;
+        for(let i = 0; i < 3; i++){
+          ctx.beginPath();
+          ctx.moveTo(-4, 5 + i * 2.2);
+          ctx.quadraticCurveTo(0, 4 + i * 2.2, 4, 5 + i * 2.2);
+          ctx.stroke();
+        }
+        
+        // Arms
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-6, 5);
+        ctx.lineTo(6, 5);
+        ctx.stroke();
+        
+        // Legs
+        ctx.beginPath();
+        ctx.moveTo(0, 12);
+        ctx.lineTo(-5, 18);
+        ctx.moveTo(0, 12);
+        ctx.lineTo(5, 18);
         ctx.stroke();
       }
-      
-      // Bone arms
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(-6, 2);
-      ctx.lineTo(6, 2);
-      ctx.stroke();
-      
-      // Bone legs
-      ctx.beginPath();
-      ctx.moveTo(0, 9);
-      ctx.lineTo(-6, 15);
-      ctx.moveTo(0, 9);
-      ctx.lineTo(6, 15);
-      ctx.stroke();
       
       drawCarryDots();
     }
@@ -10766,21 +11893,26 @@ gameSetTimeout(updateScrollHint, 30);
       drawBananaBody();
     }
     else if (skin === "alien"){
+      const time = Date.now() * 0.001;
+      const armWave = Math.sin(time * 2) * 1.5;
+      
       ctx.beginPath();
       ctx.arc(0, -7, 7, 0, Math.PI*2);
       ctx.stroke();
 
+      // Antenna bob
+      const antennaBob = Math.sin(time * 3) * 0.5;
       ctx.beginPath();
       ctx.moveTo(-3, -14);
-      ctx.lineTo(-6, -19);
+      ctx.lineTo(-6, -19 + antennaBob);
       ctx.moveTo(3, -14);
-      ctx.lineTo(6, -19);
+      ctx.lineTo(6, -19 - antennaBob);
       ctx.stroke();
 
       ctx.beginPath();
       ctx.fillStyle = "#ffd166";
-      ctx.arc(-6, -20, 1.6, 0, Math.PI*2);
-      ctx.arc(6, -20, 1.6, 0, Math.PI*2);
+      ctx.arc(-6, -20 + antennaBob, 1.6, 0, Math.PI*2);
+      ctx.arc(6, -20 - antennaBob, 1.6, 0, Math.PI*2);
       ctx.fill();
       ctx.strokeStyle = strokeBase;
 
@@ -10789,9 +11921,10 @@ gameSetTimeout(updateScrollHint, 30);
       ctx.lineTo(0, 9);
       ctx.stroke();
 
+      // Arms with wave
       ctx.beginPath();
-      ctx.moveTo(-7, 3);
-      ctx.lineTo(7, 1);
+      ctx.moveTo(-7, 3 + armWave * 0.5);
+      ctx.lineTo(7, 1 - armWave * 0.5);
       ctx.stroke();
 
       ctx.beginPath();
@@ -10804,12 +11937,16 @@ gameSetTimeout(updateScrollHint, 30);
       drawCarryDots();
     }
     else if (skin === "sally"){
+      const time = Date.now() * 0.001;
+      const armSwing = Math.sin(time * 2.5) * 1;
+      const sway = Math.sin(time * 2) * 0.3;
+      
       ctx.beginPath();
-      ctx.arc(0, -8, 4.5, 0, Math.PI*2);
+      ctx.arc(0, -8 + sway, 4.5, 0, Math.PI*2);
       ctx.stroke();
 
       ctx.beginPath();
-      ctx.moveTo(0, -3);
+      ctx.moveTo(0, -3 + sway * 0.5);
       ctx.lineTo(-7, 9);
       ctx.lineTo(7, 9);
       ctx.closePath();
@@ -10820,11 +11957,12 @@ gameSetTimeout(updateScrollHint, 30);
       ctx.strokeStyle = strokeBase;
       ctx.stroke();
 
+      // Arms with swing
       ctx.beginPath();
       ctx.moveTo(-7, 2);
-      ctx.lineTo(-11, 4);
+      ctx.lineTo(-11, 4 + armSwing);
       ctx.moveTo(7, 2);
-      ctx.lineTo(11, 4);
+      ctx.lineTo(11, 4 - armSwing);
       ctx.stroke();
 
       ctx.beginPath();
@@ -10837,17 +11975,22 @@ gameSetTimeout(updateScrollHint, 30);
       drawCarryDots();
     }
     else if (skin === "rick"){
+      const time = Date.now() * 0.001;
+      const armSwing = Math.sin(time * 2) * 1.2;
+      const hairWave = Math.sin(time * 4) * 0.5;
+      
       ctx.beginPath();
       ctx.arc(0, -6, 5, 0, Math.PI*2);
       ctx.stroke();
 
+      // Spiky hair with wave
       ctx.beginPath();
       ctx.moveTo(-4, -11);
-      ctx.lineTo(-2, -14);
+      ctx.lineTo(-2, -14 - hairWave);
       ctx.moveTo(-1, -11);
-      ctx.lineTo(1, -15);
+      ctx.lineTo(1, -15 + hairWave);
       ctx.moveTo(2, -11);
-      ctx.lineTo(4, -14);
+      ctx.lineTo(4, -14 - hairWave);
       ctx.stroke();
 
       ctx.beginPath();
@@ -10862,9 +12005,10 @@ gameSetTimeout(updateScrollHint, 30);
       ctx.lineTo(0, 9);
       ctx.stroke();
 
+      // Arms with swing
       ctx.beginPath();
-      ctx.moveTo(-6, 2);
-      ctx.lineTo(6, 2);
+      ctx.moveTo(-6, 2 + armSwing * 0.4);
+      ctx.lineTo(6, 2 - armSwing * 0.4);
       ctx.stroke();
 
       ctx.beginPath();
@@ -11242,6 +12386,9 @@ gameSetTimeout(updateScrollHint, 30);
       drawPlayerGlow();
     }
     drawPlayer();
+    
+    // Draw monster figure if there's a pending battle
+    drawMonsterFigure();
     
     // Draw wind tiles
     if (theme.name === "Sky Stick" && windTiles.length > 0){
