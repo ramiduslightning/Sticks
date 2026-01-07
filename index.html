@@ -2908,6 +2908,14 @@
   let mountains = [];
   let mountainClouds = []; // Floating clouds for Mountain Stick
   
+  // Lightning system for Mountain Stick
+  let lightningWarning = null; // {x, y, timer} - tile being warned
+  let lightningStrike = null;  // {x, y, timer} - active lightning bolt
+  let lightningCooldown = 0;   // Frames until next warning can start
+  const LIGHTNING_WARNING_TIME = 180; // 3 seconds warning (60fps)
+  const LIGHTNING_STRIKE_TIME = 30;   // 0.5 seconds visible
+  const LIGHTNING_COOLDOWN = 180;     // 3 seconds between strikes
+  
   // Banana Stick (Level 6)
   let bananas = [];
   let monkeys = []; // Changed to array for multiple monkeys
@@ -4185,6 +4193,221 @@
         }
       }
     });
+  }
+  
+  // Lightning system for Mountain Stick
+  function initLightning(){
+    lightningWarning = null;
+    lightningStrike = null;
+    lightningCooldown = 120; // Small delay before first possible strike
+  }
+  
+  function updateLightning(){
+    const theme = currentLevelTheme().name;
+    if(theme !== "Mountain Stick") return;
+    
+    // Don't update during battles or when paused
+    if(game.pendingMonster || game.inputLocked) return;
+    
+    // Handle active strike
+    if(lightningStrike){
+      lightningStrike.timer--;
+      if(lightningStrike.timer <= 0){
+        lightningStrike = null;
+      }
+      return; // Don't start new warning during strike
+    }
+    
+    // Handle warning countdown
+    if(lightningWarning){
+      lightningWarning.timer--;
+      
+      // Check if player is on warned tile - they need to MOVE!
+      if(lightningWarning.timer <= 0){
+        // STRIKE!
+        lightningStrike = {
+          x: lightningWarning.x,
+          y: lightningWarning.y,
+          timer: LIGHTNING_STRIKE_TIME
+        };
+        
+        // Play thunder sound
+        playThunder();
+        
+        // Check if player got hit
+        if(game.playerX === lightningWarning.x && game.playerY === lightningWarning.y){
+          // Player struck by lightning! Lose a life
+          game.lives--;
+          logEvent("lightning", "⚡ STRUCK BY LIGHTNING!");
+          setHud("⚡ LIGHTNING STRIKE!");
+          
+          if(game.lives <= 0){
+            endGame("Lightning struck you down!");
+          }
+          updateUI();
+        }
+        
+        lightningWarning = null;
+        lightningCooldown = LIGHTNING_COOLDOWN;
+      }
+      return;
+    }
+    
+    // Cooldown between strikes
+    if(lightningCooldown > 0){
+      lightningCooldown--;
+      return;
+    }
+    
+    // Random chance to start a new warning (higher elevation = more likely)
+    if(Math.random() < 0.008){ // ~0.8% per frame when ready
+      // Pick a tile - prefer higher elevations (lower Y values)
+      let targetY;
+      const roll = Math.random();
+      if(roll < 0.5){
+        targetY = randInt(0, Math.floor(GRID_H / 3)); // Top third - 50% chance
+      } else if(roll < 0.8){
+        targetY = randInt(Math.floor(GRID_H / 3), Math.floor(GRID_H * 2 / 3)); // Middle - 30%
+      } else {
+        targetY = randInt(Math.floor(GRID_H * 2 / 3), GRID_H - 1); // Bottom - 20%
+      }
+      
+      const targetX = randInt(0, GRID_W - 1);
+      
+      // Don't strike the hole
+      if(targetX === game.holeX && targetY === game.holeY) return;
+      
+      lightningWarning = {
+        x: targetX,
+        y: targetY,
+        timer: LIGHTNING_WARNING_TIME
+      };
+      
+      logEvent("lightning", `⚡ Lightning incoming at (${targetX}, ${targetY})!`);
+    }
+  }
+  
+  function playThunder(){
+    if(!audioCtx) return;
+    
+    // Low rumbling thunder sound
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    const noise = audioCtx.createOscillator();
+    const noiseGain = audioCtx.createGain();
+    
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(60, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.8);
+    
+    gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(audioCtx.currentTime);
+    osc.stop(audioCtx.currentTime + 0.8);
+    
+    // Add some crackle
+    noise.type = "square";
+    noise.frequency.setValueAtTime(100, audioCtx.currentTime);
+    noiseGain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+    
+    noise.connect(noiseGain);
+    noiseGain.connect(audioCtx.destination);
+    noise.start(audioCtx.currentTime);
+    noise.stop(audioCtx.currentTime + 0.3);
+  }
+  
+  function drawLightning(){
+    const theme = currentLevelTheme().name;
+    if(theme !== "Mountain Stick") return;
+    
+    // Draw warning glow on threatened tile - light brown to match theme
+    if(lightningWarning){
+      const wx = lightningWarning.x * TILE;
+      const wy = lightningWarning.y * TILE;
+      const pulse = Math.sin(Date.now() * 0.02) * 0.3 + 0.5;
+      const urgency = 1 - (lightningWarning.timer / LIGHTNING_WARNING_TIME); // Gets brighter as strike approaches
+      
+      ctx.save();
+      // Light brown/tan warning color to match Mountain Stick theme
+      ctx.fillStyle = `rgba(180, 140, 100, ${(0.3 + urgency * 0.4) * pulse})`;
+      ctx.fillRect(wx, wy, TILE, TILE);
+      
+      // Flashing border - brown/tan
+      ctx.strokeStyle = `rgba(200, 160, 120, ${(0.5 + urgency * 0.5) * pulse})`;
+      ctx.lineWidth = 2 + urgency * 2;
+      ctx.strokeRect(wx + 1, wy + 1, TILE - 2, TILE - 2);
+      ctx.restore();
+    }
+    
+    // Draw lightning bolt!
+    if(lightningStrike){
+      const sx = lightningStrike.x * TILE + TILE / 2;
+      const sy = lightningStrike.y * TILE + TILE / 2;
+      
+      ctx.save();
+      
+      // Screen flash
+      const flashAlpha = lightningStrike.timer / LIGHTNING_STRIKE_TIME * 0.3;
+      ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`;
+      ctx.fillRect(0, 0, GRID_W * TILE, GRID_H * TILE);
+      
+      // Glow around strike point
+      ctx.shadowColor = "#ffffff";
+      ctx.shadowBlur = 30;
+      ctx.fillStyle = "rgba(255, 255, 200, 0.8)";
+      ctx.beginPath();
+      ctx.arc(sx, sy, TILE * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Draw jagged lightning bolt from top of screen to strike point
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 4;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = "#aaaaff";
+      
+      ctx.beginPath();
+      let boltX = sx;
+      let boltY = 0;
+      ctx.moveTo(boltX, boltY);
+      
+      // Create jagged path down to target
+      const segments = 8;
+      const segmentHeight = sy / segments;
+      for(let i = 1; i <= segments; i++){
+        // Zigzag left and right
+        const jag = (i % 2 === 0) ? randInt(-15, -5) : randInt(5, 15);
+        boltX = sx + jag * (1 - i/segments); // Less jag near target
+        boltY = segmentHeight * i;
+        ctx.lineTo(boltX, boltY);
+      }
+      ctx.lineTo(sx, sy); // End at center of target
+      ctx.stroke();
+      
+      // Thinner bright core
+      ctx.strokeStyle = "#ffffaa";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      
+      // Branch bolts
+      ctx.strokeStyle = "rgba(200, 200, 255, 0.6)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(sx + 8, sy * 0.3);
+      ctx.lineTo(sx + 25, sy * 0.4);
+      ctx.lineTo(sx + 20, sy * 0.5);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(sx - 10, sy * 0.5);
+      ctx.lineTo(sx - 30, sy * 0.6);
+      ctx.stroke();
+      
+      ctx.restore();
+    }
   }
   
   function drawMountainClouds(){
@@ -9164,10 +9387,14 @@
     if (currentLevelTheme().name === "Mountain Stick"){
       initMountains();
       initRams();
+      initLightning();
     } else if (currentLevelTheme().name !== "Victory Stick") {
       mountains = [];
       mountainClouds = [];
       rams = [];
+      lightningWarning = null;
+      lightningStrike = null;
+      lightningCooldown = 0;
     }
     
     // Init Cursed Stick
@@ -12223,6 +12450,7 @@ gameSetTimeout(updateScrollHint, 30);
     // Update Mountain Stick features
     if (currentLevelTheme().name === "Mountain Stick"){
       updateRams();
+      updateLightning();
     }
     
     // Update Cursed Stick features
@@ -12349,6 +12577,7 @@ gameSetTimeout(updateScrollHint, 30);
     drawMountains();
     drawMountainClouds();
     drawRams();
+    drawLightning();
     
     // Draw Sky Stick clouds and airplane
     if (theme.name === "Sky Stick"){
