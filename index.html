@@ -4234,6 +4234,27 @@
         // Play thunder sound
         playThunder();
         
+        // Check if a ram got hit!
+        const friedRamIndex = rams.findIndex(ram => ram.x === lightningWarning.x && ram.y === lightningWarning.y);
+        if(friedRamIndex !== -1){
+          // Ram got fried! Remove it and show smoke
+          rams.splice(friedRamIndex, 1);
+          logEvent("lightning", "⚡🐏 FRIED GOAT! Smells delicious...");
+          setHud("🍖 COOKED GOAT!");
+          
+          // Add smoke particles where ram was
+          for(let i = 0; i < 8; i++){
+            smokeParticles.push({
+              x: lightningWarning.x * TILE + TILE/2 + (Math.random() - 0.5) * 10,
+              y: lightningWarning.y * TILE + TILE/2 + (Math.random() - 0.5) * 10,
+              vx: (Math.random() - 0.5) * 1.5,
+              vy: -Math.random() * 2 - 1,
+              life: 60 + Math.random() * 40,
+              size: 4 + Math.random() * 4
+            });
+          }
+        }
+        
         // Check if player got hit
         if(game.playerX === lightningWarning.x && game.playerY === lightningWarning.y){
           // Player struck by lightning! Lose a life
