@@ -2674,7 +2674,7 @@
     // Rotate from default to target (ADD Math.PI to reverse direction)
     ctx.rotate(targetAngle - defaultAngle + Math.PI);
     
-    ctx.font = "26px Arial";
+    ctx.font = "38px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("✈️", 0, 0);
@@ -2683,10 +2683,10 @@
     
     // If carrying player, draw stick figure attached
     if(airplane.carrying){
-      ctx.font = "14px Arial";
+      ctx.font = "18px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("🧍", ax, ay + TILE * 0.4);
+      ctx.fillText("🧍", ax, ay + TILE * 0.5);
     }
     
     // Draw birds - lighter colors for visibility
@@ -2828,6 +2828,7 @@
             const pos = randomEmptyTile();
             stick.x = pos.x;
             stick.y = pos.y;
+            stick.rotation = Math.random() * Math.PI * 2;
             game.sticks.push(stick);
           }
           game.carry = [];
@@ -3399,6 +3400,7 @@
           const pos = randomEmptyTile();
           stick.x = pos.x;
           stick.y = pos.y;
+          stick.rotation = Math.random() * Math.PI * 2;
           game.sticks.push(stick);
         });
         game.carry = [];
@@ -3543,6 +3545,7 @@
               const pos = randomEmptyTile();
               stick.x = pos.x;
               stick.y = pos.y;
+              stick.rotation = Math.random() * Math.PI * 2;
               game.sticks.push(stick);
             });
             game.carry = [];
@@ -4170,6 +4173,7 @@
             const pos = randomEmptyTile();
             stick.x = pos.x;
             stick.y = pos.y;
+            stick.rotation = Math.random() * Math.PI * 2;
             game.sticks.push(stick);
           });
           const scattered = game.carry.length;
@@ -9227,7 +9231,8 @@
         color: color, 
         cursed: false, 
         bonus: false,
-        special: type
+        special: type,
+        rotation: Math.random() * Math.PI * 2
       });
     }
   }
@@ -9242,7 +9247,8 @@
       const color = STICK_COLORS[randInt(0, STICK_COLORS.length-1)];
       const cursed = Math.random() < cc;
       const bonus = !cursed && (Math.random() < bc);
-      game.sticks.push({ x:p.x, y:p.y, color, cursed, bonus });
+      const rotation = Math.random() * Math.PI * 2; // Random rotation for variety
+      game.sticks.push({ x:p.x, y:p.y, color, cursed, bonus, rotation });
     }
     if (game.sticks.length > 0 && !game.sticks.some(s => s.cursed)){
       const idx = randInt(0, game.sticks.length - 1);
@@ -10102,14 +10108,16 @@
       const dropped = game.carry.splice(0, game.carry.length);
       dropped.forEach(st => {
         const p = scatterPositionAround(game.playerX, game.playerY, 3);
-        game.sticks.push({ x:p.x, y:p.y, color: st.color, cursed:false, bonus:false });
+        const rotation = Math.random() * Math.PI * 2;
+        game.sticks.push({ x:p.x, y:p.y, color: st.color, cursed:false, bonus:false, rotation });
       });
       logEvent("bad",`Zero! Dropped ${dropped.length} stick(s).`);
       setHud(`Zero! Dropped ${dropped.length}!`);
     } else {
       const p = scatterPositionAround(game.holeX, game.holeY, 3);
       const color = STICK_COLORS[randInt(0, STICK_COLORS.length-1)];
-      game.sticks.push({ x:p.x, y:p.y, color, cursed:false, bonus:false });
+      const rotation = Math.random() * Math.PI * 2;
+      game.sticks.push({ x:p.x, y:p.y, color, cursed:false, bonus:false, rotation });
       logEvent("bad","Zero! Hole spits out a stick.");
       setHud("Hole spits out a stick!");
     }
@@ -10489,6 +10497,7 @@ gameSetTimeout(updateScrollHint, 30);
             const pos = randomEmptyTile();
             stick.x = pos.x;
             stick.y = pos.y;
+            stick.rotation = Math.random() * Math.PI * 2;
             game.sticks.push(stick);
           });
           const dropped = game.carry.length;
@@ -10744,7 +10753,8 @@ gameSetTimeout(updateScrollHint, 30);
       }
 
       const st = game.carry.pop();
-      game.sticks.push({ x:game.playerX, y:game.playerY, color:st.color, cursed:false, bonus:false });
+      const rotation = Math.random() * Math.PI * 2;
+      game.sticks.push({ x:game.playerX, y:game.playerY, color:st.color, cursed:false, bonus:false, rotation });
       sfxPlace();
       logEvent("place","Placed 1 stick.");
       setHud("Placed 1 stick.");
@@ -11480,6 +11490,10 @@ gameSetTimeout(updateScrollHint, 30);
     const y = s.y*TILE;
     ctx.save();
     ctx.translate(x + TILE/2, y + TILE/2);
+    
+    // Apply rotation for variety (default to diagonal if not set)
+    const rotation = s.rotation !== undefined ? s.rotation : Math.PI * 0.25;
+    ctx.rotate(rotation);
 
     const theme = currentLevelTheme();
     if (theme.name === "Ice Stick" || theme.name === "Glow Stick" || theme.name === "Victory Stick"){
@@ -11491,17 +11505,19 @@ gameSetTimeout(updateScrollHint, 30);
     ctx.lineWidth = 3;
     ctx.lineCap = "round";
 
+    // Draw stick as simple vertical line (rotation handles angle)
     ctx.beginPath();
-    ctx.moveTo(-6, -8);
-    ctx.lineTo(7, 9);
+    ctx.moveTo(0, -9);
+    ctx.lineTo(0, 9);
     ctx.stroke();
 
+    // Highlight
     ctx.globalAlpha = 0.35;
     ctx.strokeStyle = "#ffffff";
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(-4, -6);
-    ctx.lineTo(5, 7);
+    ctx.moveTo(1, -7);
+    ctx.lineTo(1, 7);
     ctx.stroke();
     ctx.globalAlpha = 1;
 
