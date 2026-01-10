@@ -406,7 +406,7 @@
     }
     select:focus{ box-shadow: 0 0 0 3px rgba(58,167,255,0.18); }
 
-    #infoOverlay,#nameOverlay,#gameOverOverlay,#winOverlay,#pauseOverlay{
+    #infoOverlay,#nameOverlay,#gameOverOverlay,#winOverlay,#pauseOverlay,#newGameOverlay{
       display:none;
       position:fixed;
       inset:0;
@@ -953,6 +953,20 @@
       </div>
       <div class="modalActions">
         <button class="modalClose" id="btnPauseClose">Resume</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="newGameOverlay" style="display:none;">
+    <div class="modalBox" role="dialog" aria-modal="true">
+      <div class="modalTitle">START NEW GAME?</div>
+      <div class="modalText" style="color:#9fb1c6">
+        Your current progress will be lost.<br/>
+        Are you sure you want to start over?
+      </div>
+      <div class="modalActions" style="gap:12px;">
+        <button class="modalClose" id="btnNewGameCancel" style="background:linear-gradient(180deg,#3aa7ff,#1172ff); color:#000;">Go Back to Game</button>
+        <button class="warnBtn" id="btnNewGameConfirm" style="background:linear-gradient(180deg,#ff5a6a,#ff1f3a); color:#000;">Yes, Start New</button>
       </div>
     </div>
   </div>
@@ -7322,6 +7336,324 @@
   let playerGlowTimer = 0;
   let ufo = null;
   
+  // Moon system for Night Stick
+  let moon = {
+    phase: 0,           // 0-100, where 50 = full moon
+    phaseDir: 1,        // 1 = waxing, -1 = waning
+    collected: false,   // Has player collected moon reward this level?
+    x: GRID_W - 2,      // Moon position (top right corner)
+    y: 1
+  };
+  let moonStick = null; // Special 5-point moon stick floating above player
+  
+  // Deposit arrow hint for new players (first 3 levels)
+  let depositArrowTimer = 0;
+  let depositArrowShown = false; // Track if shown this "full carry" instance
+  
+  function drawDepositArrow(){
+    // Only show on first 3 levels
+    if(game.level > 3) return;
+    
+    // Only show when at max capacity
+    const cap = carryCap();
+    if(game.carry.length < cap) {
+      depositArrowShown = false; // Reset when not full
+      return;
+    }
+    
+    // Show for 4 seconds when first hitting max
+    if(!depositArrowShown){
+      depositArrowShown = true;
+      depositArrowTimer = 240; // 4 seconds
+    }
+    
+    if(depositArrowTimer <= 0) return;
+    depositArrowTimer--;
+    
+    const theme = currentLevelTheme();
+    const holeX = game.holeX * TILE + TILE / 2;
+    const holeY = game.holeY * TILE + TILE / 2;
+    
+    const time = Date.now() * 0.001;
+    const pulse = Math.sin(time * 4) * 0.2 + 0.8;
+    const bob = Math.sin(time * 6) * 5; // Bouncing up and down
+    
+    // Arrow positioned ABOVE the hole, pointing DOWN
+    const arrowX = holeX;
+    const arrowY = holeY - TILE * 1.5 + bob;
+    
+    ctx.save();
+    ctx.translate(arrowX, arrowY);
+    ctx.rotate(Math.PI / 2); // Point downward
+    
+    // Use theme accent color
+    ctx.fillStyle = theme.accent;
+    ctx.strokeStyle = theme.border;
+    ctx.globalAlpha = pulse * (depositArrowTimer / 240); // Fade out
+    ctx.lineWidth = 2;
+    
+    // Draw arrow (larger)
+    ctx.beginPath();
+    ctx.moveTo(18, 0);
+    ctx.lineTo(-6, -10);
+    ctx.lineTo(-6, -4);
+    ctx.lineTo(-18, -4);
+    ctx.lineTo(-18, 4);
+    ctx.lineTo(-6, 4);
+    ctx.lineTo(-6, 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    
+    ctx.restore();
+    
+    // Draw "DEPOSIT YOUR STICKS!" text above arrow
+    ctx.save();
+    ctx.globalAlpha = pulse * (depositArrowTimer / 240);
+    ctx.fillStyle = theme.accent;
+    ctx.strokeStyle = theme.border;
+    ctx.lineWidth = 3;
+    ctx.font = "bold 12px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    
+    const textY = arrowY - 25;
+    // Draw text outline for visibility
+    ctx.strokeText("DEPOSIT YOUR STICKS!", arrowX, textY);
+    ctx.fillText("DEPOSIT YOUR STICKS!", arrowX, textY);
+    ctx.restore();
+  }
+  
+  function initMoon(){
+    moon.phase = randInt(0, 100);
+    moon.phaseDir = Math.random() > 0.5 ? 1 : -1;
+    moon.collected = false;
+    moon.fullMoonAlerted = false; // Track if we've played the full moon alert
+    moonStick = null;
+  }
+  
+  function updateMoon(){
+    if(currentLevelTheme().name !== "Night Stick") return;
+    
+    // Cycle moon phases - VERY SLOW (full cycle takes ~3-4 minutes)
+    moon.phase += moon.phaseDir * 0.008;
+    if(moon.phase >= 100){
+      moon.phase = 100;
+      moon.phaseDir = -1;
+    } else if(moon.phase <= 0){
+      moon.phase = 0;
+      moon.phaseDir = 1;
+    }
+    
+    // Near full moon (for beckoning) vs exactly full moon (for blessing)
+    const isNearFullMoon = moon.phase >= 40 && moon.phase <= 60;
+    const isFullMoon = moon.phase >= 48 && moon.phase <= 52; // Tight window for actual blessing
+    
+    // Play dramatic sound when NEAR full moon - beckon the player!
+    if(isNearFullMoon && !moon.fullMoonAlerted && !moon.collected){
+      moon.fullMoonAlerted = true;
+      logEvent("moon", "🌕 The Moon Goddess beckons! The moon must be FULL to receive her blessing...");
+      setHud("🌕 MOON GODDESS!");
+      
+      // Ethereal goddess music flourish
+      beep(400, 0.3, "sine", 0.08);
+      setTimeout(() => beep(500, 0.3, "sine", 0.08), 150);
+      setTimeout(() => beep(600, 0.4, "sine", 0.1), 300);
+      setTimeout(() => beep(800, 0.5, "sine", 0.12), 500);
+      setTimeout(() => beep(1000, 0.4, "sine", 0.1), 700);
+    }
+    
+    // Reset alert when no longer near full moon
+    if(!isNearFullMoon){
+      moon.fullMoonAlerted = false;
+    }
+    
+    // Check if player touched the moon tile
+    if(game.playerX === moon.x && game.playerY === moon.y){
+      
+      if(isFullMoon && !moon.collected){
+        // Grant special moon stick! Only when EXACTLY full
+        moon.collected = true;
+        moonStick = { glow: 0 };
+        logEvent("moon", "🌕 The Moon Goddess grants you her blessing! +5 point moon stick!");
+        setHud("🌕 GODDESS BLESSING!");
+        
+        // Play magical chime sound
+        beep(600, 0.15, "sine", 0.08);
+        setTimeout(() => beep(800, 0.15, "sine", 0.08), 100);
+        setTimeout(() => beep(1000, 0.2, "sine", 0.1), 200);
+        setTimeout(() => beep(1200, 0.25, "sine", 0.08), 300);
+        
+        // Big sparkle effect
+        spawnSparks(game.playerX, game.playerY, 30, false);
+        playerGlowTimer = 240;
+        
+      } else if(isFullMoon && moon.collected){
+        // Already collected
+        if(Math.random() < 0.02){ // Don't spam
+          logEvent("moon", "🌙 The Moon Goddess smiles upon you...");
+        }
+      } else if(isNearFullMoon && !isFullMoon && !moon.collected){
+        // Near but not quite full
+        if(Math.random() < 0.02){ // Don't spam
+          logEvent("moon", "🌙 Almost full... wait for the perfect moment...");
+        }
+      } else if(!isNearFullMoon){
+        // Not close to full moon
+        if(Math.random() < 0.02){ // Don't spam
+          logEvent("moon", "🌙 The Goddess awaits the full moon...");
+        }
+      }
+    }
+    
+    // Update moon stick glow animation
+    if(moonStick){
+      moonStick.glow = (moonStick.glow + 0.1) % (Math.PI * 2);
+    }
+  }
+  
+  function drawMoon(){
+    if(currentLevelTheme().name !== "Night Stick") return;
+    
+    const cx = moon.x * TILE + TILE / 2;
+    const cy = moon.y * TILE + TILE / 2;
+    const radius = TILE * 0.9; // MUCH LARGER moon
+    const time = Date.now() * 0.001;
+    
+    ctx.save();
+    
+    // Outer glow - GOLD like the stars
+    const glowSize = radius * 2.2 + Math.sin(time * 1.5) * 5;
+    const outerGlow = ctx.createRadialGradient(cx, cy, radius * 0.5, cx, cy, glowSize);
+    outerGlow.addColorStop(0, "rgba(255, 215, 0, 0.5)");
+    outerGlow.addColorStop(0.4, "rgba(255, 200, 50, 0.25)");
+    outerGlow.addColorStop(0.7, "rgba(255, 180, 0, 0.1)");
+    outerGlow.addColorStop(1, "rgba(255, 150, 0, 0)");
+    ctx.fillStyle = outerGlow;
+    ctx.beginPath();
+    ctx.arc(cx, cy, glowSize, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Moon base - GOLD color matching stars
+    const moonGradient = ctx.createRadialGradient(cx - radius * 0.3, cy - radius * 0.3, 0, cx, cy, radius);
+    moonGradient.addColorStop(0, "#fff8dc"); // Lighter gold center
+    moonGradient.addColorStop(0.5, "#ffd700"); // Gold
+    moonGradient.addColorStop(1, "#daa520"); // Darker gold edge
+    ctx.fillStyle = moonGradient;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Subtle gold border
+    ctx.strokeStyle = "rgba(255, 200, 100, 0.6)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Moon phase shadow - semi-transparent so moon shows through naturally
+    const shadowAmount = Math.abs(moon.phase - 50) / 50; // 0 at full, 1 at new
+    
+    if(shadowAmount > 0.05){
+      // Use gradient for more natural shadow edge
+      const shadowOffset = radius * 2.2 * shadowAmount;
+      let shadowCx, shadowCy;
+      if(moon.phase < 50){
+        // Waxing - shadow on left
+        shadowCx = cx - shadowOffset + radius;
+      } else {
+        // Waning - shadow on right  
+        shadowCx = cx + shadowOffset - radius;
+      }
+      shadowCy = cy;
+      
+      // Create gradient for softer shadow edge
+      const shadowGrad = ctx.createRadialGradient(shadowCx, shadowCy, radius * 0.7, shadowCx, shadowCy, radius * 1.1);
+      shadowGrad.addColorStop(0, "rgba(7, 10, 14, 0.85)");
+      shadowGrad.addColorStop(0.7, "rgba(7, 10, 14, 0.75)");
+      shadowGrad.addColorStop(1, "rgba(7, 10, 14, 0.5)");
+      
+      ctx.fillStyle = shadowGrad;
+      ctx.beginPath();
+      ctx.arc(shadowCx, shadowCy, radius * 1.05, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    // Full moon indicator - extra golden sparkle ring when full and not collected
+    // Full moon indicator - extra golden sparkle ring when EXACTLY full and not collected
+    if(moon.phase >= 48 && moon.phase <= 52 && !moon.collected){
+      const sparkle = Math.sin(time * 3) * 0.4 + 0.6;
+      ctx.strokeStyle = `rgba(255, 223, 0, ${sparkle})`;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = "#ffd700";
+      ctx.shadowBlur = 15;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius + 6 + Math.sin(time * 2) * 3, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      
+      // Add sparkle particles around full moon
+      for(let i = 0; i < 6; i++){
+        const angle = (time * 0.5 + i * Math.PI / 3) % (Math.PI * 2);
+        const sparkDist = radius + 12 + Math.sin(time * 4 + i) * 4;
+        const sx = cx + Math.cos(angle) * sparkDist;
+        const sy = cy + Math.sin(angle) * sparkDist;
+        const sparkSize = 2 + Math.sin(time * 5 + i * 2) * 1;
+        
+        ctx.fillStyle = `rgba(255, 223, 0, ${0.5 + Math.sin(time * 6 + i) * 0.3})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sparkSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    
+    ctx.restore();
+  }
+  
+  function drawMoonStick(){
+    if(!moonStick) return;
+    
+    // Draw glowing GOLD moon stick above player's head
+    const px = game.playerX * TILE + TILE / 2;
+    const py = game.playerY * TILE + TILE / 2;
+    const floatY = py - 35 + Math.sin(moonStick.glow) * 4; // Float above head
+    
+    ctx.save();
+    
+    // Golden glow effect
+    const glowAlpha = 0.5 + Math.sin(moonStick.glow * 2) * 0.2;
+    ctx.shadowColor = "#ffd700";
+    ctx.shadowBlur = 20;
+    
+    // Outer glow
+    const gradient = ctx.createRadialGradient(px, floatY, 0, px, floatY, 15);
+    gradient.addColorStop(0, `rgba(255, 215, 0, ${glowAlpha})`);
+    gradient.addColorStop(0.5, `rgba(255, 200, 50, ${glowAlpha * 0.5})`);
+    gradient.addColorStop(1, "rgba(255, 180, 0, 0)");
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(px, floatY, 15, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // The stick itself - GOLD colored
+    ctx.strokeStyle = "#ffd700";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(px - 6, floatY - 8);
+    ctx.lineTo(px + 6, floatY + 8);
+    ctx.stroke();
+    
+    // Bright highlight
+    ctx.strokeStyle = "#fff8dc";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px - 5, floatY - 7);
+    ctx.lineTo(px + 5, floatY + 7);
+    ctx.stroke();
+    
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+  
   function initStarGrid(){
     starGridTiles = [];
     // Create a beautiful night sky with evenly distributed stars
@@ -7354,10 +7686,20 @@
       s.twinkle = (s.twinkle + 0.05) % (Math.PI * 2);
       
       // Check if player touched star
-      if (s.x === game.playerX && s.y === game.playerY){
+      if (s.x === game.playerX && s.y === game.playerY && !s.touched){
+        s.touched = true;
         playerGlowTimer = 180; // 3 seconds glow
-        spawnSparks(game.playerX, game.playerY, 12, false);
-        beep(800, 0.08, "sine", 0.05);
+        
+        // CRAZY sparkle effect - lots of golden sparks!
+        spawnSparks(game.playerX, game.playerY, 25, false);
+        
+        // Multiple sparkle sounds for magic effect
+        beep(600, 0.08, "sine", 0.06);
+        beep(800, 0.1, "sine", 0.05);
+        setTimeout(() => beep(1000, 0.08, "sine", 0.04), 50);
+        
+      } else if (s.x !== game.playerX || s.y !== game.playerY){
+        s.touched = false; // Reset when player leaves
       }
     }
     
@@ -8352,6 +8694,10 @@
 
     pauseOverlay: document.getElementById("pauseOverlay"),
     btnPauseClose: document.getElementById("btnPauseClose"),
+
+    newGameOverlay: document.getElementById("newGameOverlay"),
+    btnNewGameCancel: document.getElementById("btnNewGameCancel"),
+    btnNewGameConfirm: document.getElementById("btnNewGameConfirm"),
 
     gameOverOverlay: document.getElementById("gameOverOverlay"),
     gameOverText: document.getElementById("gameOverText"),
@@ -9674,10 +10020,12 @@
     if (currentLevelTheme().name === "Night Stick"){
       initStarGrid();
       initUFO();
+      initMoon();
     } else {
       starGridTiles = [];
       playerGlowTimer = 0;
       ufo = null;
+      moonStick = null;
     }
     
     // Initialize Sparkle Stick features
@@ -9813,10 +10161,12 @@
     if (currentLevelTheme().name === "Night Stick"){
       initStarGrid();
       initUFO();
+      initMoon();
     } else {
       starGridTiles = [];
       playerGlowTimer = 0;
       ufo = null;
+      moonStick = null;
     }
     
     // Initialize Spell Stick - moving teleports + moving hole
@@ -9923,6 +10273,7 @@
     if (currentLevelTheme().name === "Night Stick"){
       initStarGrid();
       initUFO();
+      initMoon();
     }
     
     // Start level intro animation for first level
@@ -10552,6 +10903,38 @@ gameSetTimeout(updateScrollHint, 30);
     if (!spendAction()) return;
 
     if (isTreeTile(game.playerX, game.playerY)){
+      // Special: Moon stick + Tree = 5x5 = 25 points!
+      if (game.carry.length === 0 && moonStick){
+        moonStick = null;
+        const moonTreeBonus = 25;
+        game.score += moonTreeBonus;
+        logEvent("moon", "🌙🌲 The Moon Goddess blesses the tree! +25 points!");
+        setHud("🌙 GODDESS TREE +25!");
+        
+        // Magical combination sound
+        beep(400, 0.15, "sine", 0.1);
+        setTimeout(() => beep(600, 0.15, "sine", 0.1), 100);
+        setTimeout(() => beep(800, 0.15, "sine", 0.12), 200);
+        setTimeout(() => beep(1000, 0.2, "sine", 0.15), 300);
+        setTimeout(() => beep(1200, 0.25, "sine", 0.12), 400);
+        
+        // Big sparkle effect
+        spawnSparks(game.playerX, game.playerY, 40, false);
+        
+        startCelebrationMusic(4000);
+        commitScoreToLeaderboard();
+        endTree();
+        
+        if (game.sticks.length === 0){
+          logEvent("level","Cleared the field!");
+          newLevel();
+          return;
+        }
+        
+        updateUI();
+        return;
+      }
+      
       if (game.carry.length === 0){
         const cap = carryCap();
         // CUPCAKE MODE: 2x value for tree magic sticks!
@@ -10606,7 +10989,7 @@ gameSetTimeout(updateScrollHint, 30);
     }
 
     if (isHole(game.playerX, game.playerY)){
-      if (game.carry.length === 0){
+      if (game.carry.length === 0 && !moonStick){
         sfxError(); setHud("Nothing to deposit."); return;
       }
       const n = game.carry.length;
@@ -10625,7 +11008,15 @@ gameSetTimeout(updateScrollHint, 30);
         }
       }
       
-      game.score += pts;
+      // Add moon stick bonus if player has one (BEFORE clearing carry)
+      let moonBonus = 0;
+      if(moonStick){
+        moonBonus = 5;
+        moonStick = null;
+        logEvent("moon", "🌙 The Goddess's blessing deposited! +5 bonus points!");
+      }
+      
+      game.score += pts + moonBonus;
       game.carry = [];
       
       // End skeleton mode on deposit
@@ -10653,9 +11044,14 @@ gameSetTimeout(updateScrollHint, 30);
         logEvent("info", "Vision expired.");
       }
 
-      logEvent("deposit",`Deposited ${n} stick(s) (+${pts}).`);
+      const totalPts = pts + moonBonus;
+      logEvent("deposit",`Deposited ${n} stick(s) (+${totalPts}).`);
       sfxDeposit();
-      setHud(`+${pts} deposited!`);
+      if(moonBonus > 0){
+        setHud(`+${totalPts} (🌙+5)!`);
+      } else {
+        setHud(`+${totalPts} deposited!`);
+      }
 
       game.holePulse = 1.0;
       spawnSparks(game.holeX, game.holeY, 28);
@@ -11461,40 +11857,81 @@ gameSetTimeout(updateScrollHint, 30);
       if (!blinkOn) return;
     }
 
-    const x = game.treeX*TILE;
-    const y = game.treeY*TILE;
+    const cx = game.treeX * TILE + TILE / 2;
+    const cy = game.treeY * TILE + TILE / 2;
 
     const t = (performance.now ? performance.now() : Date.now()) / 1000;
-    const osc = (Math.sin(t*5) + 1) / 2;
+    const osc = (Math.sin(t * 3) + 1) / 2;
 
     ctx.save();
-
-    // Glow ring - larger!
-    ctx.globalAlpha = 0.10 + osc*0.18;
-    ctx.strokeStyle = "#39ff95";
-    ctx.lineWidth = 3; // Thicker
+    ctx.translate(cx, cy);
+    
+    // Scale up slightly - 1.3x
+    const scale = 1.3;
+    ctx.scale(scale, scale);
+    
+    // Soft green glow aura
+    ctx.globalAlpha = 0.2 + osc * 0.15;
+    const outerGlow = ctx.createRadialGradient(0, 0, 5, 0, 0, 22);
+    outerGlow.addColorStop(0, "rgba(57, 255, 149, 0.6)");
+    outerGlow.addColorStop(0.6, "rgba(57, 255, 149, 0.2)");
+    outerGlow.addColorStop(1, "rgba(57, 255, 149, 0)");
+    ctx.fillStyle = outerGlow;
     ctx.beginPath();
-    ctx.arc(x + TILE/2, y + TILE/2, 15 + osc*4.5, 0, Math.PI*2); // 1.5x larger
+    ctx.arc(0, 0, 22 + osc * 4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Pulsing ring
+    ctx.globalAlpha = 0.4 + osc * 0.3;
+    ctx.strokeStyle = "#39ff95";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "#39ff95";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(0, 0, 16 + osc * 3, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.shadowBlur = 0;
 
     ctx.globalAlpha = 1;
     
-    // Tree trunk - larger!
-    ctx.fillStyle = "#a16207";
-    ctx.fillRect(x + 9.5, y + 11, 3, 10.5); // Vertical part, 1.5x
-    ctx.fillRect(x + 8.5, y + 14, 6, 7.5); // Bottom part, 1.5x
-
-    // Tree foliage - larger!
+    // Tree trunk - brown
+    ctx.fillStyle = "#8B4513";
+    ctx.fillRect(-2, 4, 4, 10);
+    
+    // Tree canopy - rounded/organic shape (not triangular Christmas tree)
     ctx.fillStyle = "#22c55e";
-    ctx.fillRect(x + 6,  y + 6,  12, 3); // Top layer, 1.5x
-    ctx.fillRect(x + 4.5, y + 9,  15, 3); // Middle layer, 1.5x
-    ctx.fillRect(x + 6,  y + 12, 12, 3); // Bottom layer, 1.5x
-
-    // Sparkles - larger!
-    ctx.globalAlpha = 0.35 + osc*0.35;
-    ctx.fillStyle = theme.accent;
-    ctx.fillRect(x + 4.5, y + 5, 1.5, 1.5); // Left sparkle, 1.5x
-    ctx.fillRect(x + 17, y + 7, 1.5, 1.5); // Right sparkle, 1.5x
+    ctx.shadowColor = "#22c55e";
+    ctx.shadowBlur = 4;
+    
+    // Main canopy - oval/cloud shape
+    ctx.beginPath();
+    ctx.ellipse(0, -2, 10, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Top bump
+    ctx.beginPath();
+    ctx.ellipse(0, -8, 6, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Side bumps for organic look
+    ctx.beginPath();
+    ctx.ellipse(-6, 0, 5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(6, 0, 5, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.shadowBlur = 0;
+    
+    // Life sparkle in center
+    ctx.globalAlpha = 0.6 + osc * 0.4;
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = "#39ff95";
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(0, -3, 2 + osc, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
 
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -12634,6 +13071,9 @@ gameSetTimeout(updateScrollHint, 30);
     if (currentLevelTheme().name === "Night Stick" && ufo){
       updateUFO();
     }
+    if (currentLevelTheme().name === "Night Stick"){
+      updateMoon();
+    }
     
     // Update sun glow effect
     if (playerSunGlow > 0){
@@ -12684,6 +13124,9 @@ gameSetTimeout(updateScrollHint, 30);
     if (theme.name === "Night Stick" && ufo){
       drawUFO();
     }
+    if (theme.name === "Night Stick"){
+      drawMoon();
+    }
     
     // Draw Sparkle Stick features (behind sticks)
     if (theme.name === "Sparkle Stick"){
@@ -12699,6 +13142,14 @@ gameSetTimeout(updateScrollHint, 30);
       drawPlayerGlow();
     }
     drawPlayer();
+    
+    // Draw moon stick floating above player (after player)
+    if (theme.name === "Night Stick"){
+      drawMoonStick();
+    }
+    
+    // Draw deposit arrow hint (first 3 levels)
+    drawDepositArrow();
     
     // Draw monster figure if there's a pending battle
     drawMonsterFigure();
@@ -12885,7 +13336,25 @@ gameSetTimeout(updateScrollHint, 30);
 
   ui.btnRoll.addEventListener("click", doRoll);
   ui.btnUse.addEventListener("click", pickOrDrop);
-  ui.btnNew.addEventListener("click", () => newGame(false));
+  ui.btnNew.addEventListener("click", () => {
+    // Show confirmation dialog instead of immediately starting new game
+    ui.newGameOverlay.style.display = "flex";
+    game.inputLocked = true;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (musicOn) stopMusic();
+  });
+  ui.btnNewGameCancel.addEventListener("click", () => {
+    // Go back to game
+    ui.newGameOverlay.style.display = "none";
+    game.inputLocked = false;
+    if (!rafId) rafId = requestAnimationFrame(loop);
+    if (musicOn) startMusic();
+  });
+  ui.btnNewGameConfirm.addEventListener("click", () => {
+    // Start new game
+    ui.newGameOverlay.style.display = "none";
+    newGame(false);
+  });
   ui.btnPause.addEventListener("click", togglePause);
   ui.btnPauseClose.addEventListener("click", togglePause);
 
@@ -13050,7 +13519,7 @@ gameSetTimeout(updateScrollHint, 30);
           if (theme === "Glow Stick") initShadowMonsters();
           if (theme === "Sea Stick") initSharks();
           if (theme === "Sun Stick") initSunBursts();
-          if (theme === "Night Stick"){ initStarGrid(); initUFO(); }
+          if (theme === "Night Stick"){ initStarGrid(); initUFO(); initMoon(); }
           if (theme === "Spider Stick"){ initSpiderWebs(); initSpiders(); }
           if (theme === "Victory Stick"){
             windTiles = []; for(let i=0;i<2;i++) windTiles.push({x:randInt(0,GRID_W-1),y:randInt(0,GRID_H-1),intensity:Math.random()*Math.PI*2});
