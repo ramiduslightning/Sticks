@@ -7329,8 +7329,7 @@
     
     // Divide grid into regions to ensure even distribution
     const regionsX = 7;
-    const regionsY = 5;
-    const starsPerRegion = Math.ceil(numStars / (regionsX * regionsY));
+    const regionsY = 6; // Changed from 5 to 6 to cover all 24 rows (6x4=24)
     
     for(let rx = 0; rx < regionsX; rx++){
       for(let ry = 0; ry < regionsY; ry++){
