@@ -1656,8 +1656,8 @@
       if(ghost.attacking && dist > 1){
         ghost.attacking = false;
         ghost.attackTimer = 0;
-        logEvent("cursed", "👻 Escaped the ghost!");
-        setHud("ESCAPED GHOST!");
+        logEvent("cursed", "👻 Escaped the spirit!");
+        setHud("ESCAPED SPIRIT!");
         beep(500, 0.08, "sine", 0.12);
       }
       
@@ -1667,40 +1667,40 @@
         const secondsLeft = Math.ceil((180 - ghost.attackTimer) / 60);
         
         if(game.carry.length > 0){
-          setHud(`GHOST! MOVE! (${secondsLeft}s)`);
+          setHud(`SPIRIT! MOVE! (${secondsLeft}s)`);
         } else {
-          setHud(`GHOST! (${secondsLeft}s)`);
+          setHud(`SPIRIT! (${secondsLeft}s)`);
         }
         
         if(ghost.attackTimer >= 180){ // 3 seconds
           if(game.carry.length > 0){
-            // Has sticks - STEAL them, then ghost disappears
+            // Has sticks - STEAL them, then spirit disappears
             const stolen = game.carry.length;
             game.carry = [];
-            logEvent("cursed", `👻 Ghost stole ${stolen} sticks!`);
+            logEvent("cursed", `👻 Spirit stole ${stolen} sticks!`);
             setHud("STICKS STOLEN!");
             beep(200, 0.15, "sawtooth", 0.4);
             spawnSparks(game.playerX, game.playerY, 18, true);
             updateUI();
             
-            // Ghost disappears after stealing
+            // Spirit disappears after stealing
             const idx = ghosts.indexOf(ghost);
             if(idx > -1) ghosts.splice(idx, 1);
           } else {
-            // No sticks - turn to SKELETON, then ghost disappears
+            // No sticks - become POSSESSED, then spirit disappears
             if(!isPumpkinMode){
               isPumpkinMode = true;
-              logEvent("cursed", "👻 Ghost transformed you into SKELETON!");
+              logEvent("cursed", "👻 Spirit possessed you!");
               logEvent("cursed", "⚠️ All sticks worth 0 until you deposit!");
-              setHud("💀 SKELETON! 💀");
+              setHud("👻 POSSESSED! 👻");
               beep(150, 0.15, "sawtooth", 0.5);
               setTimeout(() => beep(100, 0.2, "sawtooth", 0.6), 150);
             } else {
-              logEvent("cursed", "👻 Ghost passed through you...");
-              setHud("ALREADY SKELETON");
+              logEvent("cursed", "👻 Spirit passed through you...");
+              setHud("ALREADY POSSESSED");
             }
             
-            // Ghost disappears after transforming
+            // Spirit disappears after transforming
             const idx = ghosts.indexOf(ghost);
             if(idx > -1) ghosts.splice(idx, 1);
           }
@@ -1713,11 +1713,11 @@
           ghost.attackTimer = 0;
           
           if(game.carry.length > 0){
-            logEvent("warn", "👻 GHOST! Move in 3 seconds or lose sticks!");
-            setHud("GHOST! MOVE! (3s)");
+            logEvent("warn", "👻 SPIRIT! Move in 3 seconds or lose sticks!");
+            setHud("SPIRIT! MOVE! (3s)");
           } else {
-            logEvent("warn", "👻 GHOST! Move or become skeleton!");
-            setHud("GHOST! (3s)");
+            logEvent("warn", "👻 SPIRIT! Move or become possessed!");
+            setHud("SPIRIT! (3s)");
           }
           beep(250, 0.12, "sawtooth", 0.15);
         } else {
@@ -2530,21 +2530,32 @@
         airplane.x = game.playerX;
         airplane.y = game.playerY;
         
-        // Check if actually moved
-        if(game.playerX !== oldX || game.playerY !== oldY){
-          airplane.tripSteps = (airplane.tripSteps || 0) + 1;
+        // Count every move attempt (not just successful ones)
+        airplane.tripSteps = (airplane.tripSteps || 0) + 1;
+        
+        // Track if we're stuck at edge
+        if(game.playerX === oldX && game.playerY === oldY){
+          airplane.stuckCount = (airplane.stuckCount || 0) + 1;
+        } else {
+          airplane.stuckCount = 0;
         }
         
-        if(airplane.tripSteps >= 10){
-          // Trip complete! Move airplane away
+        // End trip after 10 steps OR if stuck at edge for 3 attempts
+        if(airplane.tripSteps >= 10 || airplane.stuckCount >= 3){
+          // Trip complete! Drop off player and move airplane away
           airplane.carrying = false;
           airplane.tripProgress = 0;
           airplane.tripSteps = 0;
+          airplane.stuckCount = 0;
           airplane.dropCooldown = 60; // 1 second cooldown before can pick up again
           
-          // Move airplane 2 squares in its direction (more separation)
-          airplane.x = clamp(airplane.x + airplane.dx * 2, 0, GRID_W - 1);
-          airplane.y = clamp(airplane.y + airplane.dy * 2, 0, GRID_H - 1);
+          // Reverse direction if we hit an edge
+          if(airplane.x <= 0 || airplane.x >= GRID_W - 1) airplane.dx *= -1;
+          if(airplane.y <= 0 || airplane.y >= GRID_H - 1) airplane.dy *= -1;
+          
+          // Move airplane away in its (possibly new) direction
+          airplane.x = clamp(airplane.x + airplane.dx * 3, 0, GRID_W - 1);
+          airplane.y = clamp(airplane.y + airplane.dy * 3, 0, GRID_H - 1);
           airplane.moveTimer = 0; // Resume normal movement
           
           logEvent("airplane", "✈️ Arrived at destination!");
@@ -7178,17 +7189,70 @@
       ctx.restore();
     }
     
-    // Draw vision effect - pulsing glow on secret square
+    // Draw vision effect - pulsing glow on secret square with THEME-BASED color
     if (visionRevealed && !game.lifeTileUsed){
       const sx = game.lifeTileX * TILE + TILE / 2;
       const sy = game.lifeTileY * TILE + TILE / 2;
       const pulse = Math.sin(Date.now() / 150) * 0.5 + 0.5;
       
+      // Get theme-appropriate glow color based on actual theme accent colors
+      const themeName = currentLevelTheme().name;
+      let glowColor;
+      switch(themeName){
+        case "Night Stick":     // Level 1 - gold accent
+          glowColor = {r: 255, g: 215, b: 0};
+          break;
+        case "Sparkle Stick":   // Level 2 - pink accent
+          glowColor = {r: 255, g: 20, b: 147};
+          break;
+        case "Sun Stick":       // Level 3 - gold/yellow accent
+          glowColor = {r: 255, g: 212, b: 0};
+          break;
+        case "Sky Stick":       // Level 4 - sky blue accent
+          glowColor = {r: 58, g: 167, b: 255};
+          break;
+        case "Fire Stick":      // Level 5 - red/orange accent
+          glowColor = {r: 255, g: 90, b: 106};
+          break;
+        case "Mountain Stick":  // Level 6 - tan/brown accent
+          glowColor = {r: 160, g: 130, b: 109};
+          break;
+        case "Cursed Stick":    // Level 7 - purple accent
+          glowColor = {r: 139, g: 0, b: 255};
+          break;
+        case "Banana Stick":    // Level 8 - yellow accent
+          glowColor = {r: 255, g: 235, b: 59};
+          break;
+        case "Ice Stick":       // Level 9 - ice blue accent
+          glowColor = {r: 135, g: 206, b: 235};
+          break;
+        case "Glow Stick":      // Level 10 - orange accent
+          glowColor = {r: 255, g: 179, b: 71};
+          break;
+        case "Spell Stick":     // Level 11 - magenta accent
+          glowColor = {r: 255, g: 20, b: 147};
+          break;
+        case "Sea Stick":       // Level 12 - deep sky blue accent
+          glowColor = {r: 0, g: 191, b: 255};
+          break;
+        case "Snake Stick":     // Level 13 - green accent
+          glowColor = {r: 57, g: 255, b: 149};
+          break;
+        case "Spider Stick":    // Level 14 - purple accent
+          glowColor = {r: 139, g: 92, b: 246};
+          break;
+        case "Victory Stick":   // Level 15 - green accent
+          glowColor = {r: 39, g: 174, b: 96};
+          break;
+        default:
+          glowColor = {r: 255, g: 212, b: 0}; // Default gold
+      }
+      
       ctx.save();
       ctx.globalAlpha = 0.3 + pulse * 0.4;
       const gradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, TILE);
-      gradient.addColorStop(0, 'rgba(255,212,0,0.8)');
-      gradient.addColorStop(1, 'rgba(255,212,0,0)');
+      gradient.addColorStop(0, `rgba(${glowColor.r},${glowColor.g},${glowColor.b},0.8)`);
+      gradient.addColorStop(1, `rgba(${glowColor.r},${glowColor.g},${glowColor.b},0)`);
       ctx.fillStyle = gradient;
       ctx.fillRect(game.lifeTileX * TILE, game.lifeTileY * TILE, TILE, TILE);
       ctx.restore();
@@ -9210,11 +9274,37 @@
   function sfxExtraLife(){ chord([523,659,784],0.20,0.06,"triangle"); chord([659,784,988],0.22,0.06,"triangle"); }
   function sfxMonsterHit(){ beep(70,0.16,"sawtooth",0.08); beep(55,0.18,"sawtooth",0.08); }
   function sfxMonsterVictory(){
-    // Heroic fanfare for beating a monster (Mega Man power-up style)
-    setTimeout(() => beep(523, 0.10, "square", 0.12), 0);    // C
-    setTimeout(() => beep(659, 0.10, "square", 0.12), 100);  // E
-    setTimeout(() => beep(784, 0.10, "square", 0.12), 200);  // G
-    setTimeout(() => beep(1047, 0.15, "square", 0.14), 300); // C high - victory!
+    // Fun triumphant fanfare for beating a monster - not too loud!
+    // Fast ascending arpeggio
+    setTimeout(() => beep(392, 0.06, "sine", 0.06), 0);     // G4
+    setTimeout(() => beep(494, 0.06, "sine", 0.06), 60);    // B4
+    setTimeout(() => beep(587, 0.06, "sine", 0.06), 120);   // D5
+    setTimeout(() => beep(784, 0.08, "sine", 0.07), 180);   // G5
+    // Victory chord
+    setTimeout(() => {
+      beep(784, 0.10, "sine", 0.06);   // G5
+      beep(988, 0.10, "sine", 0.05);   // B5
+    }, 280);
+    // Final note
+    setTimeout(() => beep(1047, 0.12, "sine", 0.07), 400);  // C6
+    setTimeout(() => beep(1175, 0.08, "sine", 0.05), 500);  // D6 sparkle
+  }
+  function sfxMonsterVictoryStreak(){
+    // EXTRA fanfare for 3-win streak and extra life!
+    setTimeout(() => beep(523, 0.08, "sine", 0.08), 0);     // C5
+    setTimeout(() => beep(659, 0.08, "sine", 0.08), 80);    // E5
+    setTimeout(() => beep(784, 0.08, "sine", 0.08), 160);   // G5
+    setTimeout(() => beep(1047, 0.10, "sine", 0.09), 240);  // C6
+    // Triumphant chord
+    setTimeout(() => {
+      beep(1047, 0.15, "triangle", 0.08);  // C6
+      beep(1319, 0.15, "triangle", 0.07);  // E6
+      beep(1568, 0.15, "triangle", 0.07);  // G6
+    }, 350);
+    // Sparkly finale
+    setTimeout(() => beep(1760, 0.10, "sine", 0.05), 500);  // A6
+    setTimeout(() => beep(2093, 0.12, "sine", 0.05), 600);  // C7
+    setTimeout(() => beep(2349, 0.15, "sine", 0.04), 700);  // D7 twinkle!
   }
   function sfxLevelUp(){
     chord([440,660,880],0.18,0.06,"triangle");
@@ -10767,18 +10857,20 @@
         const finalMult = cupcakeMode > 0 ? mult * 2 : mult;
         logEvent("bonus",`You beat the monster! Stick is worth ${finalMult}×. (Streak ${streak})`);
         setHud(`MONSTER BEATEN! ${finalMult}× STICK${cupcakeBonus}`);
-        sfxMonsterVictory(); // Heroic victory fanfare!
+        sfxMonsterVictory(); // Victory fanfare
 
         if (streak === 3){
           if (game.lives < MAX_LIVES){
             game.lives++;
             logEvent("bonus","3× Monster streak! +1 life.");
             setHud("+1 LIFE (3× STREAK)");
+            sfxMonsterVictoryStreak(); // Extra special fanfare!
             sfxExtraLife();
             startCelebrationMusic(7500);
           } else {
             logEvent("bonus","3× Monster streak (already max lives).");
             setHud("3× STREAK (MAX LIVES)");
+            sfxMonsterVictoryStreak(); // Still celebrate the streak!
             startCelebrationMusic(6500);
           }
         }
@@ -11093,7 +11185,14 @@ gameSetTimeout(updateScrollHint, 30);
         const cupcakeBonus = cupcakeMode > 0 ? " 🧁×2" : "";
         logEvent("bonus",`Tree magic! Instantly filled to ${cap}.`);
         setHud(`TREE LOAD${cupcakeBonus} (${cap})`);
-        sfxPickup();
+        
+        // Fun magical fanfare for getting full load!
+        beep(523, 0.08, "sine", 0.08);
+        setTimeout(() => beep(659, 0.08, "sine", 0.08), 80);
+        setTimeout(() => beep(784, 0.08, "sine", 0.08), 160);
+        setTimeout(() => beep(880, 0.10, "sine", 0.09), 240);
+        setTimeout(() => beep(1047, 0.12, "sine", 0.08), 320);
+        spawnSparks(game.playerX, game.playerY, 20, false);
 
         if (game.sticks.length === 0){
           endTree();
@@ -11142,11 +11241,11 @@ gameSetTimeout(updateScrollHint, 30);
       const n = game.carry.length;
       let pts = 0;
       
-      // SKELETON MODE: All sticks worth 0 points!
+      // POSSESSED MODE: All sticks worth 0 points!
       if(isPumpkinMode){
         pts = 0;
-        logEvent("cursed", "💀 Skeleton deposited sticks for 0 points!");
-        setHud("💀 0 POINTS! 💀");
+        logEvent("cursed", "👻 Possessed! Sticks deposited for 0 points!");
+        setHud("👻 0 POINTS! 👻");
       } else {
         for (const st of game.carry){
           let v = st.value || 1;
@@ -11166,10 +11265,10 @@ gameSetTimeout(updateScrollHint, 30);
       game.score += pts + moonBonus;
       game.carry = [];
       
-      // End skeleton mode on deposit
+      // End possessed mode on deposit
       if(isPumpkinMode){
         isPumpkinMode = false;
-        logEvent("info", "✨ You're back to normal!");
+        logEvent("info", "✨ Spirit released! You're back to normal!");
       }
       
       // Deactivate banana mode on deposit
@@ -13449,8 +13548,15 @@ gameSetTimeout(updateScrollHint, 30);
     const modal = document.getElementById('skipLevelPanel');
     if(modal) modal.style.display = 'none';
     
+    // Preserve current sticks when skipping
+    const savedCarry = [...game.carry];
+    
     game.level = levelNum - 1;
     newLevel();
+    
+    // Restore sticks after level change
+    game.carry = savedCarry;
+    updateUI();
   }
 
   btnInfo.addEventListener("click", openInfo);
