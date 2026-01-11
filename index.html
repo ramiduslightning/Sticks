@@ -1049,7 +1049,7 @@
     "#95d5b2","#ff9f1c","#b08cff","#f3f4f6"
   ];
 
-  const TILE = 28, GRID_W = 24, GRID_H = 24; // TILE increased from 24 to 28 for better visibility
+  const TILE = 24, GRID_W = 24, GRID_H = 24;
   const CANVAS_W = GRID_W * TILE, CANVAS_H = GRID_H * TILE;
 
   // Snowflakes for Ice Stick theme
@@ -2938,6 +2938,7 @@
   // Mountain Stick (Level 5)
   let mountains = [];
   let mountainClouds = []; // Floating clouds for Mountain Stick
+  let peakSticks = []; // Special sticks floating at mountain peaks
   
   // Lightning system for Mountain Stick
   let lightningWarning = null; // {x, y, timer} - tile being warned
@@ -3179,6 +3180,7 @@
 
   function initMountains(){
     mountains = [];
+    peakSticks = [];
     const count = randInt(6, 10);
     console.log('🏔️ Spawning', count, 'mountains');
     for(let i = 0; i < count; i++){
@@ -3195,6 +3197,22 @@
       });
     }
     console.log('Mountains:', mountains);
+    
+    // Add peak sticks to some mountains (2-4 sticks on harder mountains)
+    const eligibleMountains = mountains.filter(m => m.difficulty >= 3);
+    const peakCount = Math.min(randInt(2, 4), eligibleMountains.length);
+    const shuffled = eligibleMountains.sort(() => Math.random() - 0.5);
+    for(let i = 0; i < peakCount; i++){
+      const m = shuffled[i];
+      peakSticks.push({
+        x: m.x,
+        y: m.y,
+        color: STICK_COLORS[randInt(0, STICK_COLORS.length - 1)],
+        rotation: Math.random() * Math.PI * 2,
+        collected: false
+      });
+    }
+    console.log('⛰️ Peak sticks:', peakSticks.length);
     
     // Add floating clouds for Mountain Stick
     mountainClouds = [];
@@ -3913,31 +3931,33 @@
         ctx.fillText(difficulty, cx, cy + TILE * 0.1);
       }
       
-      // If player is climbing, draw floating arrow indicator instead of figure
+      // If player is climbing, draw floating arrow indicator to the LEFT SIDE of mountain
       if(isClimbing && playerOnMountain){
         const glowPulse = Math.sin(time * 4) * 0.2 + 0.8;
-        const bobY = Math.sin(time * 3) * 4; // Bobbing animation
+        const bobY = Math.sin(time * 3) * 3; // Bobbing animation
         
-        ctx.globalAlpha = 0.9 * glowPulse;
+        ctx.globalAlpha = 0.95 * glowPulse;
         
-        // Draw arrow pointing down at the mountain
-        const arrowX = cx;
-        const arrowY = cy - TILE * scale * 0.7 + bobY;
+        // Position arrow to the left side of mountain
+        const arrowX = cx - TILE * scale * 0.6 - 10;
+        const arrowY = cy - TILE * scale * 0.3 + bobY;
         
         // Arrow color matches the mountain number color
         ctx.fillStyle = "#d4b896";
         ctx.strokeStyle = "#3d2f1f";
         ctx.lineWidth = 2;
         
-        // Arrow shape pointing down
+        // Arrow shape pointing right (toward mountain)
         ctx.beginPath();
-        ctx.moveTo(arrowX, arrowY + 12); // Point
-        ctx.lineTo(arrowX - 8, arrowY);   // Left
-        ctx.lineTo(arrowX - 3, arrowY);   // Left inner
-        ctx.lineTo(arrowX - 3, arrowY - 10); // Left top
-        ctx.lineTo(arrowX + 3, arrowY - 10); // Right top
-        ctx.lineTo(arrowX + 3, arrowY);   // Right inner
-        ctx.lineTo(arrowX + 8, arrowY);   // Right
+        ctx.moveTo(arrowX + 10, arrowY); // Point (right)
+        ctx.lineTo(arrowX, arrowY - 6);   // Top
+        ctx.lineTo(arrowX + 3, arrowY - 6);   // Top inner
+        ctx.lineTo(arrowX + 3, arrowY - 3); // Top stem
+        ctx.lineTo(arrowX - 8, arrowY - 3); // Left top
+        ctx.lineTo(arrowX - 8, arrowY + 3); // Left bottom
+        ctx.lineTo(arrowX + 3, arrowY + 3); // Bottom stem
+        ctx.lineTo(arrowX + 3, arrowY + 6);   // Bottom inner
+        ctx.lineTo(arrowX, arrowY + 6);   // Bottom
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -3946,16 +3966,118 @@
         ctx.fillStyle = "#d4b896";
         ctx.strokeStyle = "#3d2f1f";
         ctx.lineWidth = 2;
-        ctx.font = "bold 10px monospace";
+        ctx.font = "bold 9px monospace";
         ctx.textAlign = "center";
-        ctx.strokeText("YOU", arrowX, arrowY - 16);
-        ctx.fillText("YOU", arrowX, arrowY - 16);
+        ctx.strokeText("YOU", arrowX, arrowY - 12);
+        ctx.fillText("YOU", arrowX, arrowY - 12);
         
         ctx.globalAlpha = 1;
       }
       
       ctx.restore();
     });
+  }
+  
+  function drawPeakSticks(){
+    const theme = currentLevelTheme().name;
+    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    
+    const time = Date.now() * 0.001;
+    
+    peakSticks.forEach(ps => {
+      if(ps.collected) return;
+      
+      // Find the mountain this stick is on
+      const m = mountains.find(mt => mt.x === ps.x && mt.y === ps.y);
+      if(!m) return;
+      
+      const difficulty = m.difficulty || 3;
+      const scale = 0.55 + (difficulty * 0.30);
+      const cx = ps.x * TILE + TILE/2;
+      const cy = ps.y * TILE + TILE/2;
+      const peakY = cy - TILE * scale * 0.55;
+      
+      // Floating above the peak
+      const floatY = peakY - 12 + Math.sin(time * 2.5) * 4;
+      
+      ctx.save();
+      ctx.translate(cx, floatY);
+      
+      // Rotating
+      ps.rotation += 0.03;
+      ctx.rotate(ps.rotation);
+      
+      // Glow effect matching stick color
+      ctx.shadowColor = ps.color;
+      ctx.shadowBlur = 10 + Math.sin(time * 3) * 4;
+      
+      // Draw the stick - solid color only
+      ctx.strokeStyle = ps.color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(0, -10);
+      ctx.lineTo(0, 10);
+      ctx.stroke();
+      
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      
+      // x2 indicator to the side (not blocking stick)
+      ctx.save();
+      ctx.fillStyle = "#ffd700";
+      ctx.strokeStyle = "#3d2f1f";
+      ctx.lineWidth = 2;
+      ctx.font = "bold 9px monospace";
+      ctx.textAlign = "left";
+      ctx.strokeText("x2", cx + 12, floatY + 3);
+      ctx.fillText("x2", cx + 12, floatY + 3);
+      ctx.restore();
+    });
+  }
+  
+  function updatePeakSticks(){
+    const theme = currentLevelTheme().name;
+    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    
+    peakSticks.forEach(ps => {
+      if(ps.collected) return;
+      
+      // Check if player is on this mountain peak AND has finished climbing
+      if(game.playerX === ps.x && game.playerY === ps.y){
+        const m = mountains.find(mt => mt.x === ps.x && mt.y === ps.y);
+        // Player must have completed the climb (currentClimb === 0 means they finished)
+        if(m && m.currentClimb === 0){
+          // Auto-collect if player has room
+          if(game.carry.length < carryCap()){
+            ps.collected = true;
+            // x2 value as reward for climbing!
+            game.carry.push({ color: ps.color, value: 2, fromPeak: true });
+            
+            logEvent("bonus", "⛰️ Peak stick collected! (x2 value)");
+            setHud("⛰️ PEAK x2!");
+            
+            // Triumphant sound
+            beep(600, 0.15, "sine", 0.1);
+            setTimeout(() => beep(800, 0.15, "sine", 0.1), 100);
+            setTimeout(() => beep(1000, 0.2, "sine", 0.12), 200);
+            
+            spawnSparks(game.playerX, game.playerY, 25, false);
+            updateUI();
+          } else {
+            // Hands full - show message occasionally
+            if(Math.random() < 0.02){
+              setHud("HANDS FULL!");
+            }
+          }
+        }
+      }
+    });
+  }
+  
+  function tryCollectPeakStick(){
+    // Peak sticks now auto-collect, this function no longer needed
+    return false;
   }
 
 
@@ -7428,7 +7550,7 @@
     moon.isFull = true;
     moon.cooldownTimer = 0;
     moon.playerWasOnMoon = false;
-    moonStick = null;
+    // Don't reset moonStick - it persists across levels!
   }
   
   function updateMoon(){
@@ -10017,7 +10139,7 @@
       starGridTiles = [];
       playerGlowTimer = 0;
       ufo = null;
-      moonStick = null;
+      // Don't reset moonStick - it persists across levels!
     }
     
     // Initialize Sparkle Stick features
@@ -10158,7 +10280,7 @@
       starGridTiles = [];
       playerGlowTimer = 0;
       ufo = null;
-      moonStick = null;
+      // Don't reset moonStick - it persists across levels!
     }
     
     // Initialize Spell Stick - moving teleports + moving hole
@@ -10712,6 +10834,19 @@ gameSetTimeout(updateScrollHint, 30);
           beep(600, 0.15, "sine", 0.18);
           setTimeout(() => beep(800, 0.1, "sine", 0.15), 100);
           
+          // Check for peak stick on this mountain before leaving
+          const peakStick = peakSticks.find(ps => ps.x === game.playerX && ps.y === game.playerY && !ps.collected);
+          if(peakStick && game.carry.length < carryCap()){
+            peakStick.collected = true;
+            game.carry.push({ color: peakStick.color, value: 2, fromPeak: true });
+            logEvent("bonus", "⛰️ Peak stick collected! (x2 value)");
+            setHud("⛰️ PEAK x2!");
+            beep(700, 0.15, "sine", 0.1);
+            setTimeout(() => beep(900, 0.15, "sine", 0.1), 100);
+            setTimeout(() => beep(1100, 0.2, "sine", 0.12), 200);
+            spawnSparks(game.playerX, game.playerY, 25, false);
+          }
+          
           // Check if new position has a mountain
           const nextMountain = getMountainAt(newX, newY);
           if(nextMountain && nextMountain !== currentMountain){
@@ -10893,6 +11028,11 @@ gameSetTimeout(updateScrollHint, 30);
   function pickOrDrop(){
     if (game.inputLocked) return;
     if (!spendAction()) return;
+
+    // Try to collect peak stick first (Mountain Stick level)
+    if(tryCollectPeakStick()){
+      return;
+    }
 
     if (isTreeTile(game.playerX, game.playerY)){
       // Special: Moon Goddess blessing + Tree of Life = EXTRA LIFE + 25 points!
@@ -13008,6 +13148,7 @@ gameSetTimeout(updateScrollHint, 30);
     if (currentLevelTheme().name === "Mountain Stick"){
       updateRams();
       updateLightning();
+      updatePeakSticks();
     }
     
     // Update Cursed Stick features
@@ -13048,6 +13189,11 @@ gameSetTimeout(updateScrollHint, 30);
     }
     if (currentLevelTheme().name === "Night Stick"){
       updateMoon();
+    }
+    
+    // Update moon stick glow animation on ALL levels (it persists!)
+    if(moonStick){
+      moonStick.glow = (moonStick.glow + 0.1) % (Math.PI * 2);
     }
     
     // Update sun glow effect
@@ -13118,8 +13264,8 @@ gameSetTimeout(updateScrollHint, 30);
     }
     drawPlayer();
     
-    // Draw moon stick floating above player (after player)
-    if (theme.name === "Night Stick"){
+    // Draw moon stick floating above player (on ALL levels - it persists!)
+    if (moonStick){
       drawMoonStick();
     }
     
@@ -13150,6 +13296,7 @@ gameSetTimeout(updateScrollHint, 30);
     }
     
     // Draw mountains (Mountain Stick)
+    drawPeakSticks(); // Draw first so mountain's YOU arrow shows on top
     drawMountains();
     drawMountainClouds();
     drawRams();
