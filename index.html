@@ -10616,6 +10616,17 @@ function sfxMonsterVictoryStreak(){
     pendingMonster: null,
     monsterWinStreak: 0,
 
+    // Monster balance pacing (per level)
+    monsterBudgetTotal: 0,
+    monsterBudgetRemaining: 0,
+    monsterCooldownTurns: 0,
+    monstersTriggeredThisLevel: 0,
+    monstersBeforeFirstDeposit: 0,
+    hasDepositedThisLevel: false,
+    sticksDepositedThisLevel: 0,
+    totalSticksThisLevel: 0,
+
+
     // Sun Stick: limits how many times the sun can create fresh sticks
     sunBlessingsUsed: 0,
 
@@ -11138,28 +11149,144 @@ function sfxMonsterVictoryStreak(){
       });
     }
   }
+
+
+  // ------------------------------------------------
+  // Monster balance: unexpected but fair
+  // - Threat budget per level
+  // - Cooldown between monster fights
+  // - Early guardrail: max 1 monster before first deposit on levels 1–3
+  // - Progress-based chance (monsters more likely later in a level)
+  // ------------------------------------------------
+  function monsterBudgetRangeForLevel(level, themeName){
+    let minB = 0, maxB = 0;
+    if (level <= 2){
+      minB = 0; maxB = 1;
+    } else if (level <= 4){
+      minB = 1; maxB = 2;
+    } else if (level <= 7){
+      minB = 1; maxB = 3;
+    } else if (level <= 10){
+      minB = 2; maxB = 3;
+    } else {
+      minB = 2; maxB = 4;
+    }
+
+    // Theme flavor (kept modest so early Sun Stick can't spam monsters)
+    if (themeName === 'Cursed Stick' && level >= 6){
+      maxB += 1;
+    }
+    if (themeName === 'Sun Stick' && level >= 8){
+      maxB += 1;
+    }
+
+    minB = Math.max(0, minB);
+    maxB = Math.max(minB, maxB);
+    return {min:minB, max:maxB};
+  }
+
+  function initMonsterBalanceForLevel(){
+    const themeName = currentLevelTheme().name;
+    const r = monsterBudgetRangeForLevel(game.level, themeName);
+    const total = randInt(r.min, r.max);
+
+    game.monsterBudgetTotal = total;
+    game.monsterBudgetRemaining = total;
+    game.monsterCooldownTurns = 0;
+    game.monstersTriggeredThisLevel = 0;
+    game.monstersBeforeFirstDeposit = 0;
+    game.hasDepositedThisLevel = false;
+    game.sticksDepositedThisLevel = 0;
+    game.totalSticksThisLevel = 0; // set after sticks spawn
+  }
+
+  function monsterProgressChance(){
+    const total = Math.max(1, (game.totalSticksThisLevel|0) || 1);
+    const prog = Math.max(0, Math.min(1, (game.sticksDepositedThisLevel|0) / total));
+    if (prog < 0.25) return 0.25;
+    if (prog < 0.75) return 0.60;
+    return 0.80;
+  }
+
+  function canTriggerMonsterNow(){
+    if ((game.monsterBudgetRemaining|0) <= 0) return false;
+    if ((game.monsterCooldownTurns|0) > 0) return false;
+
+    // Early guardrail
+    if (game.level <= 3 && !game.hasDepositedThisLevel && (game.monstersBeforeFirstDeposit|0) >= 1){
+      return false;
+    }
+
+    // Progress-based chance
+    return Math.random() < monsterProgressChance();
+  }
+
+  function beginMonsterBattle(stickIdx){
+    // Spend budget + start cooldown only after battle ends; budget decremented now.
+    game.monsterBudgetRemaining = Math.max(0, (game.monsterBudgetRemaining|0) - 1);
+    game.monstersTriggeredThisLevel = (game.monstersTriggeredThisLevel|0) + 1;
+    if (!game.hasDepositedThisLevel){
+      game.monstersBeforeFirstDeposit = (game.monstersBeforeFirstDeposit|0) + 1;
+    }
+
+    game.pendingMonster = { index: stickIdx };
+    game.inputLocked = true;
+
+    logEvent("monster","Monster Stick! Press ROLL (0–5) to fight.");
+    setHud("MONSTER STICK! PRESS ROLL");
+
+    ui.diceFace.textContent = "?";
+    ui.diceLabel.textContent = "Monster Roll (0–5)";
+    ui.monsterEventText.textContent =
+      `Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a powered stick. Roll 0–1 and you lose 1 life. (Win streak carries across levels; resets only on a loss.)`;
+    ui.monsterEvent.style.display = "flex";
+    ui.btnRoll.classList.add("flashRoll");
+
+    sfxMonsterHit();
+    playMonsterDoomSting();
+    battleMusicIntro();
+    updateUI();
+    gameSetTimeout(updateScrollHint, 30);
+  }
+
   function spawnSticksForLevel(level){
     game.sticks = [];
     const n = sticksToSpawnForLevel(level);
-    const cc = curseChance(level);
     const bc = bonusChance(level);
 
     for (let i=0;i<n;i++){
       const p = randomEmptyTile();
       const color = STICK_COLORS[randInt(0, STICK_COLORS.length-1)];
-      const cursed = Math.random() < cc;
-      const bonus = !cursed && (Math.random() < bc);
+      const bonus = (Math.random() < bc);
       const rotation = Math.random() * Math.PI * 2; // Random rotation for variety
-      game.sticks.push({ x:p.x, y:p.y, color, cursed, bonus, rotation });
+      game.sticks.push({ x:p.x, y:p.y, color, cursed:false, bonus, rotation });
     }
-    if (game.sticks.length > 0 && !game.sticks.some(s => s.cursed)){
-      const idx = randInt(0, game.sticks.length - 1);
-      game.sticks[idx].cursed = true;
-      game.sticks[idx].bonus = false;
+
+    // Track progress for monster pacing
+    game.totalSticksThisLevel = game.sticks.length;
+    game.sticksDepositedThisLevel = 0;
+    game.hasDepositedThisLevel = false;
+
+    // Place cursed sticks based on this level's threat budget (not random per-stick chance)
+    const desired = Math.min((game.monsterBudgetTotal|0), game.sticks.length);
+    if (desired > 0){
+      const chosen = new Set();
+      let guard = 0;
+      while (chosen.size < desired && guard < 500){
+        chosen.add(randInt(0, game.sticks.length - 1));
+        guard += 1;
+      }
+      for (const idx of chosen){
+        const s = game.sticks[idx];
+        if (!s) continue;
+        s.cursed = true;
+        s.bonus = false;
+      }
     }
   }
 
   function spawnLifeTile(){
+
     const p = randomEmptyTile();
     game.lifeTileX = p.x;
     game.lifeTileY = p.y;
@@ -12088,6 +12215,8 @@ Clear all sticks to advance — watch out for obstacles.`;
         holeVisible = true;
         holeFadeTimer = 0;
         spawnHole();
+        // Monster pacing is rolled per-level before sticks spawn
+        initMonsterBalanceForLevel();
         randomizePlayerOnBoard();
         spawnSticksForLevel(game.level);
         maybeSpawnSpecialSticks();
@@ -12111,6 +12240,7 @@ Clear all sticks to advance — watch out for obstacles.`;
         ui.monsterEvent.style.display = "none";
         ui.btnRoll.classList.remove("flashRoll");
         stopMonsterDoom();
+
     
         
   }
@@ -12239,6 +12369,9 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
 
         const s = game.sticks[index];
         stopMonsterDoom();
+
+        // Monster pacing: start a short cooldown before another monster can trigger
+        game.monsterCooldownTurns = randInt(3, 6);
 
         if (roll <= 1){
           if (s && s.cursed){
@@ -12561,6 +12694,9 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
     // Update dice face to show remaining actions
     updateDiceFaceCountdown();
 
+    // Monster pacing: tick down cooldown on any successful action spend
+    if ((game.monsterCooldownTurns|0) > 0) game.monsterCooldownTurns--;
+
     if (game.actions === 0){
       if (game.bonusPendingRoll && !game.bonusActive){
         promptBonusRollReady();
@@ -12871,6 +13007,10 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
       game.score += pts + moonBonus;
       game.carry = [];
 
+      // Progress tracking for monster pacing
+      game.hasDepositedThisLevel = true;
+      game.sticksDepositedThisLevel = (game.sticksDepositedThisLevel|0) + (n|0);
+
       // End possessed mode on deposit
       if(isPumpkinMode){
         isPumpkinMode = false;
@@ -12995,25 +13135,14 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
       const s = game.sticks[stickIdx];
 
       if (s.cursed){
-        game.pendingMonster = { index: stickIdx };
-        game.inputLocked = true;
-
-        logEvent("monster","Monster Stick! Press ROLL (0–5) to fight.");
-        setHud("MONSTER STICK! PRESS ROLL");
-
-        ui.diceFace.textContent = "?";
-        ui.diceLabel.textContent = "Monster Roll (0–5)";
-        ui.monsterEventText.textContent =
-          `Cursed stick! Press ROLL (0–5). Roll 2–5 to beat the monster and keep a powered stick. Roll 0–1 and you lose 1 life. (Win streak carries across levels; resets only on a loss.)`;
-        ui.monsterEvent.style.display = "flex";
-        ui.btnRoll.classList.add("flashRoll");
-
-        sfxMonsterHit();
-        playMonsterDoomSting();
-        battleMusicIntro();
-        updateUI();
-        gameSetTimeout(updateScrollHint, 30);
-        return;
+        // Monster pacing (budget + cooldown + early guardrail + progress-based chance)
+        if (canTriggerMonsterNow()){
+          beginMonsterBattle(stickIdx);
+          return;
+        }
+        // Otherwise, the cursed energy fizzles out this time (still pick up the stick normally).
+        s.cursed = false;
+        logEvent('info','The cursed stick feels calm...');
       }
 
       // Check if it's a special stick
@@ -13318,8 +13447,17 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
         treePhaseTimer: game.treePhaseTimer,
         treeSpawnDelay: game.treeSpawnDelay,
         treeSpawnedThisLevel: game.treeSpawnedThisLevel,
-
         monsterWinStreak: game.monsterWinStreak,
+
+        // Monster pacing (for consistent balance when saving/loading mid-level)
+        monsterBudgetTotal: game.monsterBudgetTotal||0,
+        monsterBudgetRemaining: game.monsterBudgetRemaining||0,
+        monsterCooldownTurns: game.monsterCooldownTurns||0,
+        monstersTriggeredThisLevel: game.monstersTriggeredThisLevel||0,
+        monstersBeforeFirstDeposit: game.monstersBeforeFirstDeposit||0,
+        hasDepositedThisLevel: !!game.hasDepositedThisLevel,
+        sticksDepositedThisLevel: game.sticksDepositedThisLevel||0,
+        totalSticksThisLevel: game.totalSticksThisLevel||0,
         sunBlessingsUsed: game.sunBlessingsUsed || 0,
 
         hudMsg: "",
@@ -13351,6 +13489,32 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
     game.actions = Math.max(0, Number(g.actions)||0);
     game.monsterWinStreak = Math.max(0, Number(g.monsterWinStreak)||0);
     game.sunBlessingsUsed = Math.max(0, Number(g.sunBlessingsUsed)||0);
+
+    // Restore monster pacing if present (or derive safe defaults)
+    game.monsterBudgetTotal = Math.max(0, Number(g.monsterBudgetTotal)||0);
+    game.monsterBudgetRemaining = Math.max(0, Number(g.monsterBudgetRemaining)||0);
+    game.monsterCooldownTurns = Math.max(0, Number(g.monsterCooldownTurns)||0);
+    game.monstersTriggeredThisLevel = Math.max(0, Number(g.monstersTriggeredThisLevel)||0);
+    game.monstersBeforeFirstDeposit = Math.max(0, Number(g.monstersBeforeFirstDeposit)||0);
+    game.hasDepositedThisLevel = !!g.hasDepositedThisLevel;
+    game.sticksDepositedThisLevel = Math.max(0, Number(g.sticksDepositedThisLevel)||0);
+    game.totalSticksThisLevel = Math.max(0, Number(g.totalSticksThisLevel)||0);
+
+    // If older saves didn't have these, derive reasonable values from the current board
+    if (!game.totalSticksThisLevel){
+      game.totalSticksThisLevel = sticksToSpawnForLevel(game.level);
+    }
+    if (!('sticksDepositedThisLevel' in g)) {
+      const remaining = game.sticks.length;
+      const carrying = game.carry.length;
+      game.sticksDepositedThisLevel = Math.max(0, game.totalSticksThisLevel - remaining - carrying);
+      game.hasDepositedThisLevel = game.sticksDepositedThisLevel > 0;
+    }
+    if (!('monsterBudgetTotal' in g)) {
+      // Keep monsters from going wild after loading an older save
+      game.monsterBudgetTotal = Math.max(0, game.monsterBudgetTotal);
+      game.monsterBudgetRemaining = Math.min(game.monsterBudgetRemaining, game.monsterBudgetTotal);
+    }
 
     game.bonusActive = !!g.bonusActive;
     game.bonusExtraRollReady = !!g.bonusExtraRollReady;
