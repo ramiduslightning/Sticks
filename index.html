@@ -931,15 +931,7 @@
 	            <option value="sally">Sally Stick</option>
           </select>
         </div>
-
-        <div class="kv"><span>Aura</span>
-          <select id="uiAura" aria-label="Aura">
-            <option value="none">None</option>
-            <option value="glow" disabled>Hero Glow (locked)</option>
-          </select>
-        </div>
-
-        <div class="statsGrid">
+<div class="statsGrid">
           <div class="kv"><span>Lives</span><span id="uiLives" class="big">3</span></div>
           <div class="kv"><span>Level</span><span id="uiLevel" class="big">1</span></div>
           <div class="kv"><span>Score</span><span id="uiScore" class="big">0</span></div>
@@ -1292,6 +1284,9 @@
         meta.achievements = Object.assign({}, meta.achievements, obj.achievements || {});
         meta.stats = Object.assign({}, meta.stats, obj.stats || {});
         meta.cosmetics = Object.assign({}, meta.cosmetics, obj.cosmetics || {});
+        // Aura cosmetic disabled in this build
+        meta.cosmetics.auraUnlocked = false;
+        meta.cosmetics.aura = 'none';
       }
     }catch(e){}
   }
@@ -12273,7 +12268,6 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
           game.monsterWinStreak++;
           meta.stats.monsterWinsTotal = (meta.stats.monsterWinsTotal|0) + 1;
           saveMeta();
-          maybeUnlockAura();
           const streak = game.monsterWinStreak;
           const mult = monsterStickValueForStreak(streak);
 
@@ -15354,10 +15348,6 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
       drawPlayerGlow();
     }
 
-    // Cosmetic aura (unlocked)
-    if (meta.cosmetics && meta.cosmetics.auraUnlocked && meta.cosmetics.aura === 'glow'){
-      drawHeroAura();
-    }
     drawPlayer();
 
     // Banana Stick celebration confetti (after monkey win)
