@@ -852,7 +852,7 @@
       <!-- Quick one-box how-to (shown after the level intro logo on Level 1) -->
       <div id="quickHowtoOverlay" class="tutorialOverlay" aria-hidden="true">
         <div class="tutorialCard">
-          <div class="tutorialTitle">How to play (10 seconds)</div>
+          <div class="tutorialTitle">How to play</div>
           <div id="quickHowtoText" class="tutorialText" style="white-space:pre-line;"></div>
           <div class="tutorialBtns">
             <button id="quickHowtoClose" class="btn">Got it</button>
@@ -2171,7 +2171,7 @@
       ctx.textBaseline = "middle";
       
       // White skull with red outline for danger
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#d9b07a";
       ctx.strokeStyle = "#ff0000";
       ctx.lineWidth = 2;
       ctx.fillText("💀", 0, 0);
@@ -3095,7 +3095,7 @@
       ctx.fill();
       
       // Eye
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#d9b07a";
       ctx.beginPath();
       ctx.arc(8, -3, 1.5, 0, Math.PI * 2);
       ctx.fill();
@@ -3892,13 +3892,13 @@
 
         // Chase in spurts (burst/rest) so it feels fair and less swarmy
         if (s.mode == null) { s.mode = (Math.random() < 0.55 ? 'rest' : 'burst'); }
-        if (s.burstLeft == null) { s.burstLeft = randInt(2, 4); }
-        if (s.restLeft == null) { s.restLeft = randInt(2, 4); }
+        if (s.burstLeft == null) { s.burstLeft = randInt(3, 6); }
+        if (s.restLeft == null) { s.restLeft = randInt(6, 12); }
         if (s.mode === 'rest') {
           s.restLeft--;
           if (s.restLeft <= 0) {
             s.mode = 'burst';
-            s.burstLeft = randInt(2, 4);
+            s.burstLeft = randInt(3, 6);
           }
           continue;
         }
@@ -3919,6 +3919,15 @@
         }
         s.x = clamp(s.x, 0, GRID_W - 1);
         s.y = clamp(s.y, 0, GRID_H - 1);
+
+        // Burst countdown: after a few moves, pause (rest) so the chase has breaks
+        if (s.mode === 'burst'){
+          s.burstLeft--;
+          if (s.burstLeft <= 0){
+            s.mode = 'rest';
+            s.restLeft = randInt(7, 14);
+          }
+        }
 
         // Prevent snakes from stepping onto the hole tile (they can freeze there)
         if (s.x === game.holeX && s.y === game.holeY){
@@ -4680,8 +4689,39 @@
     stuckCount: 0,
     dropCooldown: 0,
     gallop: 0, // Animation phase
-    facing: 1 // 1 = right, -1 = left
+    facing: 1, // 1 = right, -1 = left
+    gait: "trot",
+    gaitTimer: 0,
+    buckTimer: 0,
+    buckPhase: 0,
+    buckTotal: 0,
+    buckCooldown: 0,
+    spots: []
   };
+
+  // Fun horse stomp commentary
+  function horseStompLine(){
+    const lines = [
+      "🐴 Snake pancakes. 🥞",
+      "🐴 Hooves: 1, Snake: 0.",
+      "🐴 That snake got *flattened*.",
+      "🐴 Sssss… *THUD*.",
+      "🐴 Wild horse says: \"Nope.\""
+    ];
+    return lines[randInt(0, lines.length - 1)];
+  }
+
+  function horseStompHud(){
+    const lines = [
+      "🥞 SNAKE PANCAKES!",
+      "🐴 STOMP!",
+      "💥 THUD!",
+      "🐍➡️🥞",
+      "🦶💥"
+    ];
+    return lines[randInt(0, lines.length - 1)];
+  }
+
   
   function initWildHorse(){
     wildHorse.x = randInt(0, GRID_W - 1);
@@ -4693,7 +4733,18 @@
     wildHorse.tripSteps = 0;
     wildHorse.dropCooldown = 0;
     wildHorse.gallop = 0;
+    wildHorse.gait = "trot";
+    wildHorse.gaitTimer = randInt(80, 140);
+    wildHorse.buckTimer = 0;
+    wildHorse.buckPhase = 0;
+    wildHorse.buckTotal = 0;
+    wildHorse.buckCooldown = 0;
     
+
+    // Paint horse spots (American Paint Horse-style white patches)
+    wildHorse.spots = [];
+
+
     // Start moving horizontally
     wildHorse.dx = Math.random() > 0.5 ? 1 : -1;
     wildHorse.dy = 0;
@@ -4713,8 +4764,25 @@
     if (!wildHorse.active) return;
     if (currentLevelTheme().name !== "Snake Stick" && currentLevelTheme().name !== "Victory Stick") return;
     
-    // Animate gallop
-    wildHorse.gallop = (wildHorse.gallop + 0.15) % (Math.PI * 2);
+    // Animate gait
+    const isRunningNow = wildHorse.carrying || wildHorse.moveTimer < 20;
+    const baseSpeed = wildHorse.carrying ? 0.28 : (wildHorse.moveTimer < 20 ? 0.20 : 0.12);
+    wildHorse.gallop = (wildHorse.gallop + baseSpeed) % (Math.PI * 2);
+
+    // Choose gait (trot vs gallop)
+    wildHorse.gaitTimer = (wildHorse.gaitTimer || 0) - 1;
+    if (wildHorse.gaitTimer <= 0){
+      if (isRunningNow){
+        wildHorse.gait = "gallop";
+      } else {
+        wildHorse.gait = (Math.random() < 0.75) ? "trot" : "gallop";
+      }
+      wildHorse.gaitTimer = randInt(90, 180);
+    }
+
+    // Buck constantly (test mode)
+    wildHorse.buckTimer = 999999;
+    wildHorse.buckPhase = (wildHorse.buckPhase || 0) + 0.46;
     
     // Handle drop cooldown
     if (wildHorse.dropCooldown > 0){
@@ -4741,8 +4809,8 @@
           if (s.x === wildHorse.x && s.y === wildHorse.y){
             // STOMP! Kill the snake!
             snakes.splice(i, 1);
-            logEvent("horse", "🐴 Horse stomped a snake!");
-            setHud("🐴 STOMP!");
+            logEvent("horse", horseStompLine());
+            setHud(horseStompHud());
             // Stomp sound
             beep(120, 0.15, "sawtooth", 0.3);
             setTimeout(() => beep(80, 0.1, "square", 0.2), 50);
@@ -4815,8 +4883,8 @@
         const s = snakes[i];
         if (s.x === wildHorse.x && s.y === wildHorse.y){
           snakes.splice(i, 1);
-          logEvent("horse", "🐴 Horse stomped a snake!");
-          setHud("🐴 STOMP!");
+          logEvent("horse", horseStompLine());
+          setHud(horseStompHud());
           beep(120, 0.15, "sawtooth", 0.3);
           setTimeout(() => beep(80, 0.1, "square", 0.2), 50);
           spawnSparks(wildHorse.x, wildHorse.y, 15, false);
@@ -4890,10 +4958,15 @@
     const gallop = wildHorse.gallop;
     const facing = wildHorse.facing;
     const isRunning = wildHorse.carrying || wildHorse.moveTimer < 20;
-    
-    // Running animation phases
-    const runPhase = gallop * 1.5;
-    const bodyBob = Math.sin(runPhase * 2) * 2;
+    const gait = wildHorse.gait || (isRunning ? "gallop" : "trot");
+    const isBuck = (wildHorse.buckTimer || 0) > 0;
+    const buckWave = isBuck ? Math.sin((wildHorse.buckPhase || 0)) : 0;
+
+    // Running animation phases (trot vs gallop)
+    const gaitRate = (gait === "gallop") ? 1.9 : 1.25;
+    const runPhase = gallop * gaitRate;
+    const bobAmt = (gait === "gallop") ? 2.4 : 1.6;
+    const bodyBob = Math.sin(runPhase * 2) * bobAmt + (isBuck ? (-2 + Math.max(0, buckWave) * -3) : 0);
     
     ctx.save();
     ctx.translate(px, py + bodyBob);
@@ -4926,14 +4999,33 @@
     const black = '#1a1a1a';
     const darkBrown = '#2d1f14';
     
-    // Leg animation - realistic gallop cycle
-    const legPhases = [
-      Math.sin(runPhase),
-      Math.sin(runPhase + Math.PI * 0.5),
-      Math.sin(runPhase + Math.PI),
-      Math.sin(runPhase + Math.PI * 1.5)
-    ];
-    
+    // Gallop / trot posture (head-first when galloping) + buck kick
+    const pitchBase = (gait === "gallop") ? -0.12 : -0.05;
+    const pitchBuck = isBuck ? (0.18 + Math.max(0, buckWave) * 0.10) : 0;
+    const pitch = pitchBase + pitchBuck;
+    ctx.rotate(pitch);
+
+    // Leg animation - gait cycles (trot vs gallop)
+    // - Trot: diagonal pairs
+    // - Gallop: staggered fore/hind
+    let frontL = Math.sin(runPhase);
+    let frontR = Math.sin(runPhase + Math.PI);
+    let backL, backR;
+    if (gait === "trot"){
+      backR = frontL;
+      backL = frontR;
+    } else {
+      backL = Math.sin(runPhase + Math.PI * 0.65);
+      backR = Math.sin(runPhase + Math.PI * 1.65);
+    }
+
+    const frontAmp = (gait === "gallop") ? 11 : 7;
+    const backAmp  = (gait === "gallop") ? 9  : 6;
+
+    // Buck: kick hind legs back/up
+    const buckKick = isBuck ? Math.max(0, buckWave) : 0;
+    const kickX = -18 * buckKick;
+    const kickY = -14 * buckKick;
     // === TAIL (behind body) - black, flowing ===
     const tailWave = Math.sin(gallop * 2);
     ctx.strokeStyle = black;
@@ -4963,16 +5055,18 @@
     ctx.stroke();
     
     // === BACK LEGS ===
-    const backLeg1 = legPhases[2] * 8;
-    const backLeg2 = legPhases[3] * 8;
+    const backLeg1 = backL * backAmp + kickY;
+    const backLeg2 = backR * backAmp + kickY;
+    const backLeg1X = kickX * 0.6;
+    const backLeg2X = kickX * 0.8;
     
     // Back left leg (further)
     ctx.fillStyle = bodyDark;
     ctx.beginPath();
     ctx.moveTo(-10, 4);
-    ctx.quadraticCurveTo(-12, 8 + backLeg1 * 0.3, -11, 14 + backLeg1);
-    ctx.lineTo(-9, 14 + backLeg1);
-    ctx.quadraticCurveTo(-9, 8 + backLeg1 * 0.3, -7, 4);
+    ctx.quadraticCurveTo(-12 + backLeg1X, 8 + backLeg1 * 0.3, -11 + backLeg1X, 14 + backLeg1);
+    ctx.lineTo(-9 + backLeg1X, 14 + backLeg1);
+    ctx.quadraticCurveTo(-9 + backLeg1X, 8 + backLeg1 * 0.3, -7, 4);
     ctx.closePath();
     ctx.fill();
     
@@ -4980,19 +5074,19 @@
     ctx.fillStyle = bodyColor;
     ctx.beginPath();
     ctx.moveTo(-6, 4);
-    ctx.quadraticCurveTo(-8, 8 + backLeg2 * 0.3, -7, 14 + backLeg2);
-    ctx.lineTo(-5, 14 + backLeg2);
-    ctx.quadraticCurveTo(-4, 8 + backLeg2 * 0.3, -3, 4);
+    ctx.quadraticCurveTo(-8 + backLeg2X, 8 + backLeg2 * 0.3, -7 + backLeg2X, 14 + backLeg2);
+    ctx.lineTo(-5 + backLeg2X, 14 + backLeg2);
+    ctx.quadraticCurveTo(-4 + backLeg2X, 8 + backLeg2 * 0.3, -3, 4);
     ctx.closePath();
     ctx.fill();
     
     // Back hooves
     ctx.fillStyle = black;
     ctx.beginPath();
-    ctx.ellipse(-10, 15 + backLeg1, 2, 1.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(-10 + backLeg1X, 15 + backLeg1, 2, 1.5, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(-6, 15 + backLeg2, 2, 1.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(-6 + backLeg2X, 15 + backLeg2, 2, 1.5, 0, 0, Math.PI * 2);
     ctx.fill();
     
     // === BODY - Muscular horse shape ===
@@ -5011,7 +5105,6 @@
     ctx.beginPath();
     ctx.ellipse(10, -1, 6, 6, 0.2, 0, Math.PI * 2);
     ctx.fill();
-    
     // Body highlights
     ctx.fillStyle = bodyHighlight;
     ctx.globalAlpha = 0.4;
@@ -5032,16 +5125,18 @@
     ctx.globalAlpha = 1;
     
     // === FRONT LEGS ===
-    const frontLeg1 = legPhases[0] * 10;
-    const frontLeg2 = legPhases[1] * 10;
+    const frontLeg1 = frontL * frontAmp;
+    const frontLeg2 = frontR * frontAmp;
+    const frontSwing1 = (gait === "gallop") ? (frontL * 3) : (frontL * 2);
+    const frontSwing2 = (gait === "gallop") ? (frontR * 3) : (frontR * 2);
     
     // Front left leg (further)
     ctx.fillStyle = bodyDark;
     ctx.beginPath();
     ctx.moveTo(8, 3);
-    ctx.quadraticCurveTo(7, 8 + frontLeg1 * 0.2, 8, 14 + frontLeg1);
-    ctx.lineTo(10, 14 + frontLeg1);
-    ctx.quadraticCurveTo(11, 8 + frontLeg1 * 0.2, 10, 3);
+    ctx.quadraticCurveTo(7 + frontSwing1, 8 + frontLeg1 * 0.2, 8 + frontSwing1 * 0.6, 14 + frontLeg1);
+    ctx.lineTo(10 + frontSwing1 * 0.6, 14 + frontLeg1);
+    ctx.quadraticCurveTo(11 + frontSwing1 * 0.3, 8 + frontLeg1 * 0.2, 10, 3);
     ctx.closePath();
     ctx.fill();
     
@@ -5049,21 +5144,28 @@
     ctx.fillStyle = bodyColor;
     ctx.beginPath();
     ctx.moveTo(11, 3);
-    ctx.quadraticCurveTo(10, 8 + frontLeg2 * 0.2, 11, 14 + frontLeg2);
-    ctx.lineTo(13, 14 + frontLeg2);
-    ctx.quadraticCurveTo(14, 8 + frontLeg2 * 0.2, 13, 3);
+    ctx.quadraticCurveTo(10 + frontSwing2, 8 + frontLeg2 * 0.2, 11 + frontSwing2 * 0.6, 14 + frontLeg2);
+    ctx.lineTo(13 + frontSwing2 * 0.6, 14 + frontLeg2);
+    ctx.quadraticCurveTo(14 + frontSwing2 * 0.3, 8 + frontLeg2 * 0.2, 13, 3);
     ctx.closePath();
     ctx.fill();
     
     // Front hooves
     ctx.fillStyle = black;
     ctx.beginPath();
-    ctx.ellipse(9, 15 + frontLeg1, 2, 1.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(9 + frontSwing1 * 0.6, 15 + frontLeg1, 2, 1.5, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.ellipse(12, 15 + frontLeg2, 2, 1.5, 0, 0, Math.PI * 2);
+    ctx.ellipse(12 + frontSwing2 * 0.6, 15 + frontLeg2, 2, 1.5, 0, 0, Math.PI * 2);
     ctx.fill();
     
+    // Head/neck posture: lean forward in gallop, drop head slightly when bucking
+    const headFwd = (gait === "gallop") ? 2.2 : 0.8;
+    const headDrop = (gait === "gallop") ? 1.0 : 0.4;
+    const buckDrop = isBuck ? (2.2 + buckKick * 2.0) : 0;
+    ctx.save();
+    ctx.translate(headFwd, headDrop + buckDrop);
+
     // === NECK - Arched and muscular ===
     ctx.fillStyle = bodyColor;
     ctx.beginPath();
@@ -5193,6 +5295,8 @@
     ctx.quadraticCurveTo(6 + maneWave * 0.8, -7, 2 + maneWave * 1.5, -2);
     ctx.stroke();
     
+    ctx.restore();
+
     // Rider glow when carrying
     if (wildHorse.carrying){
       ctx.globalAlpha = 0.5 + Math.sin(gallop * 3) * 0.2;
@@ -5304,7 +5408,7 @@
       
       // Snow cap on peak - size based on difficulty
       const snowSize = 0.08 + difficulty * 0.025;
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#d9b07a";
       ctx.beginPath();
       ctx.moveTo(cx, peakY);
       ctx.lineTo(cx - TILE * snowSize * scale, peakY + TILE * snowSize * scale * 1.8);
@@ -6688,7 +6792,7 @@
     ctx.globalAlpha = 1;
     
     // Body - three snowballs
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = "#d9b07a";
     ctx.strokeStyle = "#b0d0e8";
     ctx.lineWidth = 1.5;
     
@@ -7900,7 +8004,7 @@ function updateSpiderWebs(){
       ctx.fill();
       
       // White stripe on tail
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#d9b07a";
       ctx.beginPath();
       ctx.ellipse(-2, -8, 2, 5, -0.3, 0, Math.PI * 2);
       ctx.fill();
@@ -7912,7 +8016,7 @@ function updateSpiderWebs(){
       ctx.fill();
       
       // Two white stripes from head to tail (classic skunk pattern)
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#d9b07a";
       ctx.beginPath();
       ctx.moveTo(-2, -2);
       ctx.lineTo(-3, 1);
@@ -7938,7 +8042,7 @@ function updateSpiderWebs(){
       ctx.fill();
       
       // White face stripe
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#d9b07a";
       ctx.beginPath();
       ctx.moveTo(6, -3);
       ctx.lineTo(5.5, 1);
@@ -10785,6 +10889,7 @@ function updateSpiderWebs(){
     ctx.save();
     ctx.translate(x, y);
     
+    if (isSnakeStickLevelGlobal()) drawCowboyHatAt(0, -18, 0.65);
     // Monster is made of evil sticks!
     const shake = Math.sin(Date.now() / 100) * (anger * 2);
     
@@ -12487,7 +12592,49 @@ function sfxMonsterVictoryStreak(){
     document.documentElement.style.setProperty("--lvlBorder", t.border);
     document.documentElement.style.setProperty("--lvlAccentGlow", t.accentGlow);
     document.documentElement.style.setProperty("--lvlAccentShadow", t.accentShadow);
+  
+
+  // Snake Stick: cowboy hat for NPC stick figures (enemies, etc.)
+  function isSnakeStickLevelGlobal(){
+    try{ return currentLevelTheme().name === "Snake Stick"; }catch(_){ return false; }
   }
+  function drawCowboyHatAt(x, y, scale=1){
+    // Local drawing at absolute canvas coords (already in world space)
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+
+    // Brim
+    ctx.fillStyle = "#d9b07a";
+    ctx.strokeStyle = "rgba(40,25,10,0.65)";
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.ellipse(0, 2.2, 11.0, 3.0, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Crown
+    ctx.fillStyle = "#d9b07a";
+    ctx.beginPath();
+    ctx.moveTo(-5.0, 2.0);
+    ctx.quadraticCurveTo(-5.6, -3.6, -2.8, -6.9);
+    ctx.quadraticCurveTo(0.0, -8.8, 2.8, -6.9);
+    ctx.quadraticCurveTo(5.6, -3.6, 5.0, 2.0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Band
+    ctx.strokeStyle = "rgba(40,25,10,0.55)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-4.0, -1.2);
+    ctx.quadraticCurveTo(0, -2.3, 4.0, -1.2);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+}
 
   function isOccupiedByStick(x,y){
     return game.sticks.some(s => s.x===x && s.y===y);
@@ -13126,10 +13273,11 @@ function startFromNameInput(){
     ui.quickHowtoText.textContent = `Pick up sticks and drop them into the hole.
 
 1) Press 🎲 Roll to get Actions.
-2) Move onto a stick and press Pick/Drop to grab it.
-3) Move to the hole and press Pick/Drop to deposit.
+2) Use the arrow keys (↑ ↓ ← →) to move — each move spends 1 Action.
+3) Move onto a stick and press Pick/Drop to grab it.
+4) Move to the hole and press Pick/Drop to deposit.
 
-Every move and Pick/Drop spends 1 Action.
+Pick/Drop also spends 1 Action.
 Clear all sticks to advance — watch out for obstacles.`;
 
     game.inputLocked = true;
@@ -13835,6 +13983,54 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
   function tutorialIsDue(){
     return !(meta.tutorialDone && (meta.tutorialVersion|0) === (TUTORIAL_VERSION|0));
   }
+
+
+  // Quick one-box how-to (after intro logo on Level 1)
+  let quickHowtoWired = false;
+  function wireQuickHowto(){
+    if (quickHowtoWired) return;
+    quickHowtoWired = true;
+    if (ui.quickHowtoClose) ui.quickHowtoClose.addEventListener('click', hideQuickHowto);
+  }
+
+  function showQuickHowto(){
+    wireQuickHowto();
+    if (!ui.quickHowtoOverlay || !ui.quickHowtoText) return;
+    if (ui.infoOverlay && ui.infoOverlay.style.display === 'flex') return;
+    if (ui.nameOverlay && ui.nameOverlay.style.display === 'flex') return;
+    if (ui.gameOverOverlay && ui.gameOverOverlay.style.display === 'flex') return;
+    if (ui.winOverlay && ui.winOverlay.style.display === 'flex') return;
+
+    ui.quickHowtoText.textContent = `Pick up sticks and drop them into the hole.
+
+1) Press 🎲 Roll to get Actions.
+2) Move onto a stick and press Pick/Drop to grab it.
+3) Move to the hole and press Pick/Drop to deposit.
+
+Every move and Pick/Drop spends 1 Action.
+Clear all sticks to advance — watch out for obstacles.`;
+
+    game.inputLocked = true;
+    ui.quickHowtoOverlay.classList.add('show');
+    ui.quickHowtoOverlay.setAttribute('aria-hidden','false');
+  }
+
+  function hideQuickHowto(){
+    if (!ui.quickHowtoOverlay) return;
+    ui.quickHowtoOverlay.classList.remove('show');
+    ui.quickHowtoOverlay.setAttribute('aria-hidden','true');
+
+    meta.quickTipDone = true;
+    saveMeta();
+
+    // Release input lock if no other modal is open
+    if (!paused && ui.infoOverlay.style.display !== 'flex' && ui.nameOverlay.style.display !== 'flex' &&
+        ui.gameOverOverlay.style.display !== 'flex' && ui.winOverlay.style.display !== 'flex' &&
+        !(tutorial && tutorial.active)){
+      game.inputLocked = false;
+    }
+  }
+
 
   function newGame(fresh=false){
     if (!fresh){
@@ -15743,6 +15939,55 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
     const skin = game.playerSkin || "classic";
 
+
+    // Snake Stick: white cowboy hat overlay (only on Snake Stick level)
+    function isSnakeStickLevel(){
+      try{ return currentLevelTheme().name === "Snake Stick"; }catch(_){ return false; }
+    }
+    function drawCowboyHat(headY, headBob){
+      // Draws a simple white cowboy hat above the player's head in local coords
+      const y = (headY ?? -6) + (headBob ?? 0);
+
+      // Brim
+      ctx.save();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = 'transparent';
+      ctx.translate(0, y - 10.5);
+      ctx.fillStyle = "#d9b07a";
+      ctx.strokeStyle = "rgba(40,25,10,0.65)";
+      ctx.lineWidth = 1.2;
+
+      ctx.beginPath();
+      ctx.ellipse(0, 2.2, 11.5, 3.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Crown
+      ctx.fillStyle = "#d9b07a";
+      ctx.strokeStyle = "rgba(40,25,10,0.65)";
+      ctx.lineWidth = 1.2;
+
+      ctx.beginPath();
+      ctx.moveTo(-5.2, 2.0);
+      ctx.quadraticCurveTo(-5.8, -3.8, -3.0, -7.2);
+      ctx.quadraticCurveTo(0.0, -9.2, 3.0, -7.2);
+      ctx.quadraticCurveTo(5.8, -3.8, 5.2, 2.0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Hat band
+      ctx.strokeStyle = "rgba(40,25,10,0.55)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-4.2, -1.2);
+      ctx.quadraticCurveTo(0, -2.4, 4.2, -1.2);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     const drawCarryDots = () => {
       const cap = carryCap();
       const carried = game.carry.length;
@@ -15773,8 +16018,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.beginPath();
       ctx.arc(0, -6 + breathe * 0.3, 5, 0, Math.PI*2);
       ctx.stroke();
-
-      // Body
+// Body
       ctx.beginPath();
       ctx.moveTo(0, -1 + breathe * 0.15);
       ctx.lineTo(0, 9);
@@ -15832,17 +16076,26 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.beginPath();
       ctx.arc(0, -6 + headBob, 5, 0, Math.PI*2);
       ctx.stroke();
-      ctx.restore();
+ctx.restore();
+      if (!isSnakeStickLevel()){
+      if (!isSnakeStickLevel()){
+      if (!isSnakeStickLevel()){
 
       // Halo (gold ring) - keep crisp/bright (except on Ice Stick: hat only)
       if (!isIce){
         ctx.save();
         ctx.strokeStyle = "#ffd166";
+      }
+
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.ellipse(0, -15.5 + headBob, 7, 2.4, 0, 0, Math.PI*2);
         ctx.stroke();
-        ctx.restore();
+        
+      
+      }
+}
+ctx.restore();
       }
 
       // Body (faded)
@@ -16254,8 +16507,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         ctx.arc(0, -10, 6, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        
-        // Glowing red eyes
+// Glowing red eyes
         drawPossessedEyes(-2, -10, 2, -10, 2);
         
         // Dark ears
@@ -16306,8 +16558,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         ctx.rect(-6, -13, 12, 10);
         ctx.fill();
         ctx.stroke();
-        
-        // Glowing red eyes (rectangle shaped like robot)
+// Glowing red eyes (rectangle shaped like robot)
         ctx.shadowColor = eyeGlow;
         ctx.shadowBlur = 10 * eyePulse;
         ctx.fillStyle = eyeGlow;
@@ -16363,8 +16614,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         ctx.arc(0, -7, 7, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        
-        // Glowing red eyes (big alien eyes)
+// Glowing red eyes (big alien eyes)
         drawPossessedEyes(-2.5, -8, 2.5, -8, 2.5);
         
         // Dark antennae
@@ -16420,8 +16670,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         ctx.arc(0, -6, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        
-        // Glowing red eyes (rectangle like glasses)
+// Glowing red eyes (rectangle like glasses)
         ctx.shadowColor = eyeGlow;
         ctx.shadowBlur = 10 * eyePulse;
         ctx.fillStyle = eyeGlow;
@@ -16475,8 +16724,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         ctx.arc(0, -8 + sway, 4.5, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        
-        // Glowing red eyes
+// Glowing red eyes
         drawPossessedEyes(-1.5, -9 + sway, 1.5, -9 + sway, 1.5);
         
         // Dark dress
@@ -16752,8 +17000,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.beginPath();
       ctx.arc(0, -10, 6, 0, Math.PI * 2);
       ctx.stroke();
-      
-      // BIG Ears (longer lines sticking up)
+// BIG Ears (longer lines sticking up)
       ctx.beginPath();
       ctx.moveTo(-4, -14);
       ctx.lineTo(-5, -18);
@@ -16812,7 +17059,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.stroke();
       
       // White fur trim at base
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#d9b07a";
       ctx.beginPath();
       ctx.ellipse(0, -12, 6, 1.5, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -16828,7 +17075,25 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.restore();
     }
 
-    ctx.restore();
+    
+
+    // Snake Stick: cowboy hat on ALL player skins (single overlay so nothing gets missed)
+    if (isSnakeStickLevel()){
+      const tHat = Date.now() / 1000;
+      const swayHat = Math.sin(tHat * 6) * 0.6;
+      const headBobHat = Math.sin(tHat * 2) * 0.6;
+
+      let hy = -6;
+      if (skin === "rex") hy = -10;
+      else if (skin === "robot") hy = -8;
+      else if (skin === "alien") hy = -7;
+      else if (skin === "sally") hy = -8 + swayHat;
+      else if (skin === "angel") hy = -6 + headBobHat;
+      else if (skin === "rick") hy = -6;
+
+      drawCowboyHat(hy, 0);
+    }
+ctx.restore();
   }
 
   function drawSparks(){
@@ -16869,7 +17134,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
       ctx.fillStyle = t.name === "Ice Stick" ? "#0b0f14" : "#f3f4f6";
       ctx.fillText(game.hudMsg, CANVAS_W/2, 20);
-      ctx.restore();
+ctx.restore();
     }
   }
 
