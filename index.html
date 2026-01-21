@@ -4686,6 +4686,7 @@
     carrying: false,
     tripProgress: 0,
     tripSteps: 0,
+    rideTarget: 8,
     stuckCount: 0,
     dropCooldown: 0,
     gallop: 0, // Animation phase
@@ -4722,8 +4723,33 @@
     return lines[randInt(0, lines.length - 1)];
   }
 
-  
-  function initWildHorse(){
+  // Randomized ride lengths + fun sayings
+  function horseRideLength(){
+    const opts = [5, 8, 12];
+    return opts[randInt(0, opts.length - 1)];
+  }
+  function horseRideStartLine(){
+    const lines = [
+      '🤠 Saddle up, partner!',
+      '🐴 Hold on tight — here we go!',
+      '🏜️ Dusty trail express!',
+      '🤠 Giddyup! Let\'s ride!',
+      '🐴 Yeehaw! The wild one\'s on the move!'
+    ];
+    return lines[randInt(0, lines.length - 1)];
+  }
+  function horseRideEndLine(){
+    const lines = [
+      '🤠 You\'re a real cowboy now!',
+      '🐴 Good ridin\' — partner.',
+      '🏜️ Ride\'s over — boots still on!',
+      '🤠 That\'s frontier certified.',
+      '🐴 Whoa there! Dismount time.'
+    ];
+    return lines[randInt(0, lines.length - 1)];
+  }
+
+function initWildHorse(){
     wildHorse.x = randInt(0, GRID_W - 1);
     wildHorse.y = randInt(0, GRID_H - 1);
     wildHorse.active = true;
@@ -4843,8 +4869,8 @@
           wildHorse.stuckCount = 0;
         }
         
-        // End ride after 8 steps OR if stuck at edge
-        if (wildHorse.tripSteps >= 8 || wildHorse.stuckCount >= 2){
+        // End ride after a random ride length OR if stuck at edge
+        if (wildHorse.tripSteps >= (wildHorse.rideTarget || 8) || wildHorse.stuckCount >= 2){
           wildHorse.carrying = false;
           wildHorse.tripProgress = 0;
           wildHorse.tripSteps = 0;
@@ -4860,7 +4886,7 @@
           wildHorse.x = clamp(wildHorse.x + wildHorse.dx * 2, 0, GRID_W - 1);
           wildHorse.y = clamp(wildHorse.y + wildHorse.dy * 2, 0, GRID_H - 1);
           
-          logEvent("horse", "🐴 Whoa! End of the ride!");
+          logEvent("horse", horseRideEndLine());
           setHud("DISMOUNTED!");
           beep(350, 0.08, "sine", 0.15);
           updateUI();
@@ -4934,6 +4960,7 @@
       wildHorse.carrying = true;
       wildHorse.tripProgress = 0;
       wildHorse.tripSteps = 0;
+      wildHorse.rideTarget = horseRideLength();
       
       // Set direction based on current facing
       if (wildHorse.dx === 0 && wildHorse.dy === 0){
@@ -4941,6 +4968,7 @@
       }
       
       logEvent("horse", "🐴 Yeehaw! You caught the wild horse!");
+      logEvent("horse", horseRideStartLine());
       setHud("🐴 GIDDYUP!");
       // Horse whinny sound
       beep(400, 0.1, "sawtooth", 0.2);
@@ -4970,7 +4998,8 @@
     
     ctx.save();
     ctx.translate(px, py + bodyBob);
-    ctx.scale(facing, 1);
+    const horseScale = (currentLevelTheme().name === "Snake Stick") ? 1.45 : 1.25;
+    ctx.scale(facing * horseScale, horseScale);
     
     // Dust when running
     if (isRunning){
@@ -13273,7 +13302,7 @@ function startFromNameInput(){
     ui.quickHowtoText.textContent = `Pick up sticks and drop them into the hole.
 
 1) Press 🎲 Roll to get Actions.
-2) Use the arrow keys (↑ ↓ ← →) to move — each move spends 1 Action.
+2) Move with Arrow keys (↑ ↓ ← →) or the on-screen arrows — each tile costs 1 Action.
 3) Move onto a stick and press Pick/Drop to grab it.
 4) Move to the hole and press Pick/Drop to deposit.
 
@@ -14004,10 +14033,11 @@ logEvent("level",`Level ${game.level}! (${currentLevelTheme().name})`);
     ui.quickHowtoText.textContent = `Pick up sticks and drop them into the hole.
 
 1) Press 🎲 Roll to get Actions.
-2) Move onto a stick and press Pick/Drop to grab it.
-3) Move to the hole and press Pick/Drop to deposit.
+2) Move with Arrow keys (↑ ↓ ← →) or the on-screen arrows — each tile costs 1 Action.
+3) Move onto a stick and press Pick/Drop to grab it.
+4) Move to the hole and press Pick/Drop to deposit.
 
-Every move and Pick/Drop spends 1 Action.
+Pick/Drop also spends 1 Action.
 Clear all sticks to advance — watch out for obstacles.`;
 
     game.inputLocked = true;
