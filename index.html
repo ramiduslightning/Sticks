@@ -3792,6 +3792,38 @@
     }
     console.log('⛰️ Peak sticks:', peakSticks.length);
     
+    // Ensure no ground sticks are hidden under mountain tiles (can cause a "stuck" clear)
+    if (game && game.sticks && game.sticks.length){
+      const isMountainTile = (x, y) => mountains.some(m => m.x === x && m.y === y);
+
+      const randomEmptyTileNoMountain = () => {
+        for (let tries = 0; tries < 400; tries++){
+          const p = randomEmptyTile();
+          if (!isMountainTile(p.x, p.y)) return p;
+        }
+        // Fallback scan
+        for (let yy = 0; yy < GRID_H; yy++){
+          for (let xx = 0; xx < GRID_W; xx++){
+            if (isMountainTile(xx, yy)) continue;
+            if (xx === game.holeX && yy === game.holeY) continue;
+            if (xx === game.playerX && yy === game.playerY) continue;
+            if (game.sticks.some(s => s.x === xx && s.y === yy)) continue;
+            return {x: xx, y: yy};
+          }
+        }
+        return {x: 0, y: 0};
+      };
+
+      for (const s of game.sticks){
+        if (isMountainTile(s.x, s.y)){
+          const p = randomEmptyTileNoMountain();
+          s.x = p.x;
+          s.y = p.y;
+        }
+      }
+    }
+
+    
     // Add floating clouds for Mountain Stick
     mountainClouds = [];
     const cloudCount = randInt(4, 6);
@@ -5441,37 +5473,41 @@ function initWildHorse(){
         ctx.stroke();
       }
       
-      // Snow cap on peak - size based on difficulty
-      const snowSize = 0.08 + difficulty * 0.025;
-      ctx.fillStyle = "#d9b07a";
+            // Snow cap on peak - size based on difficulty
+      // Slightly smaller + more blended so it doesn't read like a "triangle hat"
+      const snowSize = 0.06 + difficulty * 0.018;
+
+      // Snow cap (softened triangle, but feathered into the mountain)
+      const capW = TILE * snowSize * scale * 1.05;
+      const capH = TILE * snowSize * scale * 1.18;
+
+      // Feathered gradient to blend the bottom edge into the mountain
+      const snowGrad = ctx.createLinearGradient(0, peakY, 0, peakY + capH * 1.05);
+      snowGrad.addColorStop(0.00, "rgba(255, 255, 255, 0.90)");
+      snowGrad.addColorStop(0.60, "rgba(255, 255, 255, 0.72)");
+      snowGrad.addColorStop(1.00, "rgba(255, 255, 255, 0.22)");
+
+      ctx.fillStyle = snowGrad;
       ctx.beginPath();
-      ctx.moveTo(cx, peakY);
-      ctx.lineTo(cx - TILE * snowSize * scale, peakY + TILE * snowSize * scale * 1.8);
-      ctx.lineTo(cx + TILE * snowSize * scale, peakY + TILE * snowSize * scale * 1.8);
+      // Softened triangular snow cap (keeps the sharp peak vibe, just more natural)
+      ctx.moveTo(cx - capW, peakY + capH);
+      ctx.quadraticCurveTo(cx - capW * 0.22, peakY + capH * 0.18, cx, peakY + capH * 0.06);
+      ctx.quadraticCurveTo(cx + capW * 0.22, peakY + capH * 0.18, cx + capW, peakY + capH);
       ctx.closePath();
+
+      // Tiny shadow at the seam so it "sits" on the rock instead of floating
+      ctx.save();
+      ctx.shadowColor = "rgba(20, 15, 10, 0.25)";
+      ctx.shadowBlur = 4;
+      ctx.shadowOffsetY = 1;
       ctx.fill();
-      
-      // Secondary snow patches for higher difficulty
-      if(difficulty >= 4){
-        ctx.fillStyle = "rgba(255, 255, 255, 0.75)";
-        ctx.beginPath();
-        ctx.moveTo(cx - halfWidth * 0.4, peakY + (baseY - peakY) * 0.22);
-        ctx.lineTo(cx - halfWidth * 0.2, peakY + (baseY - peakY) * 0.14);
-        ctx.lineTo(cx - halfWidth * 0.15, peakY + (baseY - peakY) * 0.3);
-        ctx.closePath();
-        ctx.fill();
-      }
-      
-      if(difficulty >= 5){
-        ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-        ctx.beginPath();
-        ctx.moveTo(cx + halfWidth * 0.35, peakY + (baseY - peakY) * 0.24);
-        ctx.lineTo(cx + halfWidth * 0.18, peakY + (baseY - peakY) * 0.16);
-        ctx.lineTo(cx + halfWidth * 0.12, peakY + (baseY - peakY) * 0.32);
-        ctx.closePath();
-        ctx.fill();
-      }
-      
+      ctx.restore();
+
+      // Subtle highlight edge (very light)
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+// Secondary snow patches removed (single snow cap only)
       // Display number - show remaining if climbing, otherwise show difficulty
       const displayNum = isClimbing ? m.currentClimb : difficulty;
       const fontSize = 10 + difficulty * 2;
@@ -12156,6 +12192,11 @@ async function playBgTrack(fromStart=false){
   function sfxError(){ beep(160,0.08,"sawtooth",0.06); }
   function sfxZeroBad(){ beep(120,0.10,"sawtooth",0.07); beep(90,0.12,"sawtooth",0.06); }
   function sfxBonus(){ chord([660,880],0.16,0.06,"triangle"); }
+  function sfxLifeTileMaxBonus(){
+    // cheerful "coin" + tiny sparkle
+    chord([880, 1174, 1760], 0.12, 0.07, "triangle");
+    gameSetTimeout(() => beep(2093, 0.05, "triangle", 0.05), 70);
+  }
   // Special power-up stick sounds
   function playSpeedStickSound(){
     // Fast ascending notes
@@ -14061,7 +14102,7 @@ Clear all sticks to advance — watch out for obstacles.`;
     }
 
     console.log("🎮 newLevel() called! Current game.level:", game.level);
-    if (game.level > 15){
+    if (game.level >= 15){
       winGame();
       updateUI();
       return;
@@ -14848,6 +14889,15 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     // 1) HOLE: only actionable if carrying sticks OR holding a moon blessing
     if (onHole){
       if (!hasCarry && !moonStick){
+        // If the field is clear, allow advancing even if you have nothing to deposit
+        // (prevents a soft-lock if the final stick was used on the life tile).
+        if (game.sticks.length === 0){
+          sfxBonus();
+          setHud("LEVEL CLEAR!");
+          newLevel();
+          updateUI();
+          return;
+        }
         sfxError();
         setHud("Nothing to deposit.");
         return;
@@ -15069,9 +15119,9 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
           startCelebrationMusic(6500);
         } else {
           game.score += LIFE_TILE_MAX_POINTS;
-          logEvent("bonus",`Life tile found (max lives). +${LIFE_TILE_MAX_POINTS} points.`);
-          setHud(`LIFE TILE (+${LIFE_TILE_MAX_POINTS})`);
-          sfxPickup();
+          logEvent("bonus",`Life tile found (max lives). x${LIFE_TILE_MAX_POINTS} bonus points!`);
+          setHud(`LIFE TILE (×${LIFE_TILE_MAX_POINTS})`);
+          sfxLifeTileMaxBonus();
           commitScoreToLeaderboard();
         }
 
