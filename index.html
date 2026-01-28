@@ -10068,6 +10068,109 @@ function updateSpiderWebs(){
   // Deposit arrow hint for new players (first 3 levels)
   let depositArrowTimer = 0;
   let depositArrowShown = false; // Track if shown this "full carry" instance
+
+  // Last-stick arrow hint for learning levels (1–3)
+  let learnLastStickTimer = 0;        // frames since last player action while only 1 stick remains
+  let learnLastStickShown = false;
+  const LEARN_LAST_STICK_IDLE = 420;  // ~7 seconds at 60fps
+
+  function markLearnActivity(){
+    learnLastStickTimer = 0;
+    learnLastStickShown = false;
+  }
+
+  function updateLearnLastStickHint(){
+    if (game.level > 3) { learnLastStickTimer = 0; learnLastStickShown = false; return; }
+
+    // Only when there is exactly 1 stick left on the board (learning moment)
+    if (game.sticks.length === 1){
+      learnLastStickTimer++;
+      if (learnLastStickTimer >= LEARN_LAST_STICK_IDLE) learnLastStickShown = true;
+    } else {
+      learnLastStickTimer = 0;
+      learnLastStickShown = false;
+    }
+  }
+
+  function drawLearnLastStickHint(){
+    if (!learnLastStickShown) return;
+    if (game.level > 3) return;
+    if (game.sticks.length !== 1) return;
+
+    const theme = currentLevelTheme();
+
+    // If Sun Stick already has its own last-stick visibility assist active, don't double-hint.
+    if (theme.name === "Sun Stick" && game.sunLastStickHintShown) return;
+
+    const s = game.sticks[0];
+    const cx = s.x * TILE + TILE/2;
+    const cy = s.y * TILE + TILE/2;
+
+    // Arrow from above the stick, with label "Last Stick"
+    const ax = cx;
+    const ay = cy - 42;
+
+    ctx.save();
+    const pulse = 0.7 + 0.3 * Math.sin(perfNow()/120);
+    ctx.globalAlpha = 0.85 * pulse;
+
+    // Arrow
+    ctx.strokeStyle = theme.border || "rgba(255,255,255,0.65)";
+    ctx.lineWidth = 3;
+    ctx.fillStyle = (theme.name === "Sparkle Stick") ? "#ffffff" : (theme.accent || "#ffd166");
+
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(cx, cy - 10);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - 10);
+    ctx.lineTo(cx - 7, cy - 18);
+    ctx.lineTo(cx + 7, cy - 18);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Label pill
+    const label = "Last Stick";
+    ctx.font = "1000 12px ui-monospace, monospace";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    const w = ctx.measureText(label).width + 18;
+    const h = 22;
+    const x0 = ax - w/2;
+    const y0 = ay - 18;
+
+    const r = 10;
+    ctx.beginPath();
+    ctx.moveTo(x0 + r, y0);
+    ctx.lineTo(x0 + w - r, y0);
+    ctx.quadraticCurveTo(x0 + w, y0, x0 + w, y0 + r);
+    ctx.lineTo(x0 + w, y0 + h - r);
+    ctx.quadraticCurveTo(x0 + w, y0 + h, x0 + w - r, y0 + h);
+    ctx.lineTo(x0 + r, y0 + h);
+    ctx.quadraticCurveTo(x0, y0 + h, x0, y0 + h - r);
+    ctx.lineTo(x0, y0 + r);
+    ctx.quadraticCurveTo(x0, y0, x0 + r, y0);
+    ctx.closePath();
+
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fill();
+    ctx.strokeStyle = theme.border || "rgba(255,255,255,0.65)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = (theme.name === "Sparkle Stick") ? "#ffffff" : (theme.accent || "#ffd166");
+    ctx.strokeStyle = "rgba(0,0,0,0.85)";
+    ctx.lineWidth = 4;
+    ctx.strokeText(label, ax, y0 + h/2);
+    ctx.fillText(label, ax, y0 + h/2);
+
+    ctx.restore();
+  }
+
   
   function drawDepositArrow(){
     // Only show on first 3 levels
@@ -10126,22 +10229,57 @@ function updateSpiderWebs(){
     
     ctx.restore();
     
-    // Draw "DEPOSIT YOUR STICKS!" text above arrow
+    // Draw deposit helper label above arrow (more readable, matches level colors)
     ctx.save();
     ctx.globalAlpha = pulse * (depositArrowTimer / 240);
-    ctx.fillStyle = (theme.name === "Sparkle Stick") ? "#ffffff" : theme.accent;
-    ctx.strokeStyle = (theme.name === "Sparkle Stick") ? "rgba(0,0,0,0.85)" : theme.border;
-    ctx.lineWidth = 3;
-    ctx.font = "bold 12px ui-monospace, monospace";
+
+    const label = "DEPOSIT IN HOLE";
+
+    const fg = (theme.name === "Sparkle Stick") ? "#ffffff" : theme.accent;
+    const stroke = (theme.name === "Sparkle Stick") ? "rgba(0,0,0,0.85)" : theme.border;
+
+    // Backplate pill for readability
+    ctx.font = "900 13px ui-monospace, monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    
-    const textY = arrowY - 25;
-    // Draw text outline for visibility
-    ctx.strokeText("DEPOSIT YOUR STICKS!", arrowX, textY);
-    ctx.fillText("DEPOSIT YOUR STICKS!", arrowX, textY);
+
+    const y1 = arrowY - 22;
+
+    const w = ctx.measureText(label).width + 22;
+    const h = 22;
+    const x0 = arrowX - w/2;
+    const y0 = y1 - h/2;
+
+    // Rounded rect helper
+    const r = 10;
+    ctx.beginPath();
+    ctx.moveTo(x0 + r, y0);
+    ctx.lineTo(x0 + w - r, y0);
+    ctx.quadraticCurveTo(x0 + w, y0, x0 + w, y0 + r);
+    ctx.lineTo(x0 + w, y0 + h - r);
+    ctx.quadraticCurveTo(x0 + w, y0 + h, x0 + w - r, y0 + h);
+    ctx.lineTo(x0 + r, y0 + h);
+    ctx.quadraticCurveTo(x0, y0 + h, x0, y0 + h - r);
+    ctx.lineTo(x0, y0 + r);
+    ctx.quadraticCurveTo(x0, y0, x0 + r, y0);
+    ctx.closePath();
+
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Text (outlined)
+    ctx.fillStyle = fg;
+    ctx.strokeStyle = "rgba(0,0,0,0.85)";
+    ctx.lineWidth = 4;
+
+    ctx.strokeText(label, arrowX, y1);
+    ctx.fillText(label, arrowX, y1);
+
     ctx.restore();
-  }
+}
   
   function initMoon(){
     moon.isFull = true;
@@ -12806,6 +12944,8 @@ function sfxMonsterVictoryStreak(){
       if (fireTiles && fireTiles.some(f => f.x === x && f.y === y)) continue;
       if (windTiles && windTiles.some(w => w.x === x && w.y === y)) continue;
       if (freezeTiles && freezeTiles.some(f => f.x === x && f.y === y)) continue;
+      // Avoid sun burst tiles in Sun Stick (so sticks never spawn inside the burst)
+      if (currentLevelTheme().name === "Sun Stick" && sunBurstTiles && sunBurstTiles.some(b => b.x === x && b.y === y)) continue;
       
       // Avoid spider webs - sticks should never spawn in webs!
       if (spiderWebs && spiderWebs.length > 0){
@@ -14235,6 +14375,7 @@ Clear all sticks to advance — watch out for obstacles.`;
   }
 
   function doRoll(){
+    markLearnActivity();
     if (!canRoll()){
       sfxError();
       setHud("Spend Actions first!");
@@ -14624,6 +14765,7 @@ Clear all sticks to advance — watch out for obstacles.`;
 
   function move(dx,dy){
     if (game.inputLocked) return;
+    markLearnActivity();
     
     // Reset life tile sound if moving off it
     if(game.playerX !== game.lifeTileX || game.playerY !== game.lifeTileY){
@@ -14861,6 +15003,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   }
 
   function pickOrDrop(){
+    markLearnActivity();
     if (game.inputLocked) return;
 
     // If a monster battle is pending, Pick/Drop should not spend actions.
@@ -17352,6 +17495,7 @@ ctx.restore();
       // update
       updateTreeTimers();
       updateRollButton();
+      updateLearnLastStickHint();
     
     // Update fire tiles for Fire Stick theme
     if (currentLevelTheme().name === "Fire Stick" && fireTiles.length > 0){
@@ -17507,6 +17651,13 @@ ctx.restore();
     if (theme.name === "Snake Stick"){
       // intentionally blank
     }
+    // Sun Stick: draw sun bursts BEHIND sticks (keeps hole clean and sticks visible)
+    if (theme.name === "Sun Stick" && sunBurstTiles.length > 0){
+      drawSunBursts();
+      drawSunCharacter();
+      drawSunLastStickHint();
+    }
+
 
     // sticks
     for (const s of game.sticks) drawStick(s);
@@ -17528,7 +17679,8 @@ ctx.restore();
     }
     
     // Draw deposit arrow hint (first 3 levels)
-    drawDepositArrow();
+    drawLearnLastStickHint();
+        drawDepositArrow();
     
     // Draw monster figure if there's a pending battle
     drawMonsterFigure();
@@ -17593,14 +17745,7 @@ ctx.restore();
     if (theme.name === "Sea Stick" && sharks.length > 0){
       drawSharks();
     }
-    
-    // Draw sun bursts for Sun Stick
-    if (theme.name === "Sun Stick" && sunBurstTiles.length > 0){
-      drawSunBursts();
-      drawSunCharacter();
-      drawSunLastStickHint();
-    }
-    
+    // (Sun Stick) sun bursts are drawn earlier (behind sticks) so the hole stays clean
     // Draw Spell Stick teleports and hole flash
     if (theme.name === "Spell Stick" && teleportTiles.length > 0){
       drawLevelHazards();
