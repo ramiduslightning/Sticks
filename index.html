@@ -10065,9 +10065,9 @@ function updateSpiderWebs(){
   };
   let moonStick = null; // Special 25-point moon stick floating above player
   
-  // Deposit arrow hint for new players (first 3 levels)
+  // Deposit arrow hint for new players (levels 1–3)
   let depositArrowTimer = 0;
-  let depositArrowShown = false; // Track if shown this "full carry" instance
+  let depositArrowShownThisLevel = false; // only once per level
 
   // Last-stick arrow hint for learning levels (1–3)
   let learnLastStickTimer = 0;        // frames since last player action while only 1 stick remains
@@ -10175,21 +10175,17 @@ function updateSpiderWebs(){
   function drawDepositArrow(){
     // Only show on first 3 levels
     if(game.level > 3) return;
-    
-    // Only show when at max capacity
-    const cap = carryCap();
-    if(game.carry.length < cap) {
-      depositArrowShown = false; // Reset when not full
-      return;
+
+    // Show only on the FIRST time the player picks up any stick(s) this level
+    if(depositArrowTimer <= 0){
+      if(!depositArrowShownThisLevel && game.carry.length > 0){
+        depositArrowShownThisLevel = true;
+        depositArrowTimer = 240; // 4 seconds
+      } else {
+        return;
+      }
     }
-    
-    // Show for 4 seconds when first hitting max
-    if(!depositArrowShown){
-      depositArrowShown = true;
-      depositArrowTimer = 240; // 4 seconds
-    }
-    
-    if(depositArrowTimer <= 0) return;
+
     depositArrowTimer--;
     
     const theme = currentLevelTheme();
@@ -14250,6 +14246,10 @@ Clear all sticks to advance — watch out for obstacles.`;
 
     game.level++;
     console.log("📈 Level incremented to:", game.level);
+
+    // Reset learning-level hints for the new level
+    depositArrowTimer = 0;
+    depositArrowShownThisLevel = false;
     
     // Clear mountain traversal state
     game.mountainTraversal = null;
