@@ -15140,9 +15140,9 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         // Fill from tree
         const cap = carryCap();
         const makeColor = ()=> randColor();
-        for(let i=0;i<cap;i++) game.carry.push({ color: makeColor(), value:2 });
-        setHud(`Tree filled you to ${cap} (×2).`);
-        logEvent("bonus",`🌳 Tree filled you to ${cap} (double-value sticks).`);
+        for(let i=0;i<cap;i++) game.carry.push({ color: makeColor(), value:1 });
+        setHud(`Tree filled you to ${cap}.`);
+        logEvent("bonus",`🌳 Tree filled you to ${cap}.`);
         sfxPickup();
         clearTree();
         logEvent("info","🌳 Tree vanished.");
@@ -15172,7 +15172,14 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
       clearTree();
       logEvent("info","🌳 Tree vanished.");
-      updateUI();
+
+      // Check if this was the last stick - advance level if board and carry are empty
+      if (game.sticks.length === 0 && game.carry.length === 0){
+        logEvent("level","Cleared the field!");
+        newLevel();
+      } else {
+        updateUI();
+      }
       return;
     }
 
@@ -15269,7 +15276,14 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         }
 
         spawnSparks(px, py, 18, false);
-        updateUI();
+
+        // Check if this was the last stick - advance level if board and carry are empty
+        if (game.sticks.length === 0 && game.carry.length === 0){
+          logEvent("level","Cleared the field!");
+          newLevel();
+        } else {
+          updateUI();
+        }
         return;
       }
 
