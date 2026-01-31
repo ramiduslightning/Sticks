@@ -9660,13 +9660,9 @@ function updateSpiderWebs(){
       const pulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
       
       ctx.save();
-      // Theme-matched shield ring (special sticks stay multicolored, but the effect ring matches the level vibe)
-      let shieldColor = '#3aa7ff';
-      const tname = currentLevelTheme().name;
-      if (tname === "Snake Stick") shieldColor = '#c29b54';
-      else if (tname === "Night Stick") shieldColor = '#ffd700';
-      else if (tname === "Sparkle Stick") shieldColor = '#d8a0f0';
-      else if (tname === "Ice Stick") shieldColor = '#b4f5ff';
+      // Use theme accent color for shield ring
+      const theme = currentLevelTheme();
+      const shieldColor = theme.accent || '#3aa7ff';
       ctx.strokeStyle = shieldColor;
       ctx.lineWidth = 2;
       ctx.globalAlpha = 0.4 + pulse * 0.3;
