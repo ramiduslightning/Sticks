@@ -11250,6 +11250,7 @@ function updateSpiderWebs(){
   const MAX_LIVES = 5;
 
   let levelDropCount = 0;
+  let levelWasPlayed = false; // Track if level was actually played (not skipped)
   const LIFE_TILE_MAX_POINTS = 10;
   const TREE_FEED_MAX_POINTS = 10;
 
@@ -13509,6 +13510,7 @@ function startFromNameInput(){
     spawnHole();
     randomizePlayerOnBoard();
     levelDropCount = 0;
+    levelWasPlayed = true; // Mark level as actually being played
     spawnSticksForLevel(game.level);
     maybeSpawnSpecialSticks();
     spawnLifeTile();
@@ -14233,9 +14235,9 @@ Clear all sticks to advance — watch out for obstacles.`;
   }
 
   function newLevel(){
-    // Achievement: Beat Level 5 without dropping a stick
-    if (game.level === 5 && levelDropCount === 0){
-      unlockAchievement("lvl5_noDrops", "Beat Level 5 without dropping a stick");
+    // Achievement: Beat any level without dropping a stick (only if actually played)
+    if (levelDropCount === 0 && levelWasPlayed){
+      unlockAchievement(`lvl${game.level}_noDrops`, `Beat Level ${game.level} without dropping a stick`);
     }
 
     console.log("🎮 newLevel() called! Current game.level:", game.level);
@@ -14247,6 +14249,10 @@ Clear all sticks to advance — watch out for obstacles.`;
 
     game.level++;
     console.log("📈 Level incremented to:", game.level);
+
+    // Reset level tracking for new level
+    levelDropCount = 0;
+    levelWasPlayed = true; // Mark as actually played (not skipped)
 
     // Reset learning-level hints for the new level
     depositArrowTimer = 0;
@@ -17913,6 +17919,9 @@ ctx.restore();
     
     game.level = levelNum - 1;
     newLevel();
+    
+    // Mark that this level was skipped to (not actually played) - must be after newLevel()
+    levelWasPlayed = false;
     
     // Restore sticks after level change
     game.carry = savedCarry;
