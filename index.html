@@ -16088,11 +16088,19 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.shadowBlur = 6;
     }
 
-    ctx.strokeStyle = s.color;
-    ctx.lineWidth = 3;
     ctx.lineCap = "round";
 
-    // Draw stick as simple vertical line (rotation handles angle)
+    // Draw dark outline first for visibility on colorful backgrounds (like rainbow)
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.5)";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(0, -9);
+    ctx.lineTo(0, 9);
+    ctx.stroke();
+
+    // Draw colored stick on top
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(0, -9);
     ctx.lineTo(0, 9);
