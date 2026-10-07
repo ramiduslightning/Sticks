@@ -25,6 +25,7 @@
     }
 
     .wrap{
+      box-sizing:border-box;
       width:100%;
       max-width:none;
       margin:0;
@@ -71,6 +72,7 @@
     }
 
     .panel{
+      box-sizing:border-box;
       background:#0f1720;
       border:2px solid #1f2a37;
       border-radius:12px;
@@ -1174,6 +1176,7 @@
       <div class="modalActions" style="gap:12px;">
         <button class="modalClose" id="btnPauseClose">Resume</button>
         <button class="modalClose" id="btnPauseSave">💾 Save</button>
+        <button class="modalClose" id="btnPauseNewGame">🔄 New Game</button>
       </div>
     </div>
   </div>
@@ -11680,6 +11683,7 @@ nameLoadBtn: document.getElementById("nameLoadBtn"),
     pauseOverlay: document.getElementById("pauseOverlay"),
     btnPauseClose: document.getElementById("btnPauseClose"),
     btnPauseSave: document.getElementById("btnPauseSave"),
+    btnPauseNewGame: document.getElementById("btnPauseNewGame"),
 
     newGameOverlay: document.getElementById("newGameOverlay"),
     btnNewGameCancel: document.getElementById("btnNewGameCancel"),
@@ -12583,6 +12587,7 @@ function sfxMonsterVictoryStreak(){
   const INTRO_HOLD_TIME = 165;    // ~2.7 seconds (time to read the level tip)
   const INTRO_FADEOUT_TIME = 45;  // ~0.75 seconds
   const INTRO_VICTORY_PAUSE_TIME = 180; // ~3 seconds pause before rotation (Victory Stick only)
+  let pendingFormBanner = null;
   
   const LEVEL_TIPS = {
     "Night Stick":   "Watch the UFO — move before its beam fires.",
@@ -12642,6 +12647,7 @@ function sfxMonsterVictoryStreak(){
           quickHowtoPending = false;
           showQuickHowto();
         }
+        if (pendingFormBanner){ const _pb = pendingFormBanner; pendingFormBanner = null; showFormBanner(_pb); }
       }}
   }
   
@@ -12858,8 +12864,10 @@ function sfxMonsterVictoryStreak(){
       ctx.fillText('★ FINAL LEVEL! ★', cx, figY + 125 * figScale);
     }
 
-    // Per-level tip: what this level throws at you (word-wrapped)
-    if (levelIntro.tip){
+    // Per-level tip: hidden while a tutorial/how-to box is up so info doesn't pile up
+    const _tutOpen = (ui.tutorialOverlay && ui.tutorialOverlay.classList.contains('show')) ||
+                     (ui.quickHowtoOverlay && ui.quickHowtoOverlay.classList.contains('show'));
+    if (levelIntro.tip && !_tutOpen){
       ctx.font = '15px ui-monospace, monospace';
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       const maxW = CANVAS_W * 0.82;
@@ -15464,6 +15472,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   let formBannerTimer = null;
   function showFormBanner(text){
     if (!ui.formBanner) return;
+    if (levelIntro && levelIntro.active){ pendingFormBanner = text; return; } // wait for the level intro to clear
     ui.formBanner.textContent = text;
     ui.formBanner.classList.add('show');
     if (formBannerTimer) gameClearTimeout(formBannerTimer);
@@ -17596,13 +17605,7 @@ ctx.restore();
         ctx.fillStyle = sg;
         ctx.beginPath(); ctx.arc(sx,sy,TILE*0.9,0,Math.PI*2); ctx.fill();
       }
-      // faint beacon on the hole
-      const hx = game.holeX*TILE+TILE/2, hy = game.holeY*TILE+TILE/2;
-      const hg = ctx.createRadialGradient(hx,hy,0,hx,hy,TILE*1.1);
-      hg.addColorStop(0,'rgba(120,180,255,0.3)');
-      hg.addColorStop(1,'rgba(120,180,255,0)');
-      ctx.fillStyle = hg;
-      ctx.beginPath(); ctx.arc(hx,hy,TILE*1.1,0,Math.PI*2); ctx.fill();
+      // (the hole is drawn crisp below, on top of the dark, so it reads as the target)
       // glowing monster eyes stalking in the black (brighter as they close in)
       try {
         if (shadowMonsters && shadowMonsters.length){
@@ -17617,6 +17620,16 @@ ctx.restore();
         }
       } catch(_e){}
       ctx.globalCompositeOperation = 'source-over';
+
+      // The deposit hole: draw the game's normal hole on top of the dark so it stays visible
+      // while keeping the exact same size/look as every other level.
+      {
+        const _hp = game.holePulse, _hf = game.holeFlash;
+        ctx.save(); ctx.globalAlpha = 1;
+        try { drawHole(currentLevelTheme()); } catch(_dh){}
+        ctx.restore();
+        game.holePulse = _hp; game.holeFlash = _hf; // normal pass already decremented
+      }
 
       // the flashlight itself, in the figure's hand, pointing the way he walks
       ctx.save();
@@ -18185,6 +18198,13 @@ ctx.restore();
   ui.btnPause.addEventListener("click", togglePause);
   ui.btnPauseClose.addEventListener("click", togglePause);
   ui.btnPauseSave.addEventListener("click", () => { saveGame(); });
+  if (ui.btnPauseNewGame) ui.btnPauseNewGame.addEventListener("click", () => {
+    resumeGame();                              // leave pause state cleanly
+    ui.newGameOverlay.style.display = "flex";  // then show the Start New confirm
+    game.inputLocked = true;
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+    if (musicOn) stopMusic();
+  });
 
   if(ui.btnSave) ui.btnSave.addEventListener("click", saveGame);
   if(ui.btnLoad) ui.btnLoad.addEventListener("click", loadGame);
