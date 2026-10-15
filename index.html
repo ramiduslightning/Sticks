@@ -13316,7 +13316,8 @@ function sfxMonsterVictoryStreak(){
   function scheduleTreeForLevel(){
     clearTree();
     game.treeSpawnedThisLevel = false;
-    game.treeSpawnDelay = 60 * randInt(30, 300); // 30 seconds – 5 minutes
+    // Beginner levels: the Tree shows up sooner (20-60s) so new players actually meet it.
+    game.treeSpawnDelay = (game.level <= 2) ? 60 * randInt(20, 60) : 60 * randInt(30, 300);
   }
 
   function spawnTreeNow(){
@@ -13325,11 +13326,22 @@ function sfxMonsterVictoryStreak(){
     game.treeY = p.y;
     game.treeActive = true;
     game.treePhase = "visible";
-    game.treePhaseTimer = 60 * 15;
+    // Beginner levels: 30s visible (then 15s blinking). Later levels: 15s + 15s.
+    const visibleSecs = (game.level <= 2) ? 30 : 15;
+    game.treePhaseTimer = 60 * visibleSecs;
     game.treeSpawnedThisLevel = true;
 
-    logEvent("bonus","A tree appears... (15s)");
-    setHud("TREE APPEARS!");
+    logEvent("bonus",`🌳 A Mystery Tree appears! (${visibleSecs}s, then it blinks)`);
+    setHud("🌳 TREE APPEARS!");
+
+    // One-time tip the first time a player ever sees the Tree (remembered on this device).
+    let seenTip = false;
+    try { seenTip = localStorage.getItem("sticks_treeTipSeen") === "1"; } catch(e) {}
+    if (!seenTip){
+      logEvent("bonus","💡 TIP: Walk onto the Tree and press Pick/Drop (free). Carrying sticks? Feed 1 for +1 life. Empty-handed? Get a full load of sticks.");
+      setHud("🌳 Walk to the Tree + Pick/Drop!");
+      try { localStorage.setItem("sticks_treeTipSeen","1"); } catch(e) {}
+    }
     
     // Tree chime!
     setTimeout(() => beep(523, 0.12, "sine", 0.08), 0);
@@ -14960,6 +14972,15 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     game.playerY = newY;
     tutorialEvent("move");
     beep(220,0.03,"triangle",0.02);
+
+    // Arrived on the Tree: chime and tell the player what to do.
+    if (isTreeTile(game.playerX, game.playerY)){
+      setTimeout(() => beep(659, 0.10, "sine", 0.08), 60);
+      setTimeout(() => beep(880, 0.14, "sine", 0.09), 170);
+      const tip = game.carry.length > 0 ? "feed 1 stick for +1 life" : "get a full load of sticks";
+      setHud("🌳 TREE! Press Pick/Drop");
+      logEvent("bonus", `🌳 You're at the Tree! Press Pick/Drop (free) to ${tip}.`);
+    }
     
     // Lavender sparkle trail on Sparkle Stick!
     if(currentLevelTheme().name === "Sparkle Stick"){
@@ -15090,16 +15111,18 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       return;
     }
 
-    if (game.actions <= 0){
-      sfxError();
-      setHud("No Actions. Roll!");
-      return;
-    }
-
     const px = game.playerX;
     const py = game.playerY;
 
     const onTree = (px === game.treeX && py === game.treeY && game.treeActive);
+
+    // The Tree is a gift: using it is FREE (no Action needed), so landing on it
+    // with your last Action still works. Everything else still needs an Action.
+    if (game.actions <= 0 && !onTree){
+      sfxError();
+      setHud("No Actions. Roll!");
+      return;
+    }
     const onHole = (px === game.holeX && py === game.holeY);
 
     // Pre-check no-op cases so we don't waste Actions
@@ -15193,7 +15216,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
     // 2) TREE: always an action (fill, feed, or moon blessing)
     if (onTree){
-      if(!spendAction()) return;
+      // Free: no Action spent at the Tree.
 
       // Special case: moon blessing at tree with empty carry
       if (moonStick && game.carry.length === 0){
@@ -15216,11 +15239,14 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       if (game.carry.length === 0){
         // Fill from tree
         const cap = carryCap();
-        const makeColor = ()=> randColor();
+        // (Bug fix: this used to call randColor(), which doesn't exist, so the game
+        //  crashed silently and nothing happened when you used the Tree empty-handed.)
+        const makeColor = ()=> STICK_COLORS[randInt(0, STICK_COLORS.length - 1)];
         for(let i=0;i<cap;i++) game.carry.push({ color: makeColor(), value:1 });
-        setHud(`Tree filled you to ${cap}.`);
+        setHud(`🌳 FULL LOAD! (${cap} sticks)`);
         logEvent("bonus",`🌳 Tree filled you to ${cap}.`);
-        sfxPickup();
+        sfxBonus();
+        spawnSparks(game.treeX, game.treeY, 22);
         clearTree();
         logEvent("info","🌳 Tree vanished.");
         updateUI();
