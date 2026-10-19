@@ -7344,98 +7344,110 @@ function initWildHorse(){
   }
 
   function drawMommaSpider(){
+    // 2026-10-19 redraw: jointed legs with raised knees, big abdomen with an hourglass,
+    // fangs, and an 8-eye cluster. Same palette as the babies so she reads as their mom.
     if (!mommaSpider) return;
     const x = mommaSpider.x * TILE + TILE / 2;
     const y = mommaSpider.y * TILE + TILE / 2;
-    const legWave = Math.sin(mommaSpider.pulse);
-    const scale = 2.2; // Scale factor compared to small spiders
-    
+    const ph = mommaSpider.pulse;
+    const S = 2.2;                       // overall size (same footprint as before)
+    const breathe = 1 + Math.sin(ph * 0.5) * 0.03;
+
     ctx.save();
     ctx.translate(x, y);
-    
-    // Shadow under momma
-    ctx.globalAlpha = 0.3;
+
+    // ground shadow
+    ctx.globalAlpha = 0.32;
     ctx.fillStyle = '#000';
-    ctx.beginPath();
-    ctx.ellipse(0, 4 * scale, 8 * scale, 5 * scale, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 5 * S, 11 * S, 6 * S, 0, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
-    
-    // 8 animated legs (4 pairs) - same style as small spider but scaled
-    ctx.strokeStyle = "#f0f0f0";
-    ctx.lineWidth = 2 * scale;
-    ctx.lineCap = "round";
-    for (let i = 0; i < 4; i++){
-      // Alternate leg movement for walking effect
-      const leftPhase = legWave + (i * Math.PI / 2);
-      const rightPhase = legWave + (i * Math.PI / 2) + Math.PI;
-      const leftWiggle = Math.sin(leftPhase) * 2 * scale;
-      const rightWiggle = Math.sin(rightPhase) * 2 * scale;
-      
-      // Left legs (bent at joint)
-      ctx.beginPath();
-      ctx.moveTo(-3 * scale, (-1 + i) * scale);
-      ctx.lineTo(-6 * scale, (-3 + i * 2) * scale + leftWiggle);
-      ctx.lineTo(-10 * scale, (-1 + i * 2.5) * scale);
-      ctx.stroke();
-      
-      // Right legs (bent at joint)
-      ctx.beginPath();
-      ctx.moveTo(3 * scale, (-1 + i) * scale);
-      ctx.lineTo(6 * scale, (-3 + i * 2) * scale + rightWiggle);
-      ctx.lineTo(10 * scale, (-1 + i * 2.5) * scale);
-      ctx.stroke();
+
+    // ---- 8 jointed legs: hip -> knee (raised) -> foot ----
+    // [hipY, kneeX, kneeY, footX, footY] for the left side; right side mirrors.
+    const legs = [
+      [-4.5, -7.5, -10.5, -10.0, -14.0],   // front pair reaches forward
+      [-3.0, -9.5,  -6.0, -13.5,  -4.5],
+      [-1.0, -9.5,  -2.0, -13.5,   3.5],
+      [ 0.5, -7.5,   1.5, -10.5,  10.5]    // back pair trails behind
+    ];
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    for (let side = -1; side <= 1; side += 2){
+      for (let i = 0; i < 4; i++){
+        const L = legs[i];
+        const phase = ph + i * Math.PI / 2 + (side > 0 ? Math.PI : 0);
+        const lift = Math.sin(phase) * 1.2;          // walking bob at the knee
+        const sx = -side * 2.4 * S, sy = L[0] * S;   // hip on the body edge
+        const kx = -side * L[1] * S, ky = (L[2] - Math.abs(lift)) * S;
+        const fx = -side * L[3] * S + Math.cos(phase) * 0.6 * S, fy = L[4] * S;
+        // dark outline, then light leg on top (matches the babies' white legs)
+        ctx.strokeStyle = "rgba(10,4,16,0.9)"; ctx.lineWidth = 3.2;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+        ctx.strokeStyle = "#e9e6f2"; ctx.lineWidth = 1.8;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+        // knee joint
+        ctx.fillStyle = "#c9b8ff";
+        ctx.beginPath(); ctx.arc(kx, ky, 1.3, 0, Math.PI * 2); ctx.fill();
+      }
     }
-    
-    // Body (round, hairy spider) - scaled
-    ctx.fillStyle = "#1a0d24";
+
+    // ---- abdomen (big, behind) ----
+    ctx.save();
+    ctx.translate(0, 4.5 * S);
+    ctx.scale(breathe, breathe);
+    const ab = ctx.createRadialGradient(-2 * S, -2 * S, 1, 0, 0, 7 * S);
+    ab.addColorStop(0, "#3b2257");
+    ab.addColorStop(1, "#140a1d");
+    ctx.fillStyle = ab;
     ctx.strokeStyle = "#8b5cf6";
-    ctx.lineWidth = 1.5 * scale;
-    ctx.beginPath();
-    ctx.arc(0, 0, 5 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Add some hair texture - scaled
-    ctx.strokeStyle = "#4c1d95";
-    ctx.lineWidth = 1 * scale;
-    for (let i = 0; i < 8; i++){
-      const angle = (Math.PI * 2 / 8) * i;
-      ctx.beginPath();
-      ctx.moveTo(Math.cos(angle) * 3 * scale, Math.sin(angle) * 3 * scale);
-      ctx.lineTo(Math.cos(angle) * 5 * scale, Math.sin(angle) * 5 * scale);
-      ctx.stroke();
-    }
-    
-    // Head (smaller segment) - scaled
-    ctx.fillStyle = "#2d1a3d";
-    ctx.strokeStyle = "#8b5cf6";
-    ctx.lineWidth = 1 * scale;
-    ctx.beginPath();
-    ctx.arc(0, -6 * scale, 3 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    
-    // Multiple red eyes (spider-like) - scaled
-    ctx.fillStyle = "#ff0000";
-    ctx.shadowColor = "#ff0000";
-    ctx.shadowBlur = 3 * scale;
-    // Top eyes
-    ctx.beginPath();
-    ctx.arc(-1.5 * scale, -7 * scale, 0.8 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(1.5 * scale, -7 * scale, 0.8 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    // Bottom eyes (smaller)
-    ctx.beginPath();
-    ctx.arc(-1 * scale, -5.5 * scale, 0.6 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(1 * scale, -5.5 * scale, 0.6 * scale, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.shadowColor = "#8b5cf6"; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.ellipse(0, 0, 6.2 * S, 7 * S, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.shadowBlur = 0;
-    
+    // fuzz
+    ctx.strokeStyle = "rgba(139,92,246,0.55)"; ctx.lineWidth = 1;
+    for (let k = 0; k < 22; k++){
+      const a = (Math.PI * 2 / 22) * k;
+      const r1 = 6.4 * S, r2 = 7.4 * S;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r1 * 0.94, Math.sin(a) * r1);
+      ctx.lineTo(Math.cos(a) * r2 * 0.94, Math.sin(a) * r2);
+      ctx.stroke();
+    }
+    // hourglass marking
+    const glow = 0.75 + 0.25 * Math.sin(ph * 2);
+    ctx.fillStyle = `rgba(196,140,255,${glow})`;
+    ctx.beginPath();
+    ctx.moveTo(-2.2 * S, -3 * S); ctx.lineTo(2.2 * S, -3 * S); ctx.lineTo(0, 0);
+    ctx.lineTo(2.2 * S, 3 * S); ctx.lineTo(-2.2 * S, 3 * S); ctx.lineTo(0, 0);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+
+    // ---- head / cephalothorax ----
+    ctx.fillStyle = "#24132f";
+    ctx.strokeStyle = "#8b5cf6";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(0, -3.2 * S, 3.4 * S, 3.0 * S, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    // fangs
+    ctx.strokeStyle = "#e9e6f2"; ctx.lineWidth = 1.6;
+    for (let side = -1; side <= 1; side += 2){
+      ctx.beginPath();
+      ctx.moveTo(side * 1.0 * S, -5.6 * S);
+      ctx.quadraticCurveTo(side * 1.6 * S, -7.0 * S, side * 0.6 * S, -7.6 * S);
+      ctx.stroke();
+    }
+
+    // 8 red eyes: two big, six small
+    ctx.fillStyle = "#ff2a2a"; ctx.shadowColor = "#ff0000"; ctx.shadowBlur = 6;
+    const eyes = [[-1.1,-4.5,0.75],[1.1,-4.5,0.75],[-2.2,-3.9,0.45],[2.2,-3.9,0.45],
+                  [-0.5,-3.6,0.4],[0.5,-3.6,0.4],[-1.7,-3.0,0.35],[1.7,-3.0,0.35]];
+    for (const e of eyes){ ctx.beginPath(); ctx.arc(e[0] * S, e[1] * S, e[2] * S, 0, Math.PI * 2); ctx.fill(); }
+    ctx.shadowBlur = 0;
+    // tiny eye glints
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    ctx.beginPath(); ctx.arc(-1.3 * S, -4.7 * S, 0.22 * S, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0.9 * S, -4.7 * S, 0.22 * S, 0, Math.PI * 2); ctx.fill();
+
     ctx.restore();
   }
 
@@ -12600,7 +12612,7 @@ function sfxMonsterVictoryStreak(){
   
   const LEVEL_TIPS = {
     "Night Stick":   "The friendly UFO beams you to a random spot. Stand under it for a free ride!",
-    "Sparkle Stick": "Grab a cupcake and every stick is worth double.",
+    "Sparkle Stick": "Walk through the rainbow to become a cupcake. Sweet! Every stick counts double.",
     "Sun Stick":     "Bask in the sun — it blesses you with bonus sticks.",
     "Sky Stick":     "Birds snatch sticks and gusts shove you; planes give lifts.",
     "Fire Stick":    "Don't linger in the fire — and a demon is hunting you.",
@@ -16205,63 +16217,71 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   let tunnelTipShown = false;
 
   function drawTunnels(theme){
+    // Pac-Man style: a glowing corridor opening in the wall at each tunnel mouth,
+    // with double "maze wall" lines, a pulsing glow, and chevrons pointing out the exit.
     if (theme.name !== "Snake Stick") return;
     const t = (performance.now ? performance.now() : Date.now()) / 1000;
     const accent = theme.accent || "#e2c27a";
     const tr = TUNNEL_ROW(), tc = TUNNEL_COL();
+    const pulse = 0.55 + 0.45 * ((Math.sin(t * 3.2) + 1) / 2);
+    const W = CANVAS_W, H = CANVAS_H;
+    const depth = TILE * 1.6;             // how far the corridor reaches into the board
+    const half = TILE * 0.62;             // half the corridor width
+
+    // dir: 1 = mouth on the low edge (left/top), -1 = high edge (right/bottom)
     const mouths = [
-      { x: 0,          y: tr },
-      { x: GRID_W - 1, y: tr },
-      { x: tc,         y: 0 },
-      { x: tc,         y: GRID_H - 1 }
+      { horiz: true,  c: tr * TILE + TILE / 2, edge: 0, dir:  1 },
+      { horiz: true,  c: tr * TILE + TILE / 2, edge: W, dir: -1 },
+      { horiz: false, c: tc * TILE + TILE / 2, edge: 0, dir:  1 },
+      { horiz: false, c: tc * TILE + TILE / 2, edge: H, dir: -1 }
     ];
+
     ctx.save();
-    for (let i = 0; i < mouths.length; i++){
-      const m = mouths[i];
-      const cx = m.x * TILE + TILE / 2, cy = m.y * TILE + TILE / 2;
-      const R = TILE * 0.62;                           // a bit bigger than the tile
-      const spin = t * 2.4 * (i % 2 === 0 ? 1 : -1);    // paired mouths spin opposite ways
-      const pulse = 0.75 + 0.25 * Math.sin(t * 3 + i);
+    for (const m of mouths){
+      const P = (along, across) => m.horiz ? [m.edge + m.dir * along, m.c + across]
+                                           : [m.c + across, m.edge + m.dir * along];
+      // dark corridor floor fading into the board
+      const [gx0, gy0] = P(0, 0), [gx1, gy1] = P(depth, 0);
+      const fade = ctx.createLinearGradient(gx0, gy0, gx1, gy1);
+      fade.addColorStop(0, "rgba(0,0,0,0.85)");
+      fade.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = fade;
+      const [ax, ay] = P(0, -half), [bx, by] = P(depth, half);
+      ctx.fillRect(Math.min(ax, bx), Math.min(ay, by), Math.abs(bx - ax), Math.abs(by - ay));
 
-      // soft glow halo
-      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.5);
-      g.addColorStop(0, accent + "66");
-      g.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.globalAlpha = pulse;
-      ctx.fillStyle = g;
-      ctx.beginPath(); ctx.arc(cx, cy, R * 1.5, 0, Math.PI * 2); ctx.fill();
-
-      // dark vortex core
-      ctx.globalAlpha = 0.9;
-      const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
-      core.addColorStop(0, "#050302");
-      core.addColorStop(0.7, "#1a1309");
-      core.addColorStop(1, "rgba(26,19,9,0)");
-      ctx.fillStyle = core;
-      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
-
-      // three spinning spiral arms in the level's gold accent
-      ctx.globalAlpha = 0.95;
+      // double glowing wall lines on both sides of the corridor (Pac-Man maze look)
       ctx.strokeStyle = accent;
       ctx.shadowColor = accent;
-      ctx.shadowBlur = 8;
-      ctx.lineWidth = 2;
+      ctx.shadowBlur = 12 * pulse;
       ctx.lineCap = "round";
-      for (let arm = 0; arm < 3; arm++){
-        ctx.beginPath();
-        for (let k = 0; k <= 26; k++){
-          const f = k / 26;                             // 0 = center, 1 = rim
-          const ang = spin + arm * (Math.PI * 2 / 3) + f * Math.PI * 2.2;
-          const rr = 1.5 + f * (R - 2);
-          const px = cx + Math.cos(ang) * rr, py = cy + Math.sin(ang) * rr;
-          if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      for (const side of [-1, 1]){
+        for (const off of [0, 4]){
+          const across = side * (half + off);
+          const [x0, y0] = P(0, across), [x1, y1] = P(depth - off, across);
+          ctx.globalAlpha = (off === 0 ? 0.95 : 0.55) * pulse;
+          ctx.lineWidth = off === 0 ? 2.5 : 1.5;
+          ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
         }
+        // rounded wall end cap curling away from the corridor
+        const [cx0, cy0] = P(depth, side * half);
+        ctx.globalAlpha = 0.9 * pulse; ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        const [cx1, cy1] = P(depth + 3, side * (half + 5));
+        ctx.moveTo(cx0, cy0); ctx.quadraticCurveTo(...P(depth + 3, side * half), cx1, cy1);
         ctx.stroke();
       }
-      // bright rim
-      ctx.globalAlpha = 0.6 * pulse;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+
+      // three chevrons sliding toward the exit
+      ctx.shadowBlur = 6;
+      for (let k = 0; k < 3; k++){
+        const f = ((t * 0.9 + k / 3) % 1);           // 0..1 travel toward the edge
+        const along = depth * (1 - f) - 2;
+        ctx.globalAlpha = Math.sin(f * Math.PI) * 0.9;
+        ctx.lineWidth = 2;
+        const [tipx, tipy] = P(along - 4, 0);
+        const [w1x, w1y] = P(along + 2, -5), [w2x, w2y] = P(along + 2, 5);
+        ctx.beginPath(); ctx.moveTo(w1x, w1y); ctx.lineTo(tipx, tipy); ctx.lineTo(w2x, w2y); ctx.stroke();
+      }
       ctx.shadowBlur = 0;
     }
     ctx.restore();
