@@ -10790,14 +10790,19 @@ function updateSpiderWebs(){
       const beamAlpha = Math.sin(ufo.beamTimer * 0.2) * 0.08 + 0.18; // More subtle pulse
       
       // Inner soft beam (matches center light intensity)
-      const beamGrad = ctx.createLinearGradient(0, 6, 0, 100);
+      // Beam now reaches all the way to the bottom of the board (2026-10-19).
+      // It used to stop ~16 rows down, but the pickup works on ANY tile below the UFO,
+      // so you could get beamed up while the red light wasn't touching you.
+      const beamEnd = (GRID_H * TILE) - (y + bob) + 4;
+      const beamHalf = TILE * 0.42;
+      const beamGrad = ctx.createLinearGradient(0, 6, 0, Math.max(100, beamEnd));
       beamGrad.addColorStop(0, `rgba(255, 50, 50, ${beamAlpha + 0.12})`); // Softer at top
       beamGrad.addColorStop(1, `rgba(200, 30, 30, ${beamAlpha})`); // Darker red at bottom
       ctx.fillStyle = beamGrad;
       ctx.beginPath();
       ctx.moveTo(-3, 6);
-      ctx.lineTo(-8, 400);
-      ctx.lineTo(8, 400);
+      ctx.lineTo(-beamHalf, beamEnd);
+      ctx.lineTo(beamHalf, beamEnd);
       ctx.lineTo(3, 6);
       ctx.closePath();
       ctx.fill();
