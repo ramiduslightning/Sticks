@@ -2883,8 +2883,8 @@
       // Occasionally steal sticks from the player (fun, not constant)
       if (birdStealCooldown > 0) birdStealCooldown--;
       // cancel a pending grab if another bird just stole, you emptied your hands, etc.
-      if (bird.swoop && (birdStealCooldown > 0 || game.carry.length === 0 || bird.carryingStick)) bird.swoop = 0;
-      if (!bird.carryingStick && birdStealCooldown === 0 && !(game.pendingMonster || game.inputLocked) && game.carry.length > 0){
+      if (bird.swoop && (birdStealCooldown > 0 || game.carry.length === 0 || bird.carryingStick || bird.fleeing)) bird.swoop = 0;
+      if (!bird.carryingStick && !bird.fleeing && birdStealCooldown === 0 && !(game.pendingMonster || game.inputLocked) && game.carry.length > 0){
         const distP = Math.abs(bird.x - game.playerX) + Math.abs(bird.y - game.playerY);
         // WARNING FIRST (2026-10-19): the bird squawks, turns to you and flaps hard for ~1s.
         // If you're still next to it when that ends, it grabs. Move away (or onto the hole) to dodge.
@@ -2909,7 +2909,13 @@
           const maxTake = Math.min(2, game.carry.length, maxAllowed);
           if (maxTake >= 1){
             const take = (maxTake >= 2 && Math.random() < 0.25) ? 2 : 1;
-            game.carry.splice(game.carry.length - take, take);
+            const stolen = game.carry.splice(game.carry.length - take, take);
+            // The bird KEEPS them and flies off the nearest side of the board with them (2026-10-19)
+            bird.stolen = stolen.map(st => st.color);
+            bird.fleeing = true;
+            bird.dx = (bird.x < GRID_W / 2) ? -1 : 1;
+            bird.dy = 0;
+            bird.moveTimer = 0;
             birdStealCooldown = 900; // ~15s at 60fps
             logEvent("sky", "🐦 Bird stole " + take + " stick" + (take===1 ? "" : "s") + " for its nest!");
             setHud("🐦 STOLEN!");
@@ -2923,6 +2929,23 @@
       }
       // A bird that's about to grab hovers in place (doesn't wander off mid-warning)
       if (bird.swoop) return;
+
+      // Thief bird: hurries off the edge with your sticks, then a "new" bird comes in from the other side
+      if (bird.fleeing){
+        if (bird.moveTimer >= 9){
+          bird.moveTimer = 0;
+          bird.x += bird.dx;
+          if (bird.x < -1 || bird.x > GRID_W){
+            logEvent("sky", "🐦 The bird flew off to its nest with your stick" + ((bird.stolen && bird.stolen.length === 1) ? "." : "s."));
+            bird.fleeing = false;
+            bird.stolen = null;
+            bird.x = (bird.dx < 0) ? GRID_W - 1 : 0;   // re-enter from the opposite side, same direction
+            bird.y = randInt(1, GRID_H - 2);
+            bird.dy = 0;
+          }
+        }
+        return;
+      }
       
       if(bird.carryingStick){
         // Bird is carrying a stick - move toward target
@@ -2933,16 +2956,26 @@
           
           if(Math.abs(tdx) > 0) bird.x += tdx > 0 ? 1 : -1;
           else if(Math.abs(tdy) > 0) bird.y += tdy > 0 ? 1 : -1;
+
+          // The real stick travels with the bird (you can see it, and snatch it back if you catch the bird!)
+          const held = bird.carryingStick.stick;
+          if (!held || !game.sticks.includes(held)){
+            // someone grabbed it out of the bird's beak
+            bird.carryingStick = null;
+            bird.dx = tdx > 0 ? 1 : (tdx < 0 ? -1 : bird.dx);
+            return;
+          }
+          held.x = bird.x; held.y = bird.y;
           
           bird.dx = tdx > 0 ? 1 : (tdx < 0 ? -1 : bird.dx);
           
           // Reached target?
           if(bird.x === bird.carryingStick.targetX && bird.y === bird.carryingStick.targetY){
             // Drop the stick here
-            const stickIdx = bird.carryingStick.index;
-            if(stickIdx < game.sticks.length){
-              game.sticks[stickIdx].x = bird.x;
-              game.sticks[stickIdx].y = bird.y;
+            const held = bird.carryingStick.stick;
+            if(held && game.sticks.includes(held)){
+              held.x = bird.x;
+              held.y = bird.y;
               logEvent("bird", `🐦 Bird dropped a stick at new location!`);
               setHud("BIRD DROPPED STICK!");
               beep(400, 0.08, "sine", 0.12);
@@ -2972,6 +3005,7 @@
             if(stickIdx > -1){
               // Pick up this stick and choose random destination
               bird.carryingStick = {
+                stick: game.sticks[stickIdx],
                 index: stickIdx,
                 targetX: randInt(0, GRID_W - 1),
                 targetY: randInt(0, GRID_H - 1)
@@ -3174,15 +3208,22 @@
         ctx.restore();
       }
       
-      // If carrying stick, draw it
-      if(bird.carryingStick){
+      // Thief bird: your stolen sticks dangle from its feet in their real colors
+      if (bird.fleeing && bird.stolen && bird.stolen.length){
         ctx.save();
-        ctx.strokeStyle = "#8B4513";
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(bx - 5, by + 8);
-        ctx.lineTo(bx + 5, by + 12);
-        ctx.stroke();
+        ctx.lineCap = "round";
+        bird.stolen.forEach((col, k) => {
+          const ox = (k - (bird.stolen.length - 1) / 2) * 5;
+          const sw = Math.sin(Date.now() / 120 + k) * 0.25;
+          ctx.save();
+          ctx.translate(bx + ox, by + 12);
+          ctx.rotate(0.9 + sw);
+          ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(7, 0); ctx.stroke();
+          ctx.strokeStyle = col; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.moveTo(-7, 0); ctx.lineTo(7, 0); ctx.stroke();
+          ctx.restore();
+        });
         ctx.restore();
       }
     });
