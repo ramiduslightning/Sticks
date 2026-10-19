@@ -10654,8 +10654,8 @@ function updateSpiderWebs(){
         ufo.beamActive = true;
         ufo.beamTimer = 0;
         ufo.beamWarning = 0;
-        logEvent("warn", "UFO charging beam!");
-        setHud("UFO ALERT!");
+        logEvent("bonus", "🛸 The UFO is warming up its beam... stand under it for a free ride!");
+        setHud("🛸 BEAM CHARGING!");
         beep(600, 0.1, "sine", 0.06);
       }
     } else {
@@ -10679,8 +10679,8 @@ function updateSpiderWebs(){
             const newPos = randomEmptyTile();
             game.playerX = newPos.x;
             game.playerY = newPos.y;
-            logEvent("info", "UFO beam teleported you!");
-            setHud("ABDUCTED!");
+            logEvent("bonus", "🛸 Beamed up! The UFO dropped you somewhere new.");
+            setHud("🛸 BEAMED UP!");
             
             // Sci-fi teleport sound
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -10723,18 +10723,19 @@ function updateSpiderWebs(){
     
     // Outer glow aura
     ctx.globalAlpha = 0.2 * glowPulse;
-    const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 25);
+    const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 38);
     outerGlow.addColorStop(0, 'rgba(100,100,255,0.4)');
     outerGlow.addColorStop(1, 'rgba(100,100,255,0)');
     ctx.fillStyle = outerGlow;
     ctx.beginPath();
-    ctx.arc(0, 0, 25, 0, Math.PI * 2);
+    ctx.arc(0, 0, 38, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
     
     // Main triangle body (black with subtle edge glow)
     ctx.save();
     ctx.rotate(ufo.float * 0.5); // Slow rotation
+    ctx.scale(1.6, 1.6);          // Bigger craft (was easy to miss)
     
     // Triangle shadow/glow
     ctx.shadowColor = '#6464ff';
@@ -12188,6 +12189,14 @@ async function playBgTrack(fromStart=false){
     activeTimeouts.set(id, { fn, due });
     return id;
   }
+  // (Bug fix: gameClearTimeout was called by showFormBanner but never defined. The second
+  //  banner in a session threw an error: the banner never hid, and if it happened while
+  //  clearing a level (achievement banner), the level never advanced.)
+  function gameClearTimeout(id){
+    if (id == null) return;
+    clearTimeout(id);
+    activeTimeouts.delete(id);
+  }
   function pauseAllGameTimeouts(){
     const now = Date.now();
     pausedTimeouts = [];
@@ -12590,7 +12599,7 @@ function sfxMonsterVictoryStreak(){
   let pendingFormBanner = null;
   
   const LEVEL_TIPS = {
-    "Night Stick":   "Watch the UFO — move before its beam fires.",
+    "Night Stick":   "The friendly UFO beams you to a random spot. Stand under it for a free ride!",
     "Sparkle Stick": "Grab a cupcake and every stick is worth double.",
     "Sun Stick":     "Bask in the sun — it blesses you with bonus sticks.",
     "Sky Stick":     "Birds snatch sticks and gusts shove you; planes give lifts.",
@@ -14330,7 +14339,8 @@ Clear all sticks to advance — watch out for obstacles.`;
   function newLevel(){
     // Achievement: Beat any level without dropping a stick (only if actually played)
     if (levelDropCount === 0 && levelWasPlayed){
-      unlockAchievement(`lvl${game.level}_noDrops`, `Beat Level ${game.level} without dropping a stick`);
+      try { unlockAchievement(`lvl${game.level}_noDrops`, `Beat Level ${game.level} without dropping a stick`); }
+      catch(e){ console.warn("Achievement banner failed (level still advances):", e); }
     }
 
     console.log("🎮 newLevel() called! Current game.level:", game.level);
