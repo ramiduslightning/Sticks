@@ -12602,7 +12602,7 @@ function sfxMonsterVictoryStreak(){
     "Glow Stick":    "Light your way with the flashlight — shadow monsters stalk the dark.",
     "Spell Stick":   "Matching portals link up — and the hole won't sit still.",
     "Sea Stick":     "Sharks are circling — don't get caught out.",
-    "Snake Stick":   "Rattlers bite and scatter your sticks — watch the gas.",
+    "Snake Stick":   "Rattlers bite and scatter your sticks. Use the glowing edge tunnels to escape!",
     "Spider Stick":  "Webs trap you and the momma spider raids your sticks.",
     "Victory Stick": "The final field — dodge the lasers and finish it."
   };
@@ -12617,6 +12617,20 @@ function sfxMonsterVictoryStreak(){
     levelIntro.themeName = theme.name;
     levelIntro.themeColor = theme.accent || '#3aa7ff';
     levelIntro.tip = LEVEL_TIPS[theme.name] || '';
+
+    // First time a player reaches this level: hold the tip ~3s longer so it can be read.
+    // Always echo the tip to the event log so it can be re-read later.
+    levelIntro.longHold = false;
+    if (levelIntro.tip){
+      let seen = false;
+      const key = "sticks_levelTipSeen_" + theme.name;
+      try { seen = localStorage.getItem(key) === "1"; } catch(e) {}
+      if (!seen){
+        levelIntro.longHold = true;
+        try { localStorage.setItem(key, "1"); } catch(e) {}
+      }
+      try { logEvent("info", "💡 " + theme.name.toUpperCase() + ": " + levelIntro.tip); } catch(e) {}
+    }
   }
   
   function updateLevelIntro(){
@@ -12632,7 +12646,7 @@ function sfxMonsterVictoryStreak(){
       }
     } else if(levelIntro.phase === 'hold'){
       levelIntro.opacity = 1;
-      const holdTime = INTRO_HOLD_TIME + (levelIntro.themeName === "Victory Stick" ? INTRO_VICTORY_PAUSE_TIME : 0);
+      const holdTime = INTRO_HOLD_TIME + (levelIntro.themeName === "Victory Stick" ? INTRO_VICTORY_PAUSE_TIME : 0) + (levelIntro.longHold ? 180 : 0);
       if(levelIntro.timer >= holdTime){
         levelIntro.phase = 'fadeout';
         levelIntro.timer = 0;
@@ -14862,8 +14876,22 @@ Clear all sticks to advance — watch out for obstacles.`;
     }
     
     // Calculate new position
-    const newX = clamp(game.playerX + dx, 0, GRID_W-1);
-    const newY = clamp(game.playerY + dy, 0, GRID_H-1);
+    let newX = clamp(game.playerX + dx, 0, GRID_W-1);
+    let newY = clamp(game.playerY + dy, 0, GRID_H-1);
+
+    // SNAKE STICK TUNNELS (Pac-Man style): walking off the edge at a tunnel pops you out the far side.
+    let tunnelWarp = false;
+    if (currentLevelTheme().name === "Snake Stick"){
+      const tr = TUNNEL_ROW(), tc = TUNNEL_COL();
+      if (dx !== 0 && game.playerY === tr){
+        if (game.playerX + dx < 0)        { newX = GRID_W - 1; tunnelWarp = true; }
+        else if (game.playerX + dx > GRID_W - 1) { newX = 0; tunnelWarp = true; }
+      }
+      if (dy !== 0 && game.playerX === tc){
+        if (game.playerY + dy < 0)        { newY = GRID_H - 1; tunnelWarp = true; }
+        else if (game.playerY + dy > GRID_H - 1) { newY = 0; tunnelWarp = true; }
+      }
+    }
     
     // Check if we're currently climbing a mountain
     const themeName = currentLevelTheme().name;
@@ -14972,6 +15000,16 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     game.playerY = newY;
     tutorialEvent("move");
     beep(220,0.03,"triangle",0.02);
+
+    if (tunnelWarp){
+      // whoosh
+      beep(300, 0.06, "sine", 0.10);
+      setTimeout(() => beep(520, 0.06, "sine", 0.10), 50);
+      setTimeout(() => beep(820, 0.08, "sine", 0.09), 100);
+      setHud("🌀 TUNNEL!");
+      try { spawnSparks(game.playerX, game.playerY, 14); } catch(e) {}
+      if (!tunnelTipShown){ tunnelTipShown = true; logEvent("info", "🌀 You went through a tunnel and popped out the other side!"); }
+    }
 
     // Arrived on the Tree: chime and tell the player what to do.
     if (isTreeTile(game.playerX, game.playerY)){
@@ -16114,6 +16152,47 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       setTimeout(() => beep(784, 0.12, "sine", 0.25), 160);
       logEvent("bonus", "✨ Secret life tile discovered!");
     }
+  }
+
+  // ---- SNAKE STICK TUNNELS ----
+  function TUNNEL_ROW(){ return Math.floor(GRID_H / 2); }
+  function TUNNEL_COL(){ return Math.floor(GRID_W / 2); }
+  let tunnelTipShown = false;
+
+  function drawTunnels(theme){
+    if (theme.name !== "Snake Stick") return;
+    const t = (performance.now ? performance.now() : Date.now()) / 1000;
+    const pulse = 0.55 + 0.45 * ((Math.sin(t * 3) + 1) / 2);
+    const tr = TUNNEL_ROW(), tc = TUNNEL_COL();
+    const mouths = [
+      { x: 0,          y: tr, side: "left"   },
+      { x: GRID_W - 1, y: tr, side: "right"  },
+      { x: tc,         y: 0,          side: "top"    },
+      { x: tc,         y: GRID_H - 1, side: "bottom" }
+    ];
+    ctx.save();
+    for (const m of mouths){
+      const px = m.x * TILE, py = m.y * TILE;
+      // dark opening
+      ctx.globalAlpha = 0.85;
+      ctx.fillStyle = "#0b0805";
+      ctx.beginPath();
+      if (m.side === "left")   ctx.ellipse(px + 3,        py + TILE/2, 6, TILE/2 - 2, 0, 0, Math.PI*2);
+      if (m.side === "right")  ctx.ellipse(px + TILE - 3, py + TILE/2, 6, TILE/2 - 2, 0, 0, Math.PI*2);
+      if (m.side === "top")    ctx.ellipse(px + TILE/2, py + 3,        TILE/2 - 2, 6, 0, 0, Math.PI*2);
+      if (m.side === "bottom") ctx.ellipse(px + TILE/2, py + TILE - 3, TILE/2 - 2, 6, 0, 0, Math.PI*2);
+      ctx.fill();
+      // glowing rim
+      ctx.globalAlpha = pulse;
+      ctx.strokeStyle = theme.accent || "#e2c27a";
+      ctx.shadowColor = theme.accent || "#e2c27a";
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   function drawTree(theme){
@@ -17914,6 +17993,7 @@ ctx.restore();
     const theme = currentLevelTheme();
     drawGrid(theme);
     drawLifeHint(theme);
+    drawTunnels(theme);
     drawTree(theme);
 
     // Star grid (draw BEFORE sticks for layering)
