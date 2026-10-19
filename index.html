@@ -10225,7 +10225,9 @@ function updateSpiderWebs(){
     ctx.save();
     ctx.globalAlpha = pulse * (depositArrowTimer / 240);
 
-    const label = "DEPOSIT IN HOLE";
+    // Teach that you can hold more than one (2026-10-19)
+    const _cap = carryCap(), _n = game.carry.length;
+    const label = (_n < _cap) ? `HOLDING ${_n}/${_cap} · GRAB MORE OR DEPOSIT` : `FULL ${_n}/${_cap} · DEPOSIT IN HOLE`;
 
     const fg = (theme.name === "Sparkle Stick") ? "#ffffff" : theme.accent;
     const stroke = (theme.name === "Sparkle Stick") ? "rgba(0,0,0,0.85)" : theme.border;
@@ -10238,8 +10240,10 @@ function updateSpiderWebs(){
     const y1 = arrowY - 22;
 
     const w = ctx.measureText(label).width + 22;
+    // keep the pill on screen when the hole is near an edge
+    const labelX = Math.max(w/2 + 4, Math.min(CANVAS_W - w/2 - 4, arrowX));
     const h = 22;
-    const x0 = arrowX - w/2;
+    const x0 = labelX - w/2;
     const y0 = y1 - h/2;
 
     // Rounded rect helper
@@ -10267,8 +10271,8 @@ function updateSpiderWebs(){
     ctx.strokeStyle = "rgba(0,0,0,0.85)";
     ctx.lineWidth = 4;
 
-    ctx.strokeText(label, arrowX, y1);
-    ctx.fillText(label, arrowX, y1);
+    ctx.strokeText(label, labelX, y1);
+    ctx.fillText(label, labelX, y1);
 
     ctx.restore();
 }
@@ -12628,6 +12632,15 @@ function sfxMonsterVictoryStreak(){
     levelIntro.themeName = theme.name;
     levelIntro.themeColor = theme.accent || '#3aa7ff';
     levelIntro.tip = LEVEL_TIPS[theme.name] || '';
+    // Carry capacity grows every 3 levels; announce it on the ready screen
+    try {
+      const baseCap = lv => Math.min(6, 3 + Math.floor((lv - 1) / 3));
+      if (game.level > 1 && baseCap(game.level) > baseCap(game.level - 1)){
+        const capMsg = "💪 Bigger arms! You can now carry " + baseCap(game.level) + " sticks.";
+        levelIntro.tip = levelIntro.tip ? (levelIntro.tip + " " + capMsg) : capMsg;
+        logEvent("bonus", capMsg);
+      }
+    } catch(e) {}
 
     // First time a player reaches this level: hold the tip ~3s longer so it can be read.
     // Always echo the tip to the event log so it can be re-read later.
@@ -15611,7 +15624,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   const TUTORIAL_STEPS = [
     { key:'roll',    text:'Press R or tap ROLL to get actions.' },
     { key:'move',    text:'Move: Use arrow keys (or tap the on-screen arrows).' },
-    { key:'pickup',  text:'Pick up/drop: Stand on a stick and press Pick/Drop (or Space).' },
+    { key:'pickup',  text:'Pick up: Stand on a stick and press Pick/Drop (or Space). You can hold several at once (dots under you show how many) and you can carry more on later levels.' },
     { key:'deposit', text:'Deposit: Stand on the HOLE and press Pick/Drop (or Space).' },
   ];
 
@@ -16145,7 +16158,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.stroke();
 
     // BEACON (2026-10-19): while you're carrying sticks the hole calls to you —
-    // ripples roll outward and a dashed ring turns. Stronger when your hands are full.
+    // ripples roll outward from the rim. Stronger when your hands are full.
     const carrying = game.carry.length;
     // The classic theme's rim is a subtle gray — too dark to see, so the beacon uses a soft light blue there.
     const beaconColor = (holeStroke === "#1f2a37") ? "#bcd7ff" : holeStroke;
@@ -16160,14 +16173,6 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         ctx.lineWidth = full ? 2.2 : 1.5;
         ctx.beginPath(); ctx.arc(cx, cy, 16 + f * (full ? 22 : 16), 0, Math.PI * 2); ctx.stroke();
       }
-      ctx.save();
-      ctx.translate(cx, cy); ctx.rotate(tt * 1.2);
-      ctx.setLineDash([4, 5]);
-      ctx.globalAlpha = full ? 0.9 : 0.6;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(0, 0, 21, 0, Math.PI * 2); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.restore();
     }
 
     // GULP: on deposit, streaks swirl down into the hole and the rim snaps inward.
