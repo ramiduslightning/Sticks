@@ -16176,8 +16176,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
     ctx.globalAlpha = 1;
 
-    // CARRY GLOW (2026-10-19): while you're holding sticks the hole glows brighter
-    // in its OWN color (level 1's soft slate blue gets brighter, purple levels glow purple, etc.)
+    // CARRY GLOW (2026-10-19): while you're holding sticks a soft halo breathes behind the hole
+    // in its own color. The hole's outline stays exactly as it normally looks.
     const carrying = game.carry.length;
     const fullLoad = carrying > 0 && carrying >= carryCap();
     const litColor = holeLitColor(holeStroke);           // brightened version of this level's rim color
@@ -16231,6 +16231,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.stroke();
 
     const beaconColor = litColor.hex;   // gulp uses the hole's own (brightened) color
+
 
     // GULP: on deposit, streaks swirl down into the hole and the rim snaps inward.
     if (pulse > 0){
