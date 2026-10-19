@@ -4561,152 +4561,120 @@
   }
 
   function drawSnakes(){
-    // Desert Rattler look + smoother motion + head-first facing
+    // 2026-10-19 redraw: smooth tapered S-curve body that slithers in a travelling wave,
+    // western-diamondback pattern, dark outline for contrast on the dirt, triangular
+    // rattler head with slit pupils, flicking forked tongue, and a rattle that shakes
+    // faster the closer the snake is to the player. Same footprint and speed as before.
+    const OUT = '#24160a', BODY = '#c9a46a', BELLY = '#e8d4a6';
+    const DIA = '#6b4423', DIA_EDGE = '#f1dfb4', EYE = '#ffd166';
+    const now = (performance.now ? performance.now() : Date.now()) / 1000;
     ctx.save();
-    for (let s of snakes){
-      const px = (s.rx == null ? s.x : s.rx) * TILE + TILE / 2;
-      const py = (s.ry == null ? s.y : s.ry) * TILE + TILE / 2;
+    for (let sn of snakes){
+      const px = (sn.rx == null ? sn.x : sn.rx) * TILE + TILE / 2;
+      const py = (sn.ry == null ? sn.y : sn.ry) * TILE + TILE / 2;
+      const angle = (sn.face == null) ? 0 : sn.face;
+      const ph = sn.slither || 0;
 
-      const angle = (s.face == null) ? 0 : s.face;
-
-      // Slither oscillation
-      const so = Math.sin(s.slither);
-      const sp = Math.sin(s.slither + Math.PI * 0.5);
-
-      // Desert palette
-      const outline = '#3b2714';
-      const body = '#c7a16a';
-      const highlight = '#e6d0a3';
-      const eye = '#ffd166';
-
-      const amp1 = 2.4;
-      const amp2 = 3.4;
+      // centerline from tail (x=-15) to neck (x=+10)
+      const N = 22, x0 = -15, x1 = 10;
+      const pts = [];
+      for (let i = 0; i <= N; i++){
+        const f = i / N;                                   // 0 tail .. 1 neck
+        const x = x0 + (x1 - x0) * f;
+        const env = 0.35 + 0.65 * Math.sin(Math.PI * Math.min(1, f * 1.1));  // calmer at the neck
+        const y = Math.sin(f * Math.PI * 2.2 - ph * 1.6) * 3.6 * env;
+        const w = 1.6 + 4.4 * Math.sin(Math.PI * Math.min(0.92, 0.12 + f * 0.85)); // taper
+        pts.push({ x, y, w });
+      }
 
       ctx.save();
       ctx.translate(px, py);
       ctx.rotate(angle);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
 
-      // --- Tail (thinner) ---
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-14, so * amp1);
-      ctx.bezierCurveTo(
-        -10, -so * amp2,
-        -6,  sp * amp1,
-        -1,  0
-      );
-      ctx.stroke();
-
-      ctx.strokeStyle = body;
-      ctx.lineWidth = 2.6;
-      ctx.beginPath();
-      ctx.moveTo(-14, so * amp1);
-      ctx.bezierCurveTo(
-        -10, -so * amp2,
-        -6,  sp * amp1,
-        -1,  0
-      );
-      ctx.stroke();
-
-      // --- Head/Front (thicker) ---
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 5.2;
-      ctx.beginPath();
-      ctx.moveTo(-1, 0);
-      ctx.bezierCurveTo(
-        5,  -sp * amp1,
-        10,  so * amp2,
-        14, -so * amp1
-      );
-      ctx.stroke();
-
-      // Body fill
-      ctx.strokeStyle = body;
-      ctx.lineWidth = 3.8;
-      ctx.beginPath();
-      ctx.moveTo(-1, 0);
-      ctx.bezierCurveTo(
-        5,  -sp * amp1,
-        10,  so * amp2,
-        14, -so * amp1
-      );
-      ctx.stroke();
-
-      // Soft sheen highlight
-      ctx.strokeStyle = highlight;
-      ctx.globalAlpha = 0.55;
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.moveTo(-2, -1.2);
-      ctx.bezierCurveTo(
-        4.5, -sp * (amp1 * 0.85) - 1.0,
-        9.5,  so * (amp2 * 0.7) - 0.6,
-        13.0, -so * (amp1 * 0.75) - 0.6
-      );
-      ctx.stroke();
+      // soft ground shadow
+      ctx.globalAlpha = 0.25; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(-1, 3, 15, 4, 0, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
 
-      // Tail rattle beads
-      ctx.save();
-      ctx.translate(-14, so * amp1);
-      ctx.strokeStyle = outline;
-      ctx.fillStyle = highlight;
-      ctx.lineWidth = 1.4;
-      for (let i = 0; i < 3; i++){
-        const ox = -2.2 - i * 2.2;
-        const oy = Math.sin(s.slither * 1.3 + i) * 0.8;
-        ctx.beginPath();
-        ctx.ellipse(ox, oy, 1.6, 1.1, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+      // body: outline pass, then fill pass, then belly sheen
+      const pass = (color, extra, alpha) => {
+        ctx.strokeStyle = color; ctx.globalAlpha = alpha == null ? 1 : alpha;
+        for (let i = 0; i < N; i++){
+          const p0 = pts[i], p1 = pts[i + 1];
+          ctx.lineWidth = (p0.w + p1.w) / 2 + extra;
+          ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      };
+      pass(OUT, 2.4);
+      pass(BODY, 0);
+
+      // diamondback pattern along the spine
+      for (let i = 3; i < N - 1; i += 3){
+        const p0 = pts[i - 1], p1 = pts[i + 1], c = pts[i];
+        const tang = Math.atan2(p1.y - p0.y, p1.x - p0.x);
+        const dw = c.w * 0.52, dl = 2.3;
+        ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(tang);
+        ctx.beginPath(); ctx.moveTo(-dl, 0); ctx.lineTo(0, -dw); ctx.lineTo(dl, 0); ctx.lineTo(0, dw); ctx.closePath();
+        ctx.fillStyle = DIA; ctx.fill();
+        ctx.strokeStyle = DIA_EDGE; ctx.lineWidth = 0.6; ctx.stroke();
+        ctx.restore();
+      }
+      // light side sheen
+      ctx.strokeStyle = BELLY; ctx.globalAlpha = 0.45; ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      for (let i = 2; i <= N; i++){ const q = pts[i]; const yy = q.y - q.w * 0.32; if (i === 2) ctx.moveTo(q.x, yy); else ctx.lineTo(q.x, yy); }
+      ctx.stroke(); ctx.globalAlpha = 1;
+
+      // rattle: shakes faster when the snake is near the player
+      const dist = Math.abs((sn.x|0) - game.playerX) + Math.abs((sn.y|0) - game.playerY);
+      const shakeSpeed = dist <= 3 ? 38 : (dist <= 6 ? 18 : 7);
+      const shake = Math.sin(now * shakeSpeed) * (dist <= 3 ? 1.6 : 0.8);
+      const tail = pts[0];
+      ctx.save(); ctx.translate(tail.x, tail.y + shake);
+      for (let k = 0; k < 4; k++){
+        const rx = -1.6 - k * 1.8, rw = 1.9 - k * 0.25;
+        ctx.beginPath(); ctx.ellipse(rx, 0, 1.2, rw, 0, 0, Math.PI * 2);
+        ctx.fillStyle = k % 2 ? '#d9c08c' : '#b8955e'; ctx.fill();
+        ctx.strokeStyle = OUT; ctx.lineWidth = 0.8; ctx.stroke();
       }
       ctx.restore();
 
-      // Head diamond + eyes
-      ctx.save();
-      ctx.translate(14, -so * amp1);
-      ctx.fillStyle = body;
-      ctx.strokeStyle = outline;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(0, -5.2);
-      ctx.lineTo(6.2, 0);
-      ctx.lineTo(0, 5.2);
-      ctx.lineTo(-3.6, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-
-      // Eyes
-      ctx.fillStyle = eye;
-      ctx.beginPath();
-      ctx.arc(1.4, -1.8, 0.95, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(1.4, 1.8, 0.95, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = outline;
-      ctx.beginPath();
-      ctx.arc(1.8, -1.8, 0.35, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(1.8, 1.8, 0.35, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Tongue flick (rare)
-      if (Math.sin(s.slither * 2.2) > 0.62){
-        ctx.strokeStyle = '#c6453f';
-        ctx.lineWidth = 1;
+      // head: wide triangular rattler jaw, angled with the neck
+      const nk = pts[N], nk0 = pts[N - 2];
+      const ha = Math.atan2(nk.y - nk0.y, nk.x - nk0.x) * 0.6;
+      ctx.save(); ctx.translate(nk.x, nk.y); ctx.rotate(ha);
+      // tongue (flicks every so often)
+      const flick = (Math.sin(now * 2.3 + (sn.x * 7 + sn.y * 3)) > 0.55);
+      if (flick){
+        const tl = 3 + Math.abs(Math.sin(now * 20)) * 2;
+        ctx.strokeStyle = '#d4403a'; ctx.lineWidth = 0.9;
         ctx.beginPath();
-        ctx.moveTo(6.0, 0);
-        ctx.lineTo(8.2, -1.6);
-        ctx.moveTo(6.0, 0);
-        ctx.lineTo(8.2, 1.6);
+        ctx.moveTo(6.5, 0); ctx.lineTo(6.5 + tl, 0);
+        ctx.moveTo(6.5 + tl, 0); ctx.lineTo(8 + tl, -1.3);
+        ctx.moveTo(6.5 + tl, 0); ctx.lineTo(8 + tl, 1.3);
         ctx.stroke();
       }
+      ctx.beginPath();
+      ctx.moveTo(-1.5, -3.2);
+      ctx.quadraticCurveTo(2.5, -5.4, 6.8, -1.1);
+      ctx.quadraticCurveTo(7.6, 0, 6.8, 1.1);
+      ctx.quadraticCurveTo(2.5, 5.4, -1.5, 3.2);
+      ctx.closePath();
+      ctx.fillStyle = BODY; ctx.fill();
+      ctx.strokeStyle = OUT; ctx.lineWidth = 1.6; ctx.stroke();
+      // darker brow stripe
+      ctx.fillStyle = DIA;
+      ctx.beginPath(); ctx.moveTo(0.5, -2.6); ctx.lineTo(4.5, -1.2); ctx.lineTo(4.5, 1.2); ctx.lineTo(0.5, 2.6); ctx.closePath(); ctx.fill();
+      // eyes with slit pupils
+      for (const ey of [-2.3, 2.3]){
+        ctx.fillStyle = EYE; ctx.beginPath(); ctx.ellipse(3.2, ey, 1.15, 0.95, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#120a04'; ctx.beginPath(); ctx.ellipse(3.35, ey, 0.25, 0.85, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      // nostrils
+      ctx.fillStyle = OUT;
+      ctx.beginPath(); ctx.arc(6.1, -0.6, 0.3, 0, Math.PI * 2); ctx.arc(6.1, 0.6, 0.3, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
 
       ctx.restore();
@@ -15294,6 +15262,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       const totalPts = pts + moonBonus;
       logEvent("deposit",`Deposited ${n} stick(s) (+${totalPts}).`);
       sfxDeposit();
+      try { setTimeout(() => beep(180, 0.09, "sine", 0.10), 90); setTimeout(() => beep(110, 0.12, "sine", 0.09), 170); } catch(e) {}
       tutorialEvent("deposit");
       if(moonBonus > 0){
         setHud(`+${totalPts} (🌙+${moonBonus})!`);
@@ -15430,6 +15399,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       }
 
       sfxPickup();
+      try { spawnPickupPop(px, py, s.color); } catch(e) {}
       tutorialEvent("pickup");
 
       if (s.bonus){
@@ -15559,6 +15529,33 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       const sp = 0.6 + Math.random()*2.2;
       game.sparks.push({ x:cx, y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life: 24 + Math.random()*20, evil });
     }
+  }
+
+  // Small colored "pop" when a stick is picked up (2026-10-19)
+  function spawnPickupPop(gx, gy, color){
+    const cx = gx*TILE + TILE/2, cy = gy*TILE + TILE/2;
+    for (let i = 0; i < 10; i++){
+      const a = (Math.PI * 2 / 10) * i + Math.random() * 0.3;
+      const sp = 1.2 + Math.random() * 1.4;
+      game.sparks.push({ x:cx, y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp - 0.4,
+                         life: 16 + Math.random()*10, color: (i % 3 === 0) ? "#ffffff" : (color || "#f3f4f6"), size: 2.5 });
+    }
+    pickupRings.push({ x: cx, y: cy, t: 0, color: color || "#ffffff" });
+  }
+  let pickupRings = [];
+  function drawPickupRings(){
+    if (!pickupRings.length) return;
+    ctx.save();
+    for (let i = pickupRings.length - 1; i >= 0; i--){
+      const r = pickupRings[i];
+      r.t += 1;
+      const f = r.t / 18;
+      ctx.globalAlpha = Math.max(0, 0.8 * (1 - f));
+      ctx.strokeStyle = r.color; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(r.x, r.y, 4 + f * 12, 0, Math.PI * 2); ctx.stroke();
+      if (f >= 1) pickupRings.splice(i, 1);
+    }
+    ctx.restore(); ctx.globalAlpha = 1;
   }
 
   function updateRollButtonState(){
@@ -16146,6 +16143,51 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.beginPath();
     ctx.arc(cx, cy, 16 + pulse*6, 0, Math.PI*2);
     ctx.stroke();
+
+    // BEACON (2026-10-19): while you're carrying sticks the hole calls to you —
+    // ripples roll outward and a dashed ring turns. Stronger when your hands are full.
+    const carrying = game.carry.length;
+    // The classic theme's rim is a subtle gray — too dark to see, so the beacon uses a soft light blue there.
+    const beaconColor = (holeStroke === "#1f2a37") ? "#bcd7ff" : holeStroke;
+    if (carrying > 0){
+      const full = carrying >= carryCap();
+      const tt = Date.now() / 1000;
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = beaconColor;
+      for (let k = 0; k < 2; k++){
+        const f = ((tt * (full ? 0.9 : 0.6)) + k * 0.5) % 1;
+        ctx.globalAlpha = (full ? 0.75 : 0.5) * (1 - f);
+        ctx.lineWidth = full ? 2.2 : 1.5;
+        ctx.beginPath(); ctx.arc(cx, cy, 16 + f * (full ? 22 : 16), 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.save();
+      ctx.translate(cx, cy); ctx.rotate(tt * 1.2);
+      ctx.setLineDash([4, 5]);
+      ctx.globalAlpha = full ? 0.9 : 0.6;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(0, 0, 21, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    // GULP: on deposit, streaks swirl down into the hole and the rim snaps inward.
+    if (pulse > 0){
+      const g = 1 - pulse;                      // 0 -> 1 over the gulp
+      ctx.strokeStyle = beaconColor;
+      ctx.lineWidth = 2;
+      for (let k = 0; k < 7; k++){
+        const ang = k * (Math.PI * 2 / 7) + g * 5;
+        const r0 = 26 * (1 - g) + 4, r1 = r0 * 0.55;
+        ctx.globalAlpha = 0.9 * pulse;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0);
+        ctx.lineTo(cx + Math.cos(ang + 0.5) * r1, cy + Math.sin(ang + 0.5) * r1);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 0.8 * pulse;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(cx, cy, 6 + 14 * (1 - g), 0, Math.PI * 2); ctx.stroke();
+    }
 
     ctx.restore();
     ctx.globalAlpha = 1;
@@ -17751,6 +17793,7 @@ ctx.restore();
   }
 
   function drawSparks(){
+    drawPickupRings();
     if (!game.sparks.length) return;
     ctx.save();
     for (let i=game.sparks.length-1;i>=0;i--){
@@ -17763,8 +17806,8 @@ ctx.restore();
 
       const a = clamp(s.life / 40, 0, 1);
       ctx.globalAlpha = 0.15 + a*0.75;
-      ctx.fillStyle = s.evil ? "#ff1f3a" : "#f3f4f6";
-      ctx.fillRect(s.x, s.y, 2, 2);
+      ctx.fillStyle = s.color || (s.evil ? "#ff1f3a" : "#f3f4f6");
+      ctx.fillRect(s.x, s.y, s.size || 2, s.size || 2);
 
       if (s.life <= 0) game.sparks.splice(i,1);
     }
