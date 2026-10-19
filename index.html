@@ -12616,8 +12616,30 @@ function sfxMonsterVictoryStreak(){
     "Victory Stick": "The final field — dodge the lasers and finish it."
   };
 
+  // READY SCREEN (2026-10-19): the level intro now WAITS for the player and the whole game
+  // is frozen while it's up, so nobody gets hit while reading the tip.
+  // Any key, a tap/click on the board, or Roll / Pick / an arrow dismisses it.
+  function introIsWaiting(){
+    if (!levelIntro.active || levelIntro.phase !== 'hold') return false;
+    const tutOpen = (ui.tutorialOverlay && ui.tutorialOverlay.classList.contains('show')) ||
+                    (ui.quickHowtoOverlay && ui.quickHowtoOverlay.classList.contains('show'));
+    return !tutOpen && !levelIntro.dismissed;
+  }
+  function introFreezesGame(){
+    // Freeze during fade-in and while waiting; release as soon as it starts fading out.
+    return levelIntro.active && levelIntro.phase !== 'fadeout';
+  }
+  function dismissLevelIntro(){
+    if (!levelIntro.active || levelIntro.dismissed) return false;
+    levelIntro.dismissed = true;
+    if (levelIntro.phase === 'fadein'){ levelIntro.phase = 'hold'; levelIntro.timer = 0; }
+    try { beep(660, 0.06, "triangle", 0.06); } catch(e) {}
+    return true;
+  }
+
   function startLevelIntro(){
     const theme = currentLevelTheme();
+    levelIntro.dismissed = false;
     levelIntro.active = true;
     levelIntro.opacity = 0;
     levelIntro.phase = 'fadein';
@@ -12656,7 +12678,11 @@ function sfxMonsterVictoryStreak(){
     } else if(levelIntro.phase === 'hold'){
       levelIntro.opacity = 1;
       const holdTime = INTRO_HOLD_TIME + (levelIntro.themeName === "Victory Stick" ? INTRO_VICTORY_PAUSE_TIME : 0) + (levelIntro.longHold ? 180 : 0);
-      if(levelIntro.timer >= holdTime){
+      const tutOpen = (ui.tutorialOverlay && ui.tutorialOverlay.classList.contains('show')) ||
+                      (ui.quickHowtoOverlay && ui.quickHowtoOverlay.classList.contains('show'));
+      // Normally wait for the player. If a tutorial box is open, fall back to the old timed hold.
+      const canLeave = levelIntro.dismissed || (tutOpen && levelIntro.timer >= holdTime);
+      if(canLeave){
         levelIntro.phase = 'fadeout';
         levelIntro.timer = 0;
       }
@@ -12904,6 +12930,12 @@ function sfxMonsterVictoryStreak(){
       if (line) lines.push(line);
       let ty = figY + (isVictoryLevel ? 148 : 128) * figScale;
       for (const ln of lines){ ctx.fillText(ln, cx, ty); ty += 20; }
+      if (introIsWaiting()){
+        const blink = 0.55 + 0.45 * ((Math.sin(time * 4) + 1) / 2);
+        ctx.font = 'bold 14px ui-monospace, monospace';
+        ctx.fillStyle = `rgba(255,255,255,${blink})`;
+        ctx.fillText('▶ PRESS ANY KEY OR TAP TO START', cx, ty + 14);
+      }
     }
     
     ctx.shadowBlur = 0;
@@ -14486,6 +14518,7 @@ Clear all sticks to advance — watch out for obstacles.`;
   }
 
   function doRoll(){
+    if (introFreezesGame()){ dismissLevelIntro(); return; }
     markLearnActivity();
     if (!canRoll()){
       sfxError();
@@ -14876,6 +14909,7 @@ Clear all sticks to advance — watch out for obstacles.`;
 
   let playerFaceX = 0, playerFaceY = 1;
   function move(dx,dy){
+    if (introFreezesGame()){ dismissLevelIntro(); return; }
     if (game.inputLocked) return;
     markLearnActivity();
     if (dx !== 0 || dy !== 0){ playerFaceX = dx; playerFaceY = dy; }
@@ -15150,6 +15184,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
   function pickOrDrop(){
     markLearnActivity();
+    if (introFreezesGame()){ dismissLevelIntro(); return; }
     if (game.inputLocked) return;
 
     // If a monster battle is pending, Pick/Drop should not spend actions.
@@ -16172,33 +16207,61 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   function drawTunnels(theme){
     if (theme.name !== "Snake Stick") return;
     const t = (performance.now ? performance.now() : Date.now()) / 1000;
-    const pulse = 0.55 + 0.45 * ((Math.sin(t * 3) + 1) / 2);
+    const accent = theme.accent || "#e2c27a";
     const tr = TUNNEL_ROW(), tc = TUNNEL_COL();
     const mouths = [
-      { x: 0,          y: tr, side: "left"   },
-      { x: GRID_W - 1, y: tr, side: "right"  },
-      { x: tc,         y: 0,          side: "top"    },
-      { x: tc,         y: GRID_H - 1, side: "bottom" }
+      { x: 0,          y: tr },
+      { x: GRID_W - 1, y: tr },
+      { x: tc,         y: 0 },
+      { x: tc,         y: GRID_H - 1 }
     ];
     ctx.save();
-    for (const m of mouths){
-      const px = m.x * TILE, py = m.y * TILE;
-      // dark opening
-      ctx.globalAlpha = 0.85;
-      ctx.fillStyle = "#0b0805";
-      ctx.beginPath();
-      if (m.side === "left")   ctx.ellipse(px + 3,        py + TILE/2, 6, TILE/2 - 2, 0, 0, Math.PI*2);
-      if (m.side === "right")  ctx.ellipse(px + TILE - 3, py + TILE/2, 6, TILE/2 - 2, 0, 0, Math.PI*2);
-      if (m.side === "top")    ctx.ellipse(px + TILE/2, py + 3,        TILE/2 - 2, 6, 0, 0, Math.PI*2);
-      if (m.side === "bottom") ctx.ellipse(px + TILE/2, py + TILE - 3, TILE/2 - 2, 6, 0, 0, Math.PI*2);
-      ctx.fill();
-      // glowing rim
+    for (let i = 0; i < mouths.length; i++){
+      const m = mouths[i];
+      const cx = m.x * TILE + TILE / 2, cy = m.y * TILE + TILE / 2;
+      const R = TILE * 0.62;                           // a bit bigger than the tile
+      const spin = t * 2.4 * (i % 2 === 0 ? 1 : -1);    // paired mouths spin opposite ways
+      const pulse = 0.75 + 0.25 * Math.sin(t * 3 + i);
+
+      // soft glow halo
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 1.5);
+      g.addColorStop(0, accent + "66");
+      g.addColorStop(1, "rgba(0,0,0,0)");
       ctx.globalAlpha = pulse;
-      ctx.strokeStyle = theme.accent || "#e2c27a";
-      ctx.shadowColor = theme.accent || "#e2c27a";
-      ctx.shadowBlur = 10;
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(cx, cy, R * 1.5, 0, Math.PI * 2); ctx.fill();
+
+      // dark vortex core
+      ctx.globalAlpha = 0.9;
+      const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+      core.addColorStop(0, "#050302");
+      core.addColorStop(0.7, "#1a1309");
+      core.addColorStop(1, "rgba(26,19,9,0)");
+      ctx.fillStyle = core;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+
+      // three spinning spiral arms in the level's gold accent
+      ctx.globalAlpha = 0.95;
+      ctx.strokeStyle = accent;
+      ctx.shadowColor = accent;
+      ctx.shadowBlur = 8;
       ctx.lineWidth = 2;
-      ctx.stroke();
+      ctx.lineCap = "round";
+      for (let arm = 0; arm < 3; arm++){
+        ctx.beginPath();
+        for (let k = 0; k <= 26; k++){
+          const f = k / 26;                             // 0 = center, 1 = rim
+          const ang = spin + arm * (Math.PI * 2 / 3) + f * Math.PI * 2.2;
+          const rr = 1.5 + f * (R - 2);
+          const px = cx + Math.cos(ang) * rr, py = cy + Math.sin(ang) * rr;
+          if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+      // bright rim
+      ctx.globalAlpha = 0.6 * pulse;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
       ctx.shadowBlur = 0;
     }
     ctx.restore();
@@ -17865,7 +17928,7 @@ ctx.restore();
     // Always update level intro animation
     updateLevelIntro();
     
-    if (!isGameEnded) {
+    if (!isGameEnded && !introFreezesGame()) {
       // update
       updateTreeTimers();
       updateRollButton();
@@ -18541,6 +18604,11 @@ ui.nameInput.addEventListener("keydown", (e) => {
       return;
     }
 
+    if (introIsWaiting() || (levelIntro.active && levelIntro.phase === 'fadein')){
+      if (!e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); dismissLevelIntro(); }
+      return;
+    }
+
     if (game.inputLocked && !game.pendingMonster) return;
 
     if (e.key === "ArrowUp"){ e.preventDefault(); move(0,-1); }
@@ -18553,6 +18621,8 @@ ui.nameInput.addEventListener("keydown", (e) => {
     else if (e.key === "l" || e.key === "L"){ if (!e.ctrlKey && !e.metaKey){ e.preventDefault(); loadGame(); } }
   });
 
+  // Tap/click the board to dismiss the level Ready screen.
+  try { canvas.addEventListener('pointerdown', () => { if (introFreezesGame()) dismissLevelIntro(); }); } catch(e) {}
   // init
   renderLeaderboard(loadLeaderboard());
   setAndStoreSkin(getSavedSkin());
