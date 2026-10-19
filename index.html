@@ -16183,9 +16183,9 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     const litColor = holeLitColor(holeStroke);           // brightened version of this level's rim color
     if (carrying > 0){
       const tt = Date.now() / 1000;
-      const breathe = 0.5 + 0.5 * Math.sin(tt * (fullLoad ? 5 : 3));
-      const strength = (fullLoad ? 0.55 : 0.38) + breathe * 0.2;
-      const R = (fullLoad ? 34 : 30) + breathe * 4;
+      const breathe = 0.5 + 0.5 * Math.sin(tt * (fullLoad ? 3.5 : 2.2));
+      const strength = (fullLoad ? 0.34 : 0.24) + breathe * 0.12;   // soft, behind the hole only
+      const R = (fullLoad ? 32 : 29) + breathe * 3;
       const g2 = ctx.createRadialGradient(cx, cy, 8, cx, cy, R);
       g2.addColorStop(0, litColor.rgba(strength));
       g2.addColorStop(0.55, litColor.rgba(strength * 0.55));
@@ -16222,10 +16222,10 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     
     // Refined subtle pulsating outline
     ctx.globalAlpha = 0.85 + pulseIntensity * 0.15;
-    ctx.lineWidth = carrying > 0 ? (2 + pulseIntensity * 0.6) : (1.2 + pulseIntensity * 0.3);
-    ctx.strokeStyle = carrying > 0 ? litColor.hex : holeStroke;
-    ctx.shadowColor = carrying > 0 ? litColor.hex : holeStroke;
-    ctx.shadowBlur = carrying > 0 ? (14 + pulseIntensity * 8) : (6 + pulseIntensity * 4);
+    ctx.lineWidth = 1.2 + pulseIntensity * 0.3;
+    ctx.strokeStyle = holeStroke;
+    ctx.shadowColor = holeStroke;
+    ctx.shadowBlur = 6 + pulseIntensity * 4;
     ctx.beginPath();
     ctx.arc(cx, cy, 16 + pulse*6, 0, Math.PI*2);
     ctx.stroke();
