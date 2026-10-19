@@ -12936,13 +12936,32 @@ function sfxMonsterVictoryStreak(){
     ctx.restore();
   }
 
+  // Brighten a hole rim color while keeping its hue (dark slate -> brighter slate blue, etc.)
+  function holeLitColor(hex){
+    let h = String(hex || "#ffffff").replace("#", "");
+    if (h.length === 3) h = h.split("").map(c => c + c).join("");
+    let r = parseInt(h.slice(0,2),16)/255, g = parseInt(h.slice(2,4),16)/255, b = parseInt(h.slice(4,6),16)/255;
+    const mx = Math.max(r,g,b), mn = Math.min(r,g,b); let H = 0, S = 0, L = (mx+mn)/2;
+    if (mx !== mn){
+      const d = mx - mn; S = L > 0.5 ? d/(2-mx-mn) : d/(mx+mn);
+      H = mx === r ? (g-b)/d + (g<b?6:0) : mx === g ? (b-r)/d + 2 : (r-g)/d + 4; H /= 6;
+    }
+    L = Math.max(L, 0.62); S = Math.min(1, Math.max(S, mx === mn ? 0 : 0.45));
+    const f = (p,q,t) => { if(t<0)t+=1; if(t>1)t-=1; if(t<1/6)return p+(q-p)*6*t; if(t<1/2)return q; if(t<2/3)return p+(q-p)*(2/3-t)*6; return p; };
+    const q = L < 0.5 ? L*(1+S) : L+S-L*S, p = 2*L-q;
+    const R = Math.round(f(p,q,H+1/3)*255), G = Math.round(f(p,q,H)*255), B = Math.round(f(p,q,H-1/3)*255);
+    return { hex: "#" + [R,G,B].map(v => v.toString(16).padStart(2,"0")).join(""), rgba: a => `rgba(${R},${G},${B},${a})` };
+  }
+
   // SANCTUARY (2026-10-19): standing on the hole = safe from every attack, every level.
   function inSanctuary(){
     return game.playerX === game.holeX && game.playerY === game.holeY;
   }
   function carryCap(){
     const base = Math.min(6, 3 + Math.floor((game.level - 1) / 3));
-    let cap = game.bonusActive ? (base + 2) : base;
+    // (Bonus rolls used to silently add +2 here, so the count jumped 3 -> 5 -> 3. Removed 2026-10-19:
+    //  capacity now only grows by level, plus the announced Banana Bundle.)
+    let cap = base;
     // BANANA BUNDLE - double capacity!
     if(bananaMode) cap *= 2;
     return cap;
@@ -16151,6 +16170,24 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     }
 
     ctx.globalAlpha = 1;
+
+    // CARRY GLOW (2026-10-19): while you're holding sticks the hole glows brighter
+    // in its OWN color (level 1's soft slate blue gets brighter, purple levels glow purple, etc.)
+    const carrying = game.carry.length;
+    const fullLoad = carrying > 0 && carrying >= carryCap();
+    const litColor = holeLitColor(holeStroke);           // brightened version of this level's rim color
+    if (carrying > 0){
+      const tt = Date.now() / 1000;
+      const breathe = 0.5 + 0.5 * Math.sin(tt * (fullLoad ? 5 : 3));
+      const strength = (fullLoad ? 0.55 : 0.38) + breathe * 0.2;
+      const R = (fullLoad ? 34 : 30) + breathe * 4;
+      const g2 = ctx.createRadialGradient(cx, cy, 8, cx, cy, R);
+      g2.addColorStop(0, litColor.rgba(strength));
+      g2.addColorStop(0.55, litColor.rgba(strength * 0.55));
+      g2.addColorStop(1, litColor.rgba(0));
+      ctx.fillStyle = g2;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+    }
     
     // Pulsating glow effect
     const pulsePhase = (Date.now() % 1500) / 1500; // 1.5 second pulse cycle
@@ -16180,31 +16217,15 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     
     // Refined subtle pulsating outline
     ctx.globalAlpha = 0.85 + pulseIntensity * 0.15;
-    ctx.lineWidth = 1.2 + pulseIntensity * 0.3;
-    ctx.strokeStyle = holeStroke;
-    ctx.shadowColor = holeStroke;
-    ctx.shadowBlur = 6 + pulseIntensity * 4;
+    ctx.lineWidth = carrying > 0 ? (2 + pulseIntensity * 0.6) : (1.2 + pulseIntensity * 0.3);
+    ctx.strokeStyle = carrying > 0 ? litColor.hex : holeStroke;
+    ctx.shadowColor = carrying > 0 ? litColor.hex : holeStroke;
+    ctx.shadowBlur = carrying > 0 ? (14 + pulseIntensity * 8) : (6 + pulseIntensity * 4);
     ctx.beginPath();
     ctx.arc(cx, cy, 16 + pulse*6, 0, Math.PI*2);
     ctx.stroke();
 
-    // BEACON (2026-10-19): while you're carrying sticks the hole calls to you —
-    // ripples roll outward from the rim. Stronger when your hands are full.
-    const carrying = game.carry.length;
-    // Beacon + gulp use the level's accent color (same as the deposit arrow) so they always match the theme.
-    const beaconColor = (theme && theme.accent) ? theme.accent : holeStroke;
-    if (carrying > 0){
-      const full = carrying >= carryCap();
-      const tt = Date.now() / 1000;
-      ctx.shadowBlur = 0;
-      ctx.strokeStyle = beaconColor;
-      for (let k = 0; k < 2; k++){
-        const f = ((tt * (full ? 0.9 : 0.6)) + k * 0.5) % 1;
-        ctx.globalAlpha = (full ? 0.75 : 0.5) * (1 - f);
-        ctx.lineWidth = full ? 2.2 : 1.5;
-        ctx.beginPath(); ctx.arc(cx, cy, 16 + f * (full ? 22 : 16), 0, Math.PI * 2); ctx.stroke();
-      }
-    }
+    const beaconColor = litColor.hex;   // gulp uses the hole's own (brightened) color
 
     // GULP: on deposit, streaks swirl down into the hole and the rim snaps inward.
     if (pulse > 0){
