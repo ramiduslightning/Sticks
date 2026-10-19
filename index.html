@@ -1954,7 +1954,7 @@
       const dist = Math.abs(ghost.x - game.playerX) + Math.abs(ghost.y - game.playerY);
       
       // Check if player escaped ghost attack (moved more than 1 square away)
-      if(ghost.attacking && dist > 1){
+      if(ghost.attacking && (dist > 1 || inSanctuary())){
         ghost.attacking = false;
         ghost.attackTimer = 0;
         logEvent("cursed", "👻 Escaped the spirit!");
@@ -2009,7 +2009,7 @@
         }
       } else {
         // Not attacking yet
-        if(dist <= 1){
+        if(dist <= 1 && !inSanctuary()){
           // Within 1 square - START ATTACKING
           ghost.attacking = true;
           ghost.attackTimer = 0;
@@ -2088,7 +2088,7 @@
       }
       
       // Check collision with player - DRAMATIC DEATH!
-      if(skull.visible && skull.x === game.playerX && skull.y === game.playerY){
+      if(skull.visible && skull.x === game.playerX && skull.y === game.playerY && !inSanctuary()){
         game.lives--;
         logEvent("death", "💀💀💀 SKULL KILLED YOU! 💀💀💀");
         setHud("☠️ DEATH! ☠️");
@@ -2354,7 +2354,7 @@
       // Check if player escaped attack
       if(fireDemon.attacking){
         const dist = Math.abs(fireDemon.x - game.playerX) + Math.abs(fireDemon.y - game.playerY);
-        if(dist > 1){
+        if(dist > 1 || inSanctuary()){
           fireDemon.attacking = false;
           fireDemon.attackPhase = 'none';
           fireDemon.attackTimer = 0;
@@ -2411,7 +2411,7 @@
         
         // Check if within 1 square of player - start attack warning
         const dist = Math.abs(fireDemon.x - game.playerX) + Math.abs(fireDemon.y - game.playerY);
-        if(dist <= 1 && !fireDemon.attacking){
+        if(dist <= 1 && !fireDemon.attacking && !inSanctuary()){
           fireDemon.attacking = true;
           fireDemon.attackPhase = 'warning';
           fireDemon.attackTimer = 0;
@@ -2884,7 +2884,7 @@
       if (birdStealCooldown > 0) birdStealCooldown--;
       if (!bird.carryingStick && birdStealCooldown === 0 && !(game.pendingMonster || game.inputLocked) && game.carry.length > 0){
         const distP = Math.abs(bird.x - game.playerX) + Math.abs(bird.y - game.playerY);
-        if (distP <= 1 && Math.random() < 0.015){
+        if (distP <= 1 && !inSanctuary() && Math.random() < 0.015){
           // Prevent soft-lock: never steal the last remaining stick overall (ground + carry)
           const totalBefore = game.sticks.length + game.carry.length;
           const maxAllowed = totalBefore - 1; // must leave at least 1 stick remaining
@@ -4133,9 +4133,9 @@
 
   // Check monkey collision
   function checkMonkeyCollision(){
-    if(currentLevelTheme().name !== "Banana Stick" || !monkey.active) return;
+    if(currentLevelTheme().name !== "Banana Stick" || typeof monkey === "undefined" || !monkey || !monkey.active) return;
     
-    if(monkey.x === game.playerX && monkey.y === game.playerY){
+    if(monkey.x === game.playerX && monkey.y === game.playerY && !inSanctuary()){
       if(game.carry.length > 0){
         // Drop all sticks
         game.carry.forEach(stick => {
@@ -4275,7 +4275,7 @@
       }
       
       // Check if this monkey caught player - AUTOMATIC BATTLE!
-      if(monkey.x === game.playerX && monkey.y === game.playerY){
+      if(monkey.x === game.playerX && monkey.y === game.playerY && !inSanctuary()){
         // Mark this monkey as having encountered player (with cooldown check)
         if(!monkey.battling && !monkey.cooldown){
           monkey.battling = true;
@@ -6045,7 +6045,7 @@ function initWildHorse(){
       }
       
       // Check if ram hit the player
-      if(ram.x === game.playerX && ram.y === game.playerY){
+      if(ram.x === game.playerX && ram.y === game.playerY && !inSanctuary()){
         // Ram sound - low thumping
         beep(150, 0.12, "sawtooth", 0.3);
         setTimeout(() => beep(180, 0.1, "sawtooth", 0.25), 80);
@@ -6160,7 +6160,7 @@ function initWildHorse(){
 }
         
         // Check if player got hit
-        if(game.playerX === lightningWarning.x && game.playerY === lightningWarning.y){
+        if(game.playerX === lightningWarning.x && game.playerY === lightningWarning.y && !inSanctuary()){
           // Player struck by lightning! Lose a life
           game.lives--;
           logEvent("lightning", "⚡ STRUCK BY LIGHTNING!");
@@ -8711,6 +8711,7 @@ function updateSpiderWebs(){
           }
         }
         
+        if(hit && inSanctuary()) hit = false;
         if(hit){
           // Check shield first!
           if(activeShield > 0){
@@ -10176,7 +10177,7 @@ function updateSpiderWebs(){
     if(depositArrowTimer <= 0){
       if(!depositArrowShownThisLevel && game.carry.length > 0){
         depositArrowShownThisLevel = true;
-        depositArrowTimer = 240; // 4 seconds
+        depositArrowTimer = 480; // ~8 seconds so the label can be read
       } else {
         return;
       }
@@ -10203,7 +10204,7 @@ function updateSpiderWebs(){
     // Use theme accent color
     ctx.fillStyle = theme.accent;
     ctx.strokeStyle = theme.border;
-    ctx.globalAlpha = pulse * (depositArrowTimer / 240); // Fade out
+    ctx.globalAlpha = pulse * Math.min(1, depositArrowTimer / 60); // Fade out
     ctx.lineWidth = 2;
     
     // Draw arrow (larger)
@@ -10223,7 +10224,7 @@ function updateSpiderWebs(){
     
     // Draw deposit helper label above arrow (more readable, matches level colors)
     ctx.save();
-    ctx.globalAlpha = pulse * (depositArrowTimer / 240);
+    ctx.globalAlpha = pulse * Math.min(1, depositArrowTimer / 60);
 
     // Teach that you can hold more than one (2026-10-19)
     const _cap = carryCap(), _n = game.carry.length;
@@ -12935,6 +12936,10 @@ function sfxMonsterVictoryStreak(){
     ctx.restore();
   }
 
+  // SANCTUARY (2026-10-19): standing on the hole = safe from every attack, every level.
+  function inSanctuary(){
+    return game.playerX === game.holeX && game.playerY === game.holeY;
+  }
   function carryCap(){
     const base = Math.min(6, 3 + Math.floor((game.level - 1) / 3));
     let cap = game.bonusActive ? (base + 2) : base;
@@ -15138,8 +15143,9 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     }
     
     // Check monkey collision immediately after moving
-    if(currentLevelTheme().name === "Banana Stick" && monkey.active){
-      if(monkey.x === game.playerX && monkey.y === game.playerY){
+    // (legacy single-monkey check; "monkey" no longer exists, which made every Banana Stick move throw an error. Guarded 2026-10-19.)
+    if(currentLevelTheme().name === "Banana Stick" && typeof monkey !== "undefined" && monkey && monkey.active){
+      if(monkey.x === game.playerX && monkey.y === game.playerY && !inSanctuary()){
         if(game.carry.length > 0){
           // Drop all sticks - DRAMATIC SOUND
           game.carry.forEach(stick => {
@@ -15421,8 +15427,10 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
       const cap = carryCap();
       if (game.carry.length === cap){
-        logEvent("warn",`MAX LOAD (${cap}).`);
-        setHud(`MAX LOAD (${cap})`);
+        logEvent("warn",`🎒 FULL LOAD (${cap})! Head to the hole.`);
+        setHud(`🎒 FULL LOAD (${cap})! Head to the hole`);
+        fullLoadPop = { x: px*TILE + TILE/2, y: py*TILE, t: 0 };
+        try { setTimeout(() => chord([660,880,990],0.12,0.06,"triangle"), 120); } catch(e) {}
       } else {
         const cupcakeBonus = cupcakeMode > 0 ? " 🧁×2" : "";
         logEvent("pickup",`Picked up a stick. (${game.carry.length}/${cap})`);
@@ -15556,7 +15564,30 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     pickupRings.push({ x: cx, y: cy, t: 0, color: color || "#ffffff" });
   }
   let pickupRings = [];
+  let fullLoadPop = null;
+  function drawFullLoadPop(){
+    if (!fullLoadPop) return;
+    const p = fullLoadPop; p.t++;
+    const life = 110, f = p.t / life;
+    if (f >= 1){ fullLoadPop = null; return; }
+    const theme = currentLevelTheme();
+    const col = (theme && theme.accent) || "#ffd166";
+    const scale = p.t < 10 ? 0.6 + 0.04 * p.t : 1;           // quick pop-in
+    const alpha = f > 0.75 ? (1 - f) / 0.25 : 1;              // fade at the end
+    const x = Math.max(50, Math.min(CANVAS_W - 50, p.x));
+    const y = Math.max(16, p.y - 10 - f * 14);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(x, y); ctx.scale(scale, scale);
+    ctx.font = "900 15px ui-monospace, monospace";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.85)";
+    ctx.strokeText("FULL LOAD!", 0, 0);
+    ctx.fillStyle = col; ctx.fillText("FULL LOAD!", 0, 0);
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
   function drawPickupRings(){
+    drawFullLoadPop();
     if (!pickupRings.length) return;
     ctx.save();
     for (let i = pickupRings.length - 1; i >= 0; i--){
@@ -16160,8 +16191,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     // BEACON (2026-10-19): while you're carrying sticks the hole calls to you —
     // ripples roll outward from the rim. Stronger when your hands are full.
     const carrying = game.carry.length;
-    // The classic theme's rim is a subtle gray — too dark to see, so the beacon uses a soft light blue there.
-    const beaconColor = (holeStroke === "#1f2a37") ? "#bcd7ff" : holeStroke;
+    // Beacon + gulp use the level's accent color (same as the deposit arrow) so they always match the theme.
+    const beaconColor = (theme && theme.accent) ? theme.accent : holeStroke;
     if (carrying > 0){
       const full = carrying >= carryCap();
       const tt = Date.now() / 1000;
