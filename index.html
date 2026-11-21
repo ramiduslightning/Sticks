@@ -623,7 +623,8 @@
     }
     /* v2.42: How to Play can open on top of the name screen */
     #infoOverlay{ z-index:10000; }
-    #tutorialText{ white-space:pre-line; }   /* v2.43: lets the controller tip sit on its own line */
+    #tutorialText{ white-space:pre-line; }
+    .tutorialBtns .btn.padFocus{ outline:3px solid #ffd54a; outline-offset:2px; box-shadow:0 0 12px rgba(255,213,74,0.55); }   /* v2.43: lets the controller tip sit on its own line */
     /* v2.43: compact How to Play. The shared .modalText uses pre-wrap, which turned every line break
        in this screen's markup into blank space; the rules below lay it out normally. */
     #infoOverlay .modalText{ white-space:normal; font-size:13px; line-height:1.5; }
@@ -1034,7 +1035,7 @@
         <div class="howtoHead">🕹️ CONTROLS</div>
         <div class="howtoNote">Use the mouse (or touch), the keyboard, or a USB controller / arcade stick, and mix them freely. Plug a controller in and press any button once; <b>CONTROLLER CONNECTED</b> appears on the board.</div>
         <table class="howtoTable"><tr><th></th><th>Mouse / touch</th><th>Keyboard</th><th>Controller</th></tr><tr><td><span class="badge">Move</span></td><td>On-screen arrows</td><td>Arrow keys</td><td>Stick (hold to keep moving)</td></tr><tr><td><span class="badge">Roll</span></td><td>Roll button</td><td>R</td><td>Button 1</td></tr><tr><td><span class="badge">Pick / Drop</span></td><td>Pick/Drop button</td><td>Space</td><td>Button 2</td></tr><tr><td><span class="badge">Pause</span></td><td>Pause button</td><td>P or Esc</td><td>START</td></tr><tr><td><span class="badge">How to Play</span></td><td>Info button</td><td>&mdash;</td><td>SELECT</td></tr></table>
-        <div class="howtoNote dim">On a controller, the stick scrolls this screen and any button closes it. Any button also starts the game from the name screen. Button 1 steps through the tutorial; Button 1 or START plays again after Game Over.</div>
+        <div class="howtoNote dim">On a controller, the stick scrolls this screen and any button closes it. Any button also starts the game from the name screen. In the tutorial, push the stick left or right to pick Skip, Back or Next and press Button 1. Button 1 or START plays again after Game Over.</div>
 
         <div class="howtoHead">🎁 GOOD THINGS TO FIND</div>
         <ul class="howtoList">
@@ -12714,6 +12715,12 @@ function sfxMonsterVictoryStreak(){
     // Freeze during fade-in and while waiting; release as soon as it starts fading out.
     return levelIntro.active && levelIntro.phase !== 'fadeout';
   }
+  // v2.43: the world also stays frozen while the Quick tutorial or the how-to card is open. Before,
+  // the level intro timed out behind the tutorial and hazards, the UFO and the Mystery Tree ran on.
+  function tutorialFreezesGame(){
+    return !!((ui.tutorialOverlay && ui.tutorialOverlay.classList.contains('show')) ||
+              (ui.quickHowtoOverlay && ui.quickHowtoOverlay.classList.contains('show')));
+  }
   function dismissLevelIntro(){
     if (!levelIntro.active || levelIntro.dismissed) return false;
     levelIntro.dismissed = true;
@@ -12775,7 +12782,7 @@ function sfxMonsterVictoryStreak(){
       const tutOpen = (ui.tutorialOverlay && ui.tutorialOverlay.classList.contains('show')) ||
                       (ui.quickHowtoOverlay && ui.quickHowtoOverlay.classList.contains('show'));
       // Normally wait for the player. If a tutorial box is open, fall back to the old timed hold.
-      const canLeave = levelIntro.dismissed || (tutOpen && levelIntro.timer >= holdTime);
+      const canLeave = levelIntro.dismissed;   // v2.43: never times out behind the tutorial any more
       if(canLeave){
         levelIntro.phase = 'fadeout';
         levelIntro.timer = 0;
@@ -15774,7 +15781,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   // v2.43: each step also has controller wording ("pad"), shown instead when a controller is plugged in.
   const TUTORIAL_STEPS = [
     { key:'roll',    text:'Press R or tap ROLL to get actions.',
-                     pad:'Press Button 1 (top-left) to ROLL and get actions.\n(In this tutorial: Button 1 = Next, Button 2 = Back, START = Skip.)' },
+                     pad:'Press Button 1 (top-left) to ROLL and get actions.\n(Here: push the stick left or right to pick Skip, Back or Next, then press Button 1.)' },
     { key:'move',    text:'Move: Use arrow keys (or tap the on-screen arrows).',
                      pad:'Move: push the stick. Hold it to keep moving.' },
     { key:'pickup',  text:'Pick up: Stand on a stick and press Pick/Drop (or Space). You can hold several at once (dots under you show how many) and you can carry more on later levels.',
@@ -18214,7 +18221,7 @@ ctx.restore();
     // Always update level intro animation
     updateLevelIntro();
     
-    if (!isGameEnded && !introFreezesGame()) {
+    if (!isGameEnded && !introFreezesGame() && !tutorialFreezesGame()) {
       // update
       updateTreeTimers();
       updateRollButton();
@@ -18921,7 +18928,8 @@ ui.nameInput.addEventListener("keydown", (e) => {
   // ===== CONTROLLER / ARCADE STICK SUPPORT (v2.42, 2026-11-21) =====
   // Works with any USB controller the browser can see (built for the Hyperkin Trooper II).
   //   Stick or D-pad .... move (hold to keep moving)
-  //   Button 1 .......... Roll            (also: start game on the name screen, Next in the tutorial,
+  //   Button 1 .......... Roll            (also: start game on the name screen, presses the highlighted
+  //                                        tutorial button; the stick moves the highlight left/right,
   //                                        play again after Game Over)
   //   Button 2 .......... Pick up / Drop  (Back in the tutorial)
   //   START ............. Pause / Resume  (also: Skip the tutorial, play again after Game Over)
@@ -18993,14 +19001,37 @@ ui.nameInput.addEventListener("keydown", (e) => {
 
   function padShown(el){ return !!(el && el.classList && el.classList.contains("show")); }
 
+  // Tutorial buttons with the stick (v2.43): left/right highlights Skip, Back or Next; Button 1 presses it.
+  function padTutorialButtons(){
+    return [ui.tutorialSkip, ui.tutorialBack, ui.tutorialNext].filter(function(b){ return b && !b.disabled; });
+  }
+  function padTutorialFocus(el){
+    [ui.tutorialSkip, ui.tutorialBack, ui.tutorialNext].forEach(function(b){ if (b) b.classList.remove("padFocus"); });
+    padState.tutFocus = el || null;
+    if (el) el.classList.add("padFocus");
+  }
+  function padTutorialMove(step){
+    const list = padTutorialButtons();
+    if (!list.length) return;
+    let i = list.indexOf(padState.tutFocus);
+    if (i < 0) i = Math.max(0, list.indexOf(ui.tutorialNext));
+    i = Math.max(0, Math.min(list.length - 1, i + step));
+    padTutorialFocus(list[i]);
+    try { beep(520, 0.03, "triangle", 0.04); } catch(_){}
+  }
+
   function padAction(name){
     try { unlockOnce(); } catch(_){}   // music and sound start on the first controller press too (where the browser allows)
 
-    // Quick tutorial: Button 1 = Next, Button 2 = Back, START or SELECT = Skip.
+    // Quick tutorial: the stick highlights Skip / Back / Next and Button 1 presses the highlighted one.
+    // Shortcuts: Button 2 = Back, START or SELECT = Skip.
     if (padShown(ui.tutorialOverlay)){
-      if (name === "roll" && ui.tutorialNext) ui.tutorialNext.click();
-      else if (name === "pick" && ui.tutorialBack) ui.tutorialBack.click();
-      else if (ui.tutorialSkip) ui.tutorialSkip.click();
+      let target;
+      if (name === "roll") target = (padState.tutFocus && padTutorialButtons().indexOf(padState.tutFocus) !== -1) ? padState.tutFocus : ui.tutorialNext;
+      else if (name === "pick") target = ui.tutorialBack;
+      else target = ui.tutorialSkip;
+      if (target && !target.disabled) target.click();
+      padTutorialFocus(padShown(ui.tutorialOverlay) ? ui.tutorialNext : null);   // next step starts on Next
       return;
     }
     // Quick how-to card: any button closes it.
@@ -19074,9 +19105,17 @@ ui.nameInput.addEventListener("keydown", (e) => {
     const now = performance.now();
     // On How to Play, the stick scrolls the text (v2.43); on other screens directions are ignored.
     const infoUp = padOverlayOpen(ui.infoOverlay);
-    const blocked = padOverlayOpen(ui.nameOverlay) || padShown(ui.tutorialOverlay) || padShown(ui.quickHowtoOverlay);
+    const tutUp = padShown(ui.tutorialOverlay);
+    if (tutUp && !padState.tutFocus) padTutorialFocus(ui.tutorialNext);   // highlight Next when the tutorial appears
+    if (!tutUp && padState.tutFocus) padTutorialFocus(null);
+    const blocked = padOverlayOpen(ui.nameOverlay) || padShown(ui.quickHowtoOverlay);
     const dir = (blocked && !infoUp) ? null : padDirection(pad);
     const fire = function(d){
+      if (tutUp){
+        if (d === "ArrowLeft") padTutorialMove(-1);
+        else if (d === "ArrowRight") padTutorialMove(1);
+        return;
+      }
       if (infoUp){
         const box = ui.infoOverlay.querySelector(".modalText");
         if (box && (d === "ArrowUp" || d === "ArrowDown")) box.scrollBy({ top: d === "ArrowDown" ? 90 : -90, behavior: "smooth" });
