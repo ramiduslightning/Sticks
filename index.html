@@ -621,6 +621,8 @@
     #nameOverlay .modalActions .startActionBtn{
       flex: 0 0 160px;
     }
+    /* v2.42: How to Play can open on top of the name screen */
+    #infoOverlay{ z-index:10000; }
     #nameStartBtn{
       min-width:160px;
     }
@@ -1028,7 +1030,7 @@
         </div>
 
         <div class="hr"></div>
-                <!-- Controls Section (v2.42) --><div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🕹️ CONTROLS</b></div><div style="margin:6px 0; line-height:1.5;">Play with the keyboard, the on-screen buttons, or a USB controller / arcade stick. Plug the controller in and press any button once; <b>CONTROLLER CONNECTED</b> appears on the board.</div><table style="margin:6px 0 8px 0; border-collapse:collapse; font-size:inherit; line-height:1.4;"><tr><td></td><td style="padding:3px 6px; color:#9fb1c6;"><b>Keyboard</b></td><td style="padding:3px 0 3px 6px; color:#9fb1c6;"><b>Controller</b></td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Move</span></td><td style="padding:3px 6px; color:#cdd9e5;">Arrow keys</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Stick (hold to keep moving)</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Roll</span></td><td style="padding:3px 6px; color:#cdd9e5;">R</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Button 1</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Pick / Drop</span></td><td style="padding:3px 6px; color:#cdd9e5;">Space</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Button 2</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Pause</span></td><td style="padding:3px 6px; color:#cdd9e5;">P or Esc</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">START</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">How to Play</span></td><td style="padding:3px 6px; color:#cdd9e5;">Info button</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">SELECT</td></tr></table><div style="margin:6px 0 10px 0; line-height:1.5; color:#9fb1c6;">On a controller, <b>Button 1</b> or <b>START</b> also starts the game, steps through the tutorial, and plays again after Game Over.</div><div class="hr"></div>
+                <!-- Controls Section (v2.42) --><div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🕹️ CONTROLS</b></div><div style="margin:6px 0; line-height:1.5;">Play with the keyboard, the on-screen buttons, or a USB controller / arcade stick. Plug the controller in and press any button once; <b>CONTROLLER CONNECTED</b> appears on the board.</div><table style="margin:6px 0 8px 0; border-collapse:collapse; font-size:inherit; line-height:1.4;"><tr><td></td><td style="padding:3px 6px; color:#9fb1c6;"><b>Keyboard</b></td><td style="padding:3px 0 3px 6px; color:#9fb1c6;"><b>Controller</b></td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Move</span></td><td style="padding:3px 6px; color:#cdd9e5;">Arrow keys</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Stick (hold to keep moving)</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Roll</span></td><td style="padding:3px 6px; color:#cdd9e5;">R</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Button 1</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Pick / Drop</span></td><td style="padding:3px 6px; color:#cdd9e5;">Space</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Button 2</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Pause</span></td><td style="padding:3px 6px; color:#cdd9e5;">P or Esc</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">START</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">How to Play</span></td><td style="padding:3px 6px; color:#cdd9e5;">Info button</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">SELECT</td></tr></table><div style="margin:6px 0 10px 0; line-height:1.5; color:#9fb1c6;">On a controller, any button starts the game from the name screen. <b>Button 1</b> steps through the tutorial, and <b>Button 1</b> or <b>START</b> plays again after Game Over. Any button closes this screen.</div><div class="hr"></div>
 
         <!-- Special Features Section -->
         <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎁 SPECIAL FEATURES</b></div>
@@ -1127,9 +1129,10 @@
       <div class="modalActions" style="justify-content:flex-start;">
 <button id="nameLoadBtn" class="whiteBtn startActionBtn" disabled>Resume Saved</button>
         <button id="namePreviewBtn" class="modalClose startActionBtn" style="background:linear-gradient(180deg,#3aa7ff,#1172ff); color:#000;">Preview</button>
+        <button id="nameHowtoBtn" class="whiteBtn startActionBtn">How to Play</button>
       </div>
 
-      <div class="modalText" style="color:#9fb1c6; margin-top:10px;">Press <b>Enter</b> to start, or <b>START</b> on a controller. Controls are under <b>Info</b>.</div>
+      <div class="modalText" style="color:#9fb1c6; margin-top:10px;">Press <b>Enter</b> to start, or any button on a controller. New here? Tap <b>How to Play</b> (or <b>SELECT</b>).</div>
     </div>
   </div>
 
@@ -18575,6 +18578,8 @@ ctx.restore();
   }
   function closeInfo(){
     ui.infoOverlay.style.display = "none";
+    // v2.42: back on the name screen, put the cursor back in the name box so Enter starts the game
+    if (ui.nameOverlay.style.display === "flex") { try { ui.nameInput.focus(); } catch(_){} }
     if (!paused && ui.nameOverlay.style.display !== "flex" &&
         ui.gameOverOverlay.style.display !== "flex" &&
         ui.winOverlay.style.display !== "flex"){
@@ -18778,6 +18783,7 @@ if (ui.nameLoadBtn) ui.nameLoadBtn.addEventListener("click", () => {
 
   
 
+  { const howto = document.getElementById("nameHowtoBtn"); if (howto) howto.addEventListener("click", openInfo); }   // v2.42
   ui.namePreviewBtn.addEventListener("click", () => {
     // Preview: see the board + hear the track, without starting a game yet
     enterPreview();
@@ -18810,6 +18816,10 @@ ui.nameInput.addEventListener("keydown", (e) => {
       }
       return;
     }
+    if (ui.infoOverlay.style.display === "flex"){   // checked first: Info can sit on top of the name screen (v2.42)
+      if (e.key === "Escape"){ e.preventDefault(); closeInfo(); }
+      return;
+    }
     if (ui.nameOverlay.style.display === "flex"){
       if (e.key === "Escape"){
         e.preventDefault();
@@ -18817,10 +18827,6 @@ ui.nameInput.addEventListener("keydown", (e) => {
         closeNameModal();
         newGame(true);
       }
-      return;
-    }
-    if (ui.infoOverlay.style.display === "flex"){
-      if (e.key === "Escape"){ e.preventDefault(); closeInfo(); }
       return;
     }
     if (ui.gameOverOverlay.style.display === "flex" || ui.winOverlay.style.display === "flex"){
@@ -18955,8 +18961,10 @@ ui.nameInput.addEventListener("keydown", (e) => {
   //   Button 1 .......... Roll            (also: start game on the name screen, Next in the tutorial,
   //                                        play again after Game Over)
   //   Button 2 .......... Pick up / Drop  (Back in the tutorial)
-  //   START ............. Pause / Resume  (also: start game, Skip the tutorial, play again after Game Over)
+  //   START ............. Pause / Resume  (also: Skip the tutorial, play again after Game Over)
   //   SELECT ............ How to Play (Info) open / close
+  //   Name screen ....... ANY button starts the game (SELECT opens How to Play instead)
+  //   Other buttons ..... report their number in the Activity log, to fix the map below
   // Every press goes through the SAME keyboard handler as the arrow keys, Space and R, so all the
   // game's existing rules (overlays, level intros, pause, input locks) apply unchanged. Keyboard,
   // mouse and touch keep working alongside the controller.
@@ -19028,29 +19036,36 @@ ui.nameInput.addEventListener("keydown", (e) => {
     const infoOpen = padOverlayOpen(ui.infoOverlay);
     const endOpen = padOverlayOpen(ui.gameOverOverlay) || padOverlayOpen(ui.winOverlay);
 
+    if (infoOpen) { closeInfo(); return; }   // any button closes How to Play (it can sit over the name screen)
+    if (nameOpen){
+      // Name screen: SELECT opens How to Play; ANY other button starts the game, so it works no matter
+      // how a particular controller numbers its START button.
+      if (name === "select") openInfo(); else startFromNameInput();
+      return;
+    }
+
     if (name === "start"){
-      if (nameOpen) { startFromNameInput(); return; }
-      if (infoOpen) { closeInfo(); return; }
       if (previewMode || endOpen) { padKey("Escape"); return; }   // leave preview / start a new game
       padKey("p");                                                 // pause / resume
       return;
     }
     if (name === "select"){
-      if (infoOpen) { closeInfo(); return; }
-      if (nameOpen || endOpen || previewMode || paused) return;
+      if (endOpen || previewMode || paused) return;
       openInfo();
       return;
     }
     if (name === "roll"){
-      if (nameOpen) { startFromNameInput(); return; }
-      if (infoOpen) { closeInfo(); return; }
       if (endOpen) { padKey("Escape"); return; }   // Game Over / win screen: play again
       padKey("r");
       return;
     }
     if (name === "pick"){
-      if (infoOpen) { closeInfo(); return; }
       padKey(" ");
+      return;
+    }
+    if (name === "other"){
+      if (endOpen) { padKey("Escape"); return; }
+      try { logEvent("neutral", "Controller button " + padState.otherIndex + " isn't used in STICKS."); } catch(_){}
     }
   }
 
@@ -19066,6 +19081,16 @@ ui.nameInput.addEventListener("keydown", (e) => {
       if (down && !padState.buttons[name]) padAction(name);
       padState.buttons[name] = down;
     });
+    // Any OTHER button (not mapped above, not a D-pad button): starts the game on the name screen,
+    // and otherwise reports its number in the Activity log so the mapping can be fixed.
+    const known = [].concat(PAD_MAP.roll, PAD_MAP.pick, PAD_MAP.select, PAD_MAP.start, [PAD_MAP.up, PAD_MAP.down, PAD_MAP.left, PAD_MAP.right]);
+    for (let bi = 0; bi < pad.buttons.length; bi++){
+      if (known.indexOf(bi) !== -1) continue;
+      const down = !!(pad.buttons[bi] && pad.buttons[bi].pressed);
+      const key = "other" + bi;
+      if (down && !padState.buttons[key]) { padState.otherIndex = bi; padAction("other"); }
+      padState.buttons[key] = down;
+    }
 
     // Directions move once on push, then repeat while held (blocked behind name/info screens).
     const now = performance.now();
