@@ -953,7 +953,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.41</span></div>
+          <div>STICKS <span class="badge">v2.42</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -962,8 +962,9 @@
         <div class="subtitle">Pick up sticks. Feed the hole. Clear the field. Advance levels.</div>
         <div style="text-align:center; margin:12px 0; padding:12px 8px; background:linear-gradient(135deg, rgba(58,167,255,0.08) 0%, rgba(194,123,255,0.08) 100%); border-radius:8px; border:1px solid rgba(58,167,255,0.15); box-shadow:0 2px 8px rgba(0,0,0,0.1);">
           <div style="font-size:13px; line-height:1.5; font-family:Georgia, serif;">
-            <div style="font-weight:700; letter-spacing:2px; color:#ff1f3a; text-shadow:0 1px 2px rgba(0,0,0,0.2); margin-bottom:4px;">RAMIDUS, INC.</div>
+            <div style="font-weight:700; letter-spacing:2px; color:#ff1f3a; text-shadow:0 1px 2px rgba(0,0,0,0.2); margin-bottom:4px;">RAMIDUS</div>
             <div style="font-size:10px; color:#9fb1c6; font-style:italic; letter-spacing:0.5px;">A Casey T. Duncan Enterprise</div>
+            <div style="font-size:9px; color:#7f8fa3; letter-spacing:0.5px; margin-top:3px;">&copy; 2026 Casey T. Duncan</div>
           </div>
         </div>
         <div style="text-align:center; margin:8px 0;">
@@ -18946,6 +18947,152 @@ ui.nameInput.addEventListener("keydown", (e) => {
 
   // Tap/click the board to dismiss the level Ready screen.
   try { canvas.addEventListener('pointerdown', () => { if (introFreezesGame()) dismissLevelIntro(); }); } catch(e) {}
+
+  // ===== CONTROLLER / ARCADE STICK SUPPORT (v2.42, 2026-11-21) =====
+  // Works with any USB controller the browser can see (built for the Hyperkin Trooper II).
+  //   Stick or D-pad .... move (hold to keep moving)
+  //   Button 1 .......... Roll            (also: start game on the name screen, Next in the tutorial,
+  //                                        play again after Game Over)
+  //   Button 2 .......... Pick up / Drop  (Back in the tutorial)
+  //   START ............. Pause / Resume  (also: start game, Skip the tutorial, play again after Game Over)
+  //   SELECT ............ How to Play (Info) open / close
+  // Every press goes through the SAME keyboard handler as the arrow keys, Space and R, so all the
+  // game's existing rules (overlays, level intros, pause, input locks) apply unchanged. Keyboard,
+  // mouse and touch keep working alongside the controller.
+  // If a button does the wrong thing, change the numbers below. To see your buttons' numbers, open
+  // gamepadtester.com and press each one.
+  const PAD_MAP = {
+    roll:   [0, 2],          // first main button (and a third button, on pads that have one)
+    pick:   [1, 3],          // second main button (and a fourth)
+    select: [8, 6],
+    start:  [9, 7],
+    up: 12, down: 13, left: 14, right: 15    // D-pad buttons, on pads that report them as buttons
+  };
+  const PAD_DEADZONE = 0.5;        // how far the stick must be pushed to count
+  const PAD_REPEAT_DELAY = 260;    // ms a direction is held before it starts repeating
+  const PAD_REPEAT_RATE  = 150;    // ms between repeated moves while held
+
+  const padState = { buttons: {}, dir: null, dirSince: 0, lastRepeat: 0, running: false };
+
+  function padKey(key){
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: key, bubbles: true, cancelable: true }));
+  }
+  function padOverlayOpen(el){ return !!(el && el.style.display === "flex"); }
+  function padPressed(pad, list){
+    return list.some(function(i){ const b = pad.buttons[i]; return !!(b && (b.pressed || b.value > 0.5)); });
+  }
+
+  // Read one direction from the stick, the D-pad buttons, or a POV hat (axis 9 on some USB pads).
+  function padDirection(pad){
+    const b = pad.buttons;
+    const btn = function(i){ return !!(b[i] && b[i].pressed); };
+    if (btn(PAD_MAP.up)) return "ArrowUp";
+    if (btn(PAD_MAP.down)) return "ArrowDown";
+    if (btn(PAD_MAP.left)) return "ArrowLeft";
+    if (btn(PAD_MAP.right)) return "ArrowRight";
+    const ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+    if (Math.abs(ax) >= PAD_DEADZONE || Math.abs(ay) >= PAD_DEADZONE){
+      if (Math.abs(ax) > Math.abs(ay)) return ax > 0 ? "ArrowRight" : "ArrowLeft";   // grid game: 4 ways only
+      return ay > 0 ? "ArrowDown" : "ArrowUp";
+    }
+    const hat = pad.axes[9];
+    if (typeof hat === "number" && hat >= -1.05 && hat <= 1.05){
+      if (hat < -0.85 || hat > 0.85) return "ArrowUp";
+      if (hat > -0.57 && hat < -0.28) return "ArrowRight";
+      if (hat > -0.07 && hat < 0.28) return "ArrowDown";
+      if (hat > 0.57 && hat < 0.85) return "ArrowLeft";
+    }
+    return null;
+  }
+
+  function padShown(el){ return !!(el && el.classList && el.classList.contains("show")); }
+
+  function padAction(name){
+    try { unlockOnce(); } catch(_){}   // music and sound start on the first controller press too (where the browser allows)
+
+    // Quick tutorial: Button 1 = Next, Button 2 = Back, START or SELECT = Skip.
+    if (padShown(ui.tutorialOverlay)){
+      if (name === "roll" && ui.tutorialNext) ui.tutorialNext.click();
+      else if (name === "pick" && ui.tutorialBack) ui.tutorialBack.click();
+      else if (ui.tutorialSkip) ui.tutorialSkip.click();
+      return;
+    }
+    // Quick how-to card: any button closes it.
+    if (padShown(ui.quickHowtoOverlay)){
+      if (ui.quickHowtoClose) ui.quickHowtoClose.click();
+      return;
+    }
+
+    const nameOpen = padOverlayOpen(ui.nameOverlay);
+    const infoOpen = padOverlayOpen(ui.infoOverlay);
+    const endOpen = padOverlayOpen(ui.gameOverOverlay) || padOverlayOpen(ui.winOverlay);
+
+    if (name === "start"){
+      if (nameOpen) { startFromNameInput(); return; }
+      if (infoOpen) { closeInfo(); return; }
+      if (previewMode || endOpen) { padKey("Escape"); return; }   // leave preview / start a new game
+      padKey("p");                                                 // pause / resume
+      return;
+    }
+    if (name === "select"){
+      if (infoOpen) { closeInfo(); return; }
+      if (nameOpen || endOpen || previewMode || paused) return;
+      openInfo();
+      return;
+    }
+    if (name === "roll"){
+      if (nameOpen) { startFromNameInput(); return; }
+      if (infoOpen) { closeInfo(); return; }
+      if (endOpen) { padKey("Escape"); return; }   // Game Over / win screen: play again
+      padKey("r");
+      return;
+    }
+    if (name === "pick"){
+      if (infoOpen) { closeInfo(); return; }
+      padKey(" ");
+    }
+  }
+
+  function padLoop(){
+    const pads = (navigator.getGamepads ? navigator.getGamepads() : []) || [];
+    let pad = null;
+    for (let i = 0; i < pads.length; i++) { if (pads[i] && pads[i].connected) { pad = pads[i]; break; } }
+    if (!pad) { padState.running = false; return; }
+
+    // Buttons fire once per press (on the way down).
+    ["roll", "pick", "select", "start"].forEach(function(name){
+      const down = padPressed(pad, PAD_MAP[name]);
+      if (down && !padState.buttons[name]) padAction(name);
+      padState.buttons[name] = down;
+    });
+
+    // Directions move once on push, then repeat while held (blocked behind name/info screens).
+    const now = performance.now();
+    const blocked = padOverlayOpen(ui.nameOverlay) || padOverlayOpen(ui.infoOverlay) ||
+                    padShown(ui.tutorialOverlay) || padShown(ui.quickHowtoOverlay);
+    const dir = blocked ? null : padDirection(pad);
+    if (dir !== padState.dir){
+      padState.dir = dir; padState.dirSince = now; padState.lastRepeat = now;
+      if (dir) padKey(dir);
+    } else if (dir && now - padState.dirSince >= PAD_REPEAT_DELAY && now - padState.lastRepeat >= PAD_REPEAT_RATE){
+      padState.lastRepeat = now;
+      padKey(dir);
+    }
+    requestAnimationFrame(padLoop);
+  }
+
+  function padStart(){
+    if (padState.running) return;
+    padState.running = true;
+    requestAnimationFrame(padLoop);
+  }
+  window.addEventListener("gamepadconnected", function(){
+    try { setHud("CONTROLLER CONNECTED"); } catch(_){}
+    padStart();
+  });
+  // A controller that was already plugged in shows up after its first button press; check now too.
+  try { const pads = navigator.getGamepads ? navigator.getGamepads() : []; for (let i = 0; i < pads.length; i++) if (pads[i]) { padStart(); break; } } catch(_){}
+  // ===== END CONTROLLER SUPPORT =====
   // init
   renderLeaderboard(loadLeaderboard());
   setAndStoreSkin(getSavedSkin());
