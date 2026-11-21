@@ -1018,7 +1018,7 @@
 
         <!-- Actions Section -->
         <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎮 ACTIONS</b></div>
-        <div style="margin:6px 0; line-height:1.5;"><span class="badge">Move</span> Costs 1 action per tile (Arrow keys or on-screen arrows)</div>
+        <div style="margin:6px 0; line-height:1.5;"><span class="badge">Move</span> Costs 1 action per tile (Arrow keys, on-screen arrows, or controller stick)</div>
         <div style="margin:6px 0 10px 0; line-height:1.5;"><span class="badge">Pick/Drop</span> Costs 1 action:
           <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
             <li style="margin:3px 0;">Pick up a stick if standing on one</li>
@@ -1028,6 +1028,7 @@
         </div>
 
         <div class="hr"></div>
+                <!-- Controls Section (v2.42) --><div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🕹️ CONTROLS</b></div><div style="margin:6px 0; line-height:1.5;">Play with the keyboard, the on-screen buttons, or a USB controller / arcade stick. Plug the controller in and press any button once; <b>CONTROLLER CONNECTED</b> appears on the board.</div><table style="margin:6px 0 8px 0; border-collapse:collapse; font-size:inherit; line-height:1.4;"><tr><td></td><td style="padding:3px 6px; color:#9fb1c6;"><b>Keyboard</b></td><td style="padding:3px 0 3px 6px; color:#9fb1c6;"><b>Controller</b></td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Move</span></td><td style="padding:3px 6px; color:#cdd9e5;">Arrow keys</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Stick (hold to keep moving)</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Roll</span></td><td style="padding:3px 6px; color:#cdd9e5;">R</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Button 1</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Pick / Drop</span></td><td style="padding:3px 6px; color:#cdd9e5;">Space</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Button 2</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Pause</span></td><td style="padding:3px 6px; color:#cdd9e5;">P or Esc</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">START</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">How to Play</span></td><td style="padding:3px 6px; color:#cdd9e5;">Info button</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">SELECT</td></tr></table><div style="margin:6px 0 10px 0; line-height:1.5; color:#9fb1c6;">On a controller, <b>Button 1</b> or <b>START</b> also starts the game, steps through the tutorial, and plays again after Game Over.</div><div class="hr"></div>
 
         <!-- Special Features Section -->
         <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎁 SPECIAL FEATURES</b></div>
@@ -1128,7 +1129,7 @@
         <button id="namePreviewBtn" class="modalClose startActionBtn" style="background:linear-gradient(180deg,#3aa7ff,#1172ff); color:#000;">Preview</button>
       </div>
 
-      <div class="modalText" style="color:#9fb1c6; margin-top:10px;">Press <b>Enter</b> to start</div>
+      <div class="modalText" style="color:#9fb1c6; margin-top:10px;">Press <b>Enter</b> to start, or <b>START</b> on a controller. Controls are under <b>Info</b>.</div>
     </div>
   </div>
 
@@ -19088,6 +19089,7 @@ ui.nameInput.addEventListener("keydown", (e) => {
   }
   window.addEventListener("gamepadconnected", function(){
     try { setHud("CONTROLLER CONNECTED"); } catch(_){}
+    try { logEvent("info", "Controller connected: Stick = move, Button 1 = Roll, Button 2 = Pick/Drop, START = Pause, SELECT = Info."); } catch(_){}
     padStart();
   });
   // A controller that was already plugged in shows up after its first button press; check now too.
