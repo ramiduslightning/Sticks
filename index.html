@@ -1033,7 +1033,7 @@
         <div class="howtoHead">🕹️ CONTROLS</div>
         <div class="howtoNote">Use the mouse (or touch), the keyboard, or a USB controller / arcade stick, and mix them freely. Plug a controller in and press any button once; <b>CONTROLLER CONNECTED</b> appears on the board.</div>
         <table class="howtoTable"><tr><th></th><th>Mouse / touch</th><th>Keyboard</th><th>Controller</th></tr><tr><td><span class="badge">Move</span></td><td>On-screen arrows</td><td>Arrow keys</td><td>Stick (hold to keep moving)</td></tr><tr><td><span class="badge">Roll</span></td><td>Roll button</td><td>R</td><td>Button 1</td></tr><tr><td><span class="badge">Pick / Drop</span></td><td>Pick/Drop button</td><td>Space</td><td>Button 2</td></tr><tr><td><span class="badge">Pause</span></td><td>Pause button</td><td>P or Esc</td><td>START</td></tr><tr><td><span class="badge">How to Play</span></td><td>Info button</td><td>&mdash;</td><td>SELECT</td></tr></table>
-        <div class="howtoNote dim">On a controller, any button starts the game from the name screen and closes this screen. Button 1 steps through the tutorial; Button 1 or START plays again after Game Over.</div>
+        <div class="howtoNote dim">On a controller, the stick scrolls this screen and any button closes it. Any button also starts the game from the name screen. Button 1 steps through the tutorial; Button 1 or START plays again after Game Over.</div>
 
         <div class="howtoHead">🎁 GOOD THINGS TO FIND</div>
         <ul class="howtoList">
@@ -18619,13 +18619,18 @@ ctx.restore();
 
   if (ui.btnShowTutorial) ui.btnShowTutorial.addEventListener("click", () => {
     // Let players re-watch the tutorial any time
+    const fromNameScreen = ui.nameOverlay.style.display === "flex";   // v2.43: opened from the name screen
     closeInfo();
     meta.tutorialDone = false;
     meta.tutorialVersion = 0;
     saveMeta();
-    tutorial.active = true;
-    tutorial.step = 0;
-    showTutorialStep();
+    // From the name screen the tutorial used to run hidden BEHIND it; start the game first so it shows.
+    if (fromNameScreen) startFromNameInput();
+    if (!tutorial.active || !ui.tutorialOverlay.classList.contains('show')){
+      tutorial.active = true;
+      tutorial.step = 0;
+      showTutorialStep();
+    }
   });
 
   ui.btnRoll.addEventListener("click", doRoll);
@@ -18907,7 +18912,7 @@ ui.nameInput.addEventListener("keydown", (e) => {
   //                                        play again after Game Over)
   //   Button 2 .......... Pick up / Drop  (Back in the tutorial)
   //   START ............. Pause / Resume  (also: Skip the tutorial, play again after Game Over)
-  //   SELECT ............ How to Play (Info) open / close
+  //   SELECT ............ How to Play (Info) open / close; while it's open the stick scrolls it
   //   Name screen ....... ANY button starts the game (SELECT opens How to Play instead)
   //   Other buttons ..... report their number in the Activity log, to fix the map below
   // Every press goes through the SAME keyboard handler as the arrow keys, Space and R, so all the
@@ -19054,15 +19059,24 @@ ui.nameInput.addEventListener("keydown", (e) => {
 
     // Directions move once on push, then repeat while held (blocked behind name/info screens).
     const now = performance.now();
-    const blocked = padOverlayOpen(ui.nameOverlay) || padOverlayOpen(ui.infoOverlay) ||
-                    padShown(ui.tutorialOverlay) || padShown(ui.quickHowtoOverlay);
-    const dir = blocked ? null : padDirection(pad);
+    // On How to Play, the stick scrolls the text (v2.43); on other screens directions are ignored.
+    const infoUp = padOverlayOpen(ui.infoOverlay);
+    const blocked = padOverlayOpen(ui.nameOverlay) || padShown(ui.tutorialOverlay) || padShown(ui.quickHowtoOverlay);
+    const dir = (blocked && !infoUp) ? null : padDirection(pad);
+    const fire = function(d){
+      if (infoUp){
+        const box = ui.infoOverlay.querySelector(".modalText");
+        if (box && (d === "ArrowUp" || d === "ArrowDown")) box.scrollBy({ top: d === "ArrowDown" ? 90 : -90, behavior: "smooth" });
+        return;
+      }
+      padKey(d);
+    };
     if (dir !== padState.dir){
       padState.dir = dir; padState.dirSince = now; padState.lastRepeat = now;
-      if (dir) padKey(dir);
+      if (dir) fire(dir);
     } else if (dir && now - padState.dirSince >= PAD_REPEAT_DELAY && now - padState.lastRepeat >= PAD_REPEAT_RATE){
       padState.lastRepeat = now;
-      padKey(dir);
+      fire(dir);
     }
     requestAnimationFrame(padLoop);
   }
