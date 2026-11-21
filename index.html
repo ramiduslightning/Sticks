@@ -623,6 +623,21 @@
     }
     /* v2.42: How to Play can open on top of the name screen */
     #infoOverlay{ z-index:10000; }
+    /* v2.43: compact How to Play. The shared .modalText uses pre-wrap, which turned every line break
+       in this screen's markup into blank space; the rules below lay it out normally. */
+    #infoOverlay .modalText{ white-space:normal; font-size:13px; line-height:1.5; }
+    #infoOverlay .howtoGoal{ margin:10px 0 4px; padding:10px 12px; background:rgba(58,167,255,0.15); border-left:3px solid #3aa7ff; border-radius:6px; font-size:14px; color:#e5edf5; }
+    #infoOverlay .howtoGoal b{ color:#3aa7ff; }
+    #infoOverlay .howtoHead{ margin:16px 0 6px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08); color:#3aa7ff; font-weight:700; letter-spacing:0.5px; }
+    #infoOverlay .howtoSteps{ margin:4px 0 6px 0; padding-left:26px; }
+    #infoOverlay .howtoSteps li{ margin:4px 0; }
+    #infoOverlay .howtoList{ list-style:none; margin:4px 0; padding:0; }
+    #infoOverlay .howtoList li{ margin:6px 0; }
+    #infoOverlay .howtoNote{ margin:6px 0; }
+    #infoOverlay .howtoNote.dim{ color:#9fb1c6; font-size:12px; }
+    #infoOverlay .howtoTable{ border-collapse:collapse; margin:6px 0; }
+    #infoOverlay .howtoTable th{ text-align:left; color:#9fb1c6; font-weight:700; padding:2px 10px 4px 0; }
+    #infoOverlay .howtoTable td{ padding:3px 10px 3px 0; color:#cdd9e5; }
     #nameStartBtn{
       min-width:160px;
     }
@@ -1003,109 +1018,39 @@
     <div class="modalBox" role="dialog" aria-modal="true">
       <div class="modalTitle">How to Play</div>
       <div class="modalText">
-        <!-- Intro -->
-        <div style="margin:14px 0 12px 0; font-size:14px; color:#cdd9e5; line-height:1.5;">
-          <div style="margin-bottom:12px; padding:10px; background:rgba(58,167,255,0.15); border-radius:6px; border-left:3px solid #3aa7ff;"><b style="color:#3aa7ff; font-size:15px;">GOAL:</b> Collect ALL sticks on each level and deposit them in the hole to progress!</div><b>THE BASICS:</b> Roll the dice to get actions, spend actions to move and interact, survive 15 levels of increasing difficulty!
-        </div>
+        <!-- How to Play, rewritten v2.43: one goal, a 4-step turn, then controls, extras and dangers -->
+        <div class="howtoGoal"><b>GOAL:</b> Pick up every stick on the board and feed it to the hole. Clear the board to reach the next level. There are 15 themed levels; rack up the highest score.</div>
 
-        <div class="hr"></div>
+        <div class="howtoHead">🎲 HOW A TURN WORKS</div>
+        <ol class="howtoSteps">
+          <li><b>Roll</b> the die. You get <b>0&ndash;5 actions</b> (a normal die, but 0 instead of 6).</li>
+          <li><b>Spend every action</b> before you can roll again. Each step on the grid costs 1, and each pick-up or drop costs 1.</li>
+          <li><b>Pick up sticks</b> by standing on one and pressing Pick/Drop. You can carry <b>3 at first</b>, and more on later levels (up to 6).</li>
+          <li><b>Feed the hole:</b> stand on the hole and press Pick/Drop to drop in everything you carry for points.</li>
+        </ol>
+        <div class="howtoNote"><span class="badge">Rolled a 0?</span> Carrying sticks: you drop them and they scatter. Empty-handed: the hole spits out a stick nearby. Standing <i>on</i> the hole: bonus points!</div>
 
-        <!-- Dice Section -->
-        <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎲 THE DICE</b></div>
-        <div style="margin:6px 0; line-height:1.5;">Each roll gives you <b>0-5 actions</b> (standard 6-sided die, but 0 instead of 6).</div>
-        <div style="margin:6px 0; line-height:1.5;"><span class="badge">Roll 0</span> If carrying sticks, you drop them and they scatter. If carrying none, the hole spits out a stick nearby.</div>
-        <div style="margin:6px 0 10px 0; line-height:1.5;">You must <b>spend all actions</b> before rolling again.</div>
+        <div class="howtoHead">🕹️ CONTROLS</div>
+        <div class="howtoNote">Use the mouse (or touch), the keyboard, or a USB controller / arcade stick, and mix them freely. Plug a controller in and press any button once; <b>CONTROLLER CONNECTED</b> appears on the board.</div>
+        <table class="howtoTable"><tr><th></th><th>Mouse / touch</th><th>Keyboard</th><th>Controller</th></tr><tr><td><span class="badge">Move</span></td><td>On-screen arrows</td><td>Arrow keys</td><td>Stick (hold to keep moving)</td></tr><tr><td><span class="badge">Roll</span></td><td>Roll button</td><td>R</td><td>Button 1</td></tr><tr><td><span class="badge">Pick / Drop</span></td><td>Pick/Drop button</td><td>Space</td><td>Button 2</td></tr><tr><td><span class="badge">Pause</span></td><td>Pause button</td><td>P or Esc</td><td>START</td></tr><tr><td><span class="badge">How to Play</span></td><td>Info button</td><td>&mdash;</td><td>SELECT</td></tr></table>
+        <div class="howtoNote dim">On a controller, any button starts the game from the name screen and closes this screen. Button 1 steps through the tutorial; Button 1 or START plays again after Game Over.</div>
 
-        <div class="hr"></div>
+        <div class="howtoHead">🎁 GOOD THINGS TO FIND</div>
+        <ul class="howtoList">
+          <li><span class="badge">Bonus Sticks</span> Sticks with a soft yellow glow. Picking one <b>doubles</b> your remaining actions. When your actions run out you get a <b>Bonus Roll</b> (two dice, 2&ndash;12) and deposits are worth <b>2&times;</b>. Roll 12 to bonus again.</li>
+          <li><span class="badge">Secret Life Tile</span> One hidden square per level. Drop a stick on it for <b>+1 life</b> (or +10 points if you already have 5). It pulses when you stand on it carrying sticks.</li>
+          <li><span class="badge">Power Sticks</span> Rare. <b>Speed:</b> next 10 moves are free. <b>Shield:</b> 30 seconds safe from hazards. <b>Vision:</b> shows the Secret Life Tile for 30 seconds.</li>
+          <li><span class="badge">Mystery Tree</span> Pops up now and then. Stand on it and press Pick/Drop: carrying sticks, feed it one for <b>+1 life</b> (+10 points at 5 lives); empty-handed, get a <b>full load</b> of sticks. Then it vanishes.</li>
+        </ul>
 
-        <!-- Actions Section -->
-        <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎮 ACTIONS</b></div>
-        <div style="margin:6px 0; line-height:1.5;"><span class="badge">Move</span> Costs 1 action per tile (Arrow keys, on-screen arrows, or controller stick)</div>
-        <div style="margin:6px 0 10px 0; line-height:1.5;"><span class="badge">Pick/Drop</span> Costs 1 action:
-          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
-            <li style="margin:3px 0;">Pick up a stick if standing on one</li>
-            <li style="margin:3px 0;">Drop one stick onto an empty tile</li>
-            <li style="margin:3px 0;">Deposit all carried sticks into the hole for points</li>
-          </ul>
-        </div>
+        <div class="howtoHead">⚠️ DANGERS</div>
+        <ul class="howtoList">
+          <li><span class="badge">Hazards</span> Every level adds its own: fire, ice, snakes, sharks, spiders, shadow monsters and more. Watch the Activity log for a tip when a level starts.</li>
+          <li><span class="badge">Stick Monster</span> Some sticks are secretly cursed. Picking one starts a battle: roll <b>2&ndash;5 to win</b> (and keep a powered-up stick), <b>0&ndash;1 to lose</b> a life. Win streaks multiply stick value: 2&times; for wins 1&ndash;3, 3&times; on win 4, 4&times; on win 5, rising to 8&times; at 9+. Three wins in a row also earns <b>+1 life</b>. A loss resets the streak.</li>
+        </ul>
 
-        <div class="hr"></div>
-                <!-- Controls Section (v2.42) --><div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🕹️ CONTROLS</b></div><div style="margin:6px 0; line-height:1.5;">Play with the mouse (or touch), the keyboard, or a USB controller / arcade stick, and mix them freely. Plug the controller in and press any button once; <b>CONTROLLER CONNECTED</b> appears on the board.</div><table style="margin:6px 0 8px 0; border-collapse:collapse; font-size:inherit; line-height:1.4;"><tr><td></td><td style="padding:3px 6px; color:#9fb1c6;"><b>Mouse / touch</b></td><td style="padding:3px 6px; color:#9fb1c6;"><b>Keyboard</b></td><td style="padding:3px 0 3px 6px; color:#9fb1c6;"><b>Controller</b></td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Move</span></td><td style="padding:3px 6px; color:#cdd9e5;">On-screen arrows</td><td style="padding:3px 6px; color:#cdd9e5;">Arrow keys</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Stick (hold to keep moving)</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Roll</span></td><td style="padding:3px 6px; color:#cdd9e5;">Roll button</td><td style="padding:3px 6px; color:#cdd9e5;">R</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Button 1</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Pick / Drop</span></td><td style="padding:3px 6px; color:#cdd9e5;">Pick/Drop button</td><td style="padding:3px 6px; color:#cdd9e5;">Space</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">Button 2</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">Pause</span></td><td style="padding:3px 6px; color:#cdd9e5;">Pause button</td><td style="padding:3px 6px; color:#cdd9e5;">P or Esc</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">START</td></tr><tr><td style="padding:3px 6px 3px 0;"><span class="badge">How to Play</span></td><td style="padding:3px 6px; color:#cdd9e5;">Info button</td><td style="padding:3px 6px; color:#cdd9e5;">&mdash;</td><td style="padding:3px 0 3px 6px; color:#cdd9e5;">SELECT</td></tr></table><div style="margin:6px 0 10px 0; line-height:1.5; color:#9fb1c6;">On a controller, any button starts the game from the name screen. <b>Button 1</b> steps through the tutorial, and <b>Button 1</b> or <b>START</b> plays again after Game Over. Any button closes this screen.</div><div class="hr"></div>
-
-        <!-- Special Features Section -->
-        <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎁 SPECIAL FEATURES</b></div>
-        
-        <div style="margin:10px 0;"><span class="badge">Bonus Sticks</span> (Yellow glow - multiple per level)
-          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
-            <li style="margin:3px 0;">Look for sticks with a <b>subtle yellow glow</b> around them</li>
-            <li style="margin:3px 0;">When picked up, your remaining actions are <b>doubled</b></li>
-            <li style="margin:3px 0;">When actions hit 0, get a <b>Bonus Roll</b> (2-12 with double dice)</li>
-            <li style="margin:3px 0;">During Bonus mode, deposits are worth <b>2×</b> points</li>
-            <li style="margin:3px 0;">Roll 12 for another bonus roll!</li>
-          </ul>
-        </div>
-
-        <div style="margin:10px 0;"><span class="badge">Secret Life Tile</span> (Pulses when you stand on it with sticks)
-          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
-            <li style="margin:3px 0;">Drop a stick on this square to gain <b>+1 life</b></li>
-            <li style="margin:3px 0;">If already at max lives (5), get <b>+10 bonus points</b> instead</li>
-            <li style="margin:3px 0;">One per level - find it!</li>
-          </ul>
-        </div>
-
-        <div style="margin:10px 0;"><span class="badge">Power Sticks</span> (Rare special pickups)
-          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
-            <li style="margin:3px 0;"><b>Speed:</b> Next 10 moves are free (no action cost)</li>
-            <li style="margin:3px 0;"><b>Shield:</b> 30 seconds of invincibility to hazards</li>
-            <li style="margin:3px 0;"><b>Vision:</b> Reveals secret life tile for 30 seconds</li>
-          </ul>
-        </div>
-
-        <div style="margin:10px 0;"><span class="badge">Mystery Tree</span> (Appears randomly during levels)
-          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
-            <li style="margin:3px 0;">Standing on tree with sticks? Feed 1 stick for <b>+1 life</b></li>
-            <li style="margin:3px 0;">At max lives (5)? Get <b>+10 bonus points</b> instead!</li>
-            <li style="margin:3px 0;">Standing on tree with no sticks? Get a <b>full load</b> instantly</li>
-            <li style="margin:3px 0;">Tree disappears after granting a life or full load</li>
-          </ul>
-        </div>
-
-        <div style="margin:10px 0 12px 0;"><span class="badge">Stick Monster</span> (Cursed sticks - hidden until picked!)
-          <ul style="margin:6px 0 0 18px; padding:0; color:#cdd9e5; line-height:1.5;">
-            <li style="margin:3px 0;">Some sticks are <b>cursed</b>! Picking one triggers a monster battle</li>
-            <li style="margin:3px 0;">Roll <b>2-5</b> = WIN (keep a powered-up stick)</li>
-            <li style="margin:3px 0;">Roll <b>0-1</b> = LOSE (lose 1 life)</li>
-            <li style="margin:3px 0;"><b>Win Streak Multipliers:</b>
-              <div style="margin:4px 0 0 12px; font-size:13px;">
-                • Wins 1-3: <b>2×</b> stick value<br>
-                • Win 4: <b>3×</b> stick value<br>
-                • Win 5: <b>4×</b> stick value<br>
-                • Continues scaling up to <b>8× at 9+ wins!</b><br>
-                • Win 3 in a row: <b>+1 life bonus</b><br>
-                • Streak resets only on a loss
-              </div>
-            </li>
-          </ul>
-        </div>
-
-        <div class="hr"></div>
-
-        <!-- Goal Section -->
-        <div style="margin:12px 0 8px 0;"><b style="color:#3aa7ff;">🎯 GOAL</b></div>
-        <div style="margin:6px 0; line-height:1.5; background:rgba(58,167,255,0.1); padding:10px; border-radius:6px; border-left:3px solid #3aa7ff;">
-          <div style="margin-bottom:6px;"><b style="color:#3aa7ff;">GOAL:</b> Collect ALL sticks on each level and deposit them in the hole to progress!</div>
-          <div><b style="color:#3aa7ff;">HOW:</b> Roll the die, move on the grid, pick up sticks, survive hazards, and feed the hole.</div>
-        </div>
-        <div style="margin:10px 0 6px 0; line-height:1.5;">Progress through <b>15 themed levels</b>, each with unique challenges. Rack up the highest score!</div>
-        <div style="margin:6px 0 12px 0; line-height:1.5; color:#9fb1c6;"><b>Zero in the Hole:</b> Roll a zero while standing in hole and get extra points.</div>
-
-        <div class="hr"></div>
-
-        <!-- Controls -->
-        <div style="margin:10px 0; color:#9fb1c6; font-size:12px; line-height:1.6;">
-          <b>Controls:</b> Arrow keys (or on-screen arrows) to move • Space = Pick/Drop • Esc or P = Pause<br/>
-          <b>Save/Load:</b> Progress saves automatically on this device
-        </div>
+        <div class="howtoHead">💾 SAVING</div>
+        <div class="howtoNote">Progress saves automatically on this device. Your name and scores are stored only in this browser.</div>
       </div>
       <div class="modalActions">
         <button class="modalClose" id="btnShowTutorial" style="background:linear-gradient(180deg,#3aa7ff,#1172ff); color:#000;">Tutorial</button>
