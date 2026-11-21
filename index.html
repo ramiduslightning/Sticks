@@ -972,7 +972,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.43</span></div>
+          <div>STICKS <span class="badge">v2.44</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -11928,12 +11928,30 @@ nameLoadBtn: document.getElementById("nameLoadBtn"),
   let bgAudio = null;
   let forceMusicRestartNextPlay = false;
 
+  // v2.44: Preview plays a rotating playlist, newest song first, then the original, then repeat.
+  // "Casey Plays Sticks" is a separate file next to index.html (keeps this file small); the original
+  // track stays embedded. If the new file is missing, Preview falls back to the original track.
+  const BG_PLAYLIST = ["casey-plays-sticks.mp3", BG_TRACK_DATA_URI];
+  let bgTrackIndex = 0;
+  function bgSetTrack(i){
+    bgTrackIndex = ((i % BG_PLAYLIST.length) + BG_PLAYLIST.length) % BG_PLAYLIST.length;
+    try { bgAudio.src = BG_PLAYLIST[bgTrackIndex]; } catch(_){}
+  }
+  function bgNextTrack(autoplay){
+    bgSetTrack(bgTrackIndex + 1);
+    if (autoplay && musicOn) { try { bgAudio.play().catch(function(){}); } catch(_){} }
+  }
   function ensureBgTrack(){
     if (!bgAudio){
-      bgAudio = new Audio(BG_TRACK_DATA_URI);
-      bgAudio.loop = true;
+      bgAudio = new Audio(BG_PLAYLIST[0]);
+      bgAudio.loop = false;            // the playlist moves on when a song ends
       bgAudio.preload = "auto";
       bgAudio.volume = 0.65;
+      bgAudio.addEventListener("ended", function(){ bgNextTrack(true); });
+      bgAudio.addEventListener("error", function(){
+        // only the separate file can fail to load; skip it and play the embedded original
+        if (bgTrackIndex !== BG_PLAYLIST.length - 1) bgNextTrack(musicOn && previewMode);
+      });
     }
   }
 
@@ -12004,6 +12022,7 @@ nameLoadBtn: document.getElementById("nameLoadBtn"),
 async function playBgTrack(fromStart=false){
     if (!musicOn) return;
     ensureBgTrack();
+    if (fromStart && bgTrackIndex !== 0) bgSetTrack(0);   // v2.44: Preview always starts with the newest song
     try{ if (fromStart) bgAudio.currentTime = 0; }catch(_){}
     try{ await bgAudio.play(); }catch(_){}
   }
