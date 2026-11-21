@@ -623,6 +623,7 @@
     }
     /* v2.42: How to Play can open on top of the name screen */
     #infoOverlay{ z-index:10000; }
+    #tutorialText{ white-space:pre-line; }   /* v2.43: lets the controller tip sit on its own line */
     /* v2.43: compact How to Play. The shared .modalText uses pre-wrap, which turned every line break
        in this screen's markup into blank space; the rules below lay it out normally. */
     #infoOverlay .modalText{ white-space:normal; font-size:13px; line-height:1.5; }
@@ -15770,12 +15771,24 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   // ---- First-time tutorial ----
   let tutorial = { active:false, step:0 };
   const TUTORIAL_VERSION = 2;
+  // v2.43: each step also has controller wording ("pad"), shown instead when a controller is plugged in.
   const TUTORIAL_STEPS = [
-    { key:'roll',    text:'Press R or tap ROLL to get actions.' },
-    { key:'move',    text:'Move: Use arrow keys (or tap the on-screen arrows).' },
-    { key:'pickup',  text:'Pick up: Stand on a stick and press Pick/Drop (or Space). You can hold several at once (dots under you show how many) and you can carry more on later levels.' },
-    { key:'deposit', text:'Deposit: Stand on the HOLE and press Pick/Drop (or Space).' },
+    { key:'roll',    text:'Press R or tap ROLL to get actions.',
+                     pad:'Press Button 1 (top-left) to ROLL and get actions.\n(In this tutorial: Button 1 = Next, Button 2 = Back, START = Skip.)' },
+    { key:'move',    text:'Move: Use arrow keys (or tap the on-screen arrows).',
+                     pad:'Move: push the stick. Hold it to keep moving.' },
+    { key:'pickup',  text:'Pick up: Stand on a stick and press Pick/Drop (or Space). You can hold several at once (dots under you show how many) and you can carry more on later levels.',
+                     pad:'Pick up: stand on a stick and press Button 2 (top-right). You can hold several at once (dots under you show how many) and you can carry more on later levels.' },
+    { key:'deposit', text:'Deposit: Stand on the HOLE and press Pick/Drop (or Space).',
+                     pad:'Deposit: stand on the HOLE and press Button 2.' },
   ];
+  function tutorialControllerConnected(){
+    try {
+      const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      for (let i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) return true;
+    } catch(_){}
+    return false;
+  }
 
   function showTutorialStep(){
     if (!ui.tutorialOverlay) return;
@@ -15784,7 +15797,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       endTutorial();
       return;
     }
-    ui.tutorialText.textContent = st.text;
+    ui.tutorialText.textContent = (st.pad && tutorialControllerConnected()) ? st.pad : st.text;
     // Lock gameplay input while the tutorial overlay is up
     game.inputLocked = true;
     ui.tutorialOverlay.classList.add('show');
@@ -19088,6 +19101,8 @@ ui.nameInput.addEventListener("keydown", (e) => {
   }
   window.addEventListener("gamepadconnected", function(){
     try { setHud("CONTROLLER CONNECTED"); } catch(_){}
+    // a tutorial already on screen switches to controller wording
+    try { if (ui.tutorialOverlay.classList.contains("show") && tutorial.active) showTutorialStep(); } catch(_){}
     try { logEvent("info", "Controller connected: Stick = move, Button 1 = Roll, Button 2 = Pick/Drop, START = Pause, SELECT = Info."); } catch(_){}
     try {   // which controller, and how the browser numbers it (helps fix button mapping)
       const pads = navigator.getGamepads ? navigator.getGamepads() : [];
