@@ -1000,7 +1000,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.71</span></div>
+          <div>STICKS <span class="badge">v2.72</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -12689,6 +12689,7 @@ function sfxMonsterVictoryStreak(){
   // Measure a stick: draw it a few times (it sways and floats) on a scratch canvas and take the
   // outline of everything drawn. Result is cached per stick (and per level, since some levels add hats).
   const skinFitCache = {};
+  let skinMeasuring = false;   // true while a stick is being measured: occasional effects (sparkles) are left out
   function skinPickFit(skin){
     let key = skin; try { key += "|" + currentLevelTheme().name; } catch(_){}
     const c = skinFitCache[key];
@@ -12696,9 +12697,9 @@ function sfxMonsterVictoryStreak(){
     const M = 4, S = 400, sc = document.createElement("canvas"); sc.width = S; sc.height = S;
     const sctx = sc.getContext("2d"), main = ctx, sx = game.playerX, sy = game.playerY;
     sctx.setTransform(M, 0, 0, M, S / 2 - M * TILE / 2, S / 2 - M * TILE / 2);
-    try { ctx = sctx; fxNoSmooth = true; game.playerX = 0; game.playerY = 0; drawPlayer(); }
+    try { ctx = sctx; fxNoSmooth = true; skinMeasuring = true; game.playerX = 0; game.playerY = 0; drawPlayer(); }
     catch(_){}
-    finally { ctx = main; fxNoSmooth = false; game.playerX = sx; game.playerY = sy; }
+    finally { ctx = main; fxNoSmooth = false; skinMeasuring = false; game.playerX = sx; game.playerY = sy; }
     const d = sctx.getImageData(0, 0, S, S).data;
     let t = S, b = -1, l = S, r = -1;
     // size by the solid parts only: faint, see-through extras (Angel's wings, glows) can spread past the box
@@ -18630,7 +18631,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       const RED = "#8b0a14", EDGE = "#4a0208", GOLD = "#ffd36b", hatLvl = levelHatOn();
       const sw = Math.sin(time * 1.3) * 0.7, sw2 = Math.sin(time * 1.3 + 0.8) * 0.5;
       // magic moment: every 7 seconds, about 2.5 seconds of gold sparkles and mist
-      const mp = (time % 7) / 7, magic = mp < 0.36 ? Math.sin((mp / 0.36) * Math.PI) : 0;
+      const mp = (time % 7) / 7, magic = (mp < 0.36 && !(typeof skinMeasuring !== "undefined" && skinMeasuring)) ? Math.sin((mp / 0.36) * Math.PI) : 0;
       ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.shadowBlur = 0;
       if (magic > 0){
         // soft golden mist swirling low around it
