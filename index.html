@@ -1000,7 +1000,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.70</span></div>
+          <div>STICKS <span class="badge">v2.71</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -12639,7 +12639,7 @@ function sfxMonsterVictoryStreak(){
     if (raw === "rex") return "rex";
     if (raw === "angel") return "angel";
     if (raw === "sick") return "sick";
-    if (raw === "super" || raw === "dip" || raw === "law" || raw === "jogger") return raw;
+    if (raw === "super" || raw === "dip" || raw === "law" || raw === "jogger" || raw === "mystic") return raw;
     return "classic";
   }
   function setAndStoreSkin(s){
@@ -12662,7 +12662,7 @@ function sfxMonsterVictoryStreak(){
   const SKIN_LIST = [["classic","Classic"],["angel","Angel Stick"],["alien","Alien Stick"],["robot","Robo Stick"],
                      ["rex","Rex Stick"],["rick","Rick Stick"],["sally","Sally Stick"],["sick","Sick Stick"],
                      ["super","Super Stick"],["dip","Dip Stick"],["law","Law Stick"],
-                     ["jogger","Jogger Stick"]];
+                     ["jogger","Jogger Stick"],["mystic","Mystic Stick"]];
   function cycleSkin(dir){
     const i = SKIN_LIST.findIndex(s => s[0] === (game.playerSkin || "classic"));
     setAndStoreSkin(SKIN_LIST[(i + dir + SKIN_LIST.length) % SKIN_LIST.length][0]);
@@ -17889,6 +17889,14 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       pickup: ["Ooh, a stick! Wait...", "Found a stick! It was there."],
       idle:   ["Is the hole supposed to be empty?", "I forgot what I'm doing.", "My stick is in my hand... right?"]
     },
+    mystic: {
+      start:  ["I predicted this.", "Magic will reveal the way.", "The stars told me you'd come.", "I have foreseen this level."],
+      win:    ["As I foresaw.", "My eyes see all.", "The prophecy is fulfilled.", "I knew it all along."],
+      hurt:   ["I didn't see that one coming.", "A minor vision error.", "The spirits lied!"],
+      feed:   ["The hole was destined.", "Just as the orb showed."],
+      pickup: ["This stick was destined.", "Come to me."],
+      idle:   ["I sense... a roll coming.", "Patience. The dice will speak."]
+    },
     jogger: {
       start:  ["Jogging is fun!", "Let's go for a run!", "Stretch... and GO!", "Warm-up done!"],
       win:    ["Personal best!", "Jogging is fun!", "Finish line!", "Runner's high!"],
@@ -18609,6 +18617,77 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       if (dp < 0.45){ const k = dp / 0.45; ctx.globalAlpha = 1 - k; ctx.fillStyle = "#7cc8ff";
         const dx = hx0 - 4 - k * 6, dy = hy0 - 4 - k * 3 + k * k * 8;
         ctx.beginPath(); ctx.moveTo(dx, dy - 1.6); ctx.quadraticCurveTo(dx + 1.1, dy, dx, dy + 0.9); ctx.quadraticCurveTo(dx - 1.1, dy, dx, dy - 1.6); ctx.fill(); ctx.globalAlpha = 1; }
+      ctx.restore();
+      drawCarryDots();
+    };
+
+    // Mystic Stick: a plain stick figure in a blood-red hooded cloak. The face is lost in the hood's
+    // shadow; all you see are two glowing yellow eyes (they blink slowly). The cloak sways gently, and
+    // every so often gold sparkles and a soft golden mist rise around it. On hat levels (Ice, Snake) the
+    // hood comes off: a normal stick head with the same glowing eyes, wearing the level's hat.
+    const drawMysticBody = () => {
+      const time = Date.now() * 0.001;
+      const RED = "#8b0a14", EDGE = "#4a0208", GOLD = "#ffd36b", hatLvl = levelHatOn();
+      const sw = Math.sin(time * 1.3) * 0.7, sw2 = Math.sin(time * 1.3 + 0.8) * 0.5;
+      // magic moment: every 7 seconds, about 2.5 seconds of gold sparkles and mist
+      const mp = (time % 7) / 7, magic = mp < 0.36 ? Math.sin((mp / 0.36) * Math.PI) : 0;
+      ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.shadowBlur = 0;
+      if (magic > 0){
+        // soft golden mist swirling low around it
+        for (let i = 0; i < 3; i++){
+          const a = time * 0.8 + i * 2.1, mx = Math.cos(a) * 6, my = 8 + Math.sin(a) * 2 - i * 3;
+          const mg = ctx.createRadialGradient(mx, my, 0.5, mx, my, 7);
+          mg.addColorStop(0, "rgba(255,211,107," + (0.22 * magic) + ")"); mg.addColorStop(1, "rgba(255,211,107,0)");
+          ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx, my, 7, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+      // cloak behind the body: from the shoulders down past the knees, gently swaying
+      ctx.fillStyle = RED; ctx.strokeStyle = EDGE; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(-3.6, -2.2);
+      ctx.quadraticCurveTo(-7.2, 4, -7.6 + sw, 12.6);
+      ctx.quadraticCurveTo(-3.8, 11.6 + sw2, 0, 12.8); ctx.quadraticCurveTo(3.8, 11.6 - sw2, 7.6 + sw, 12.6);
+      ctx.quadraticCurveTo(7.2, 4, 3.6, -2.2); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.globalAlpha = 0.35; ctx.lineWidth = 0.6;                                            // a couple of folds
+      ctx.beginPath(); ctx.moveTo(-3.4, 1); ctx.quadraticCurveTo(-4.6, 6, -4.2 + sw * 0.6, 11.8);
+      ctx.moveTo(3.4, 1); ctx.quadraticCurveTo(4.6, 6, 4.2 + sw * 0.6, 11.8); ctx.stroke(); ctx.globalAlpha = 1;
+      // the normal stick body, in front of the cloak
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, -1.5); ctx.lineTo(0, 9);
+      ctx.moveTo(0, 2); ctx.lineTo(-5.4, 6.4 + sw2 * 0.4);
+      ctx.moveTo(0, 2); ctx.lineTo(5.4, 6.4 - sw2 * 0.4);
+      ctx.moveTo(0, 9); ctx.lineTo(-5, 15); ctx.moveTo(0, 9); ctx.lineTo(5, 15); ctx.stroke();
+      const blink = ((time % 5) / 5) > 0.965 ? 0.15 : 1;
+      if (hatLvl){
+        // hood off for the level's hat: a normal head, same glowing yellow eyes
+        ctx.beginPath(); ctx.arc(0, -6.5, 5, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        // the hood: blood red, deep shadow inside
+        ctx.fillStyle = RED; ctx.strokeStyle = EDGE; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(-6, -1.8); ctx.quadraticCurveTo(-7.2, -10, -2.4, -13);
+        ctx.quadraticCurveTo(0.2, -15.2, 1.2, -14.3); ctx.quadraticCurveTo(7.4, -10.8, 6, -1.8);
+        ctx.quadraticCurveTo(0, -0.4, -6, -1.8); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#050203"; ctx.beginPath(); ctx.ellipse(0, -6.3, 3.8, 4.2, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.save();
+      ctx.fillStyle = "#ffd21f"; ctx.shadowColor = "#ffb300"; ctx.shadowBlur = 7 + magic * 5;   // eyes glow a bit brighter during the magic
+      ctx.beginPath(); ctx.ellipse(-1.45, -6.6, 0.95, 0.6 * blink, -0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(1.45, -6.6, 0.95, 0.6 * blink, 0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      if (magic > 0){
+        // gold sparkles drifting up around it, twinkling
+        for (let i = 0; i < 9; i++){
+          const ph = (time * 0.55 + i / 9) % 1;
+          const sx = Math.sin(i * 2.4 + time * 0.7) * (5 + (i % 3) * 2.2), sy = 13 - ph * 26;
+          const tw = 0.5 + 0.5 * Math.sin(time * 9 + i * 1.9), a = magic * Math.sin(ph * Math.PI) * (0.5 + tw * 0.5);
+          if (a < 0.03) continue;
+          ctx.globalAlpha = a; ctx.fillStyle = i % 4 === 0 ? "#ffffff" : GOLD;
+          const r = 0.35 + tw * 0.5;
+          ctx.beginPath(); ctx.moveTo(sx, sy - r * 2.2); ctx.lineTo(sx + r * 0.6, sy - r * 0.6); ctx.lineTo(sx + r * 2.2, sy);
+          ctx.lineTo(sx + r * 0.6, sy + r * 0.6); ctx.lineTo(sx, sy + r * 2.2); ctx.lineTo(sx - r * 0.6, sy + r * 0.6);
+          ctx.lineTo(sx - r * 2.2, sy); ctx.lineTo(sx - r * 0.6, sy - r * 0.6); ctx.closePath(); ctx.fill();   // 4-point twinkle
+        }
+        ctx.globalAlpha = 1;
+      }
       ctx.restore();
       drawCarryDots();
     };
@@ -19368,6 +19447,10 @@ ctx.restore();
         } else if (skin === "law"){     // the police cap
           ctx.beginPath(); ctx.moveTo(-5.8, -9.4); ctx.lineTo(-6.6, -12.6); ctx.quadraticCurveTo(0, -15.2, 6.6, -12.6); ctx.lineTo(5.8, -9.4); ctx.closePath(); ctx.fill(); ctx.stroke();
           ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.arc(0, -11.8, 1, 0, Math.PI * 2); ctx.fill();
+        } else if (skin === "mystic"){  // the hood, with red eyes inside
+          ctx.beginPath(); ctx.moveTo(-6.2, -2.2); ctx.quadraticCurveTo(-7.4, -10, -2.5, -13.2); ctx.quadraticCurveTo(0.3, -15.6, 1.2, -14.6);
+          ctx.quadraticCurveTo(7.6, -11, 6.2, -2.2); ctx.quadraticCurveTo(0, -0.6, -6.2, -2.2); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.ellipse(-1.5, -6.6, 0.95, 0.55, 0, 0, Math.PI * 2); ctx.ellipse(1.5, -6.6, 0.95, 0.55, 0, 0, Math.PI * 2); ctx.fill();
         } else if (skin === "jogger"){  // the sweatband
           ctx.strokeStyle = "rgba(150,50,200,0.9)"; ctx.lineWidth = 1.6;
           ctx.beginPath(); ctx.moveTo(-4.8, -8.6); ctx.lineTo(4.8, -9.2); ctx.stroke();
@@ -19632,6 +19715,7 @@ ctx.restore();
     else if (skin === "dip"){ drawDipBody(); }
     else if (skin === "law"){ drawLawBody(); }
     else if (skin === "jogger"){ drawJoggerBody(); }
+    else if (skin === "mystic"){ drawMysticBody(); }
     else {
       drawClassicBody();
     }
@@ -19689,6 +19773,7 @@ ctx.restore();
       else if (skin === "dip") hy = -7;
       else if (skin === "sick") hy = -7;
       else if (skin === "jogger") hy = -6.8;
+      else if (skin === "mystic") hy = -6.5;
 
       drawCowboyHat(hy, 0);
     }
