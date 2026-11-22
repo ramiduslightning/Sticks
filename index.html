@@ -999,7 +999,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.56</span></div>
+          <div>STICKS <span class="badge">v2.57</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -14361,14 +14361,18 @@ function sfxMonsterVictoryStreak(){
           X.strokeStyle = '#b07a3e'; for (let k = 8; k < 46; k += 8){ X.beginPath(); X.moveTo(2, k); X.lineTo(16, k); X.stroke(); } X.restore(); });
         glow(610, 380, 80, '#e2c27a', 0.35 + wave(t, 5, 0.1));
         // the rattler slithers in from the right... until the stomp
-        const stompT = 3.0, snakeX = 470 - Math.min(p, stompT) * 30;
+        // the snake slithers left toward the horse; it gets squashed the moment the horse's front hoof
+        // (hx + 58 on screen) reaches its head: -92 + 106.7p = 470 - 30p  ->  p = 562 / 136.7
+        const stompT = 562 / 136.7, snakeX = 470 - Math.min(p, stompT) * 30;
         if (p < stompT){
           neon(() => { for (let i = 0; i <= 26; i++){ const sx = snakeX + i * 6, sy = 450 + Math.sin(i * 0.5 - t * 8) * 10; i ? X.lineTo(sx, sy) : X.moveTo(sx, sy); } }, '#7cff6b', 6);
           X.fillStyle = '#7cff6b'; X.beginPath(); X.ellipse(snakeX - 4, 450 + Math.sin(-t * 8) * 10, 13, 8, 0, 0, TAU); X.fill();
           neon(() => { const tx = snakeX + 160, ty = 450 + Math.sin(26 * 0.5 - t * 8) * 10; X.moveTo(tx, ty); X.lineTo(tx + 14 + wave(t, 40, 3), ty); }, '#e2c27a', 6);
         } else if (p < stompT + 1.8){
-          X.fillStyle = '#5fbf4f'; X.beginPath(); X.ellipse(snakeX + 60, 458, 70, 6, 0, 0, TAU); X.fill();   // flattened
+          X.fillStyle = '#5fbf4f'; X.beginPath(); X.ellipse(snakeX + 70, 460, 80, 6, 0, 0, TAU); X.fill();   // flattened
           const k = (p - stompT) / 1.8;
+          if (k < 0.35){ const d = k / 0.35; X.save(); X.globalAlpha = 0.6 * (1 - d); X.fillStyle = '#d9c39a';   // dust puff from the stomp
+            [[-30, 0], [0, -10], [30, 0], [-10, 6], [18, 8]].forEach(q => { X.beginPath(); X.arc(snakeX + q[0], 455 + q[1] - d * 14, 12 + d * 22, 0, TAU); X.fill(); }); X.restore(); }
           text('SNAKE PANCAKES!', 320, 150 - k * 20, 40, '#e2c27a', { spacing:2, alpha:Math.min(1, (1 - k) * 2.5) });
         }
         // the bay horse with black mane and tail, galloping; the cowboy rides on top
