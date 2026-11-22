@@ -617,7 +617,7 @@
       color:#200007 !important;
       box-shadow:none;
     }
-    /* v2.61: stick picker on the name screen */
+    /* v2.64: stick picker on the name screen */
     #skinPicker{ margin-top:14px; padding:10px 10px 8px; border:1px solid #2b3a4c; border-radius:14px; background:#070d18; text-align:center; }
     .skinPickTitle{ font-weight:1000; letter-spacing:2px; font-size:13px; color:#ffd54a; }
     .skinPickRow{ display:flex; align-items:center; justify-content:center; gap:12px; margin-top:6px; }
@@ -1000,7 +1000,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.61</span></div>
+          <div>STICKS <span class="badge">v2.65</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -11674,7 +11674,7 @@ function updateSpiderWebs(){
 
   
 const canvas = document.getElementById("game");
-let ctx = canvas.getContext("2d");   // v2.61: "let" so the stick picker can borrow drawPlayer() for its preview
+let ctx = canvas.getContext("2d");   // v2.64: "let" so the stick picker can borrow drawPlayer() for its preview
 
 // HiDPI rendering:
 // - Game logic remains in CANVAS_W/H units.
@@ -12639,6 +12639,7 @@ function sfxMonsterVictoryStreak(){
     if (raw === "rex") return "rex";
     if (raw === "angel") return "angel";
     if (raw === "sick") return "sick";
+    if (raw === "super" || raw === "dip" || raw === "law") return raw;
     return "classic";
   }
   function setAndStoreSkin(s){
@@ -12657,9 +12658,10 @@ function sfxMonsterVictoryStreak(){
     if (dots){ if (!dots.children.length) SKIN_LIST.forEach(() => dots.appendChild(document.createElement("span")));
       SKIN_LIST.forEach((s, i) => dots.children[i].className = s[0] === skin ? "on" : ""); }
   }
-  // v2.61: every stick figure you can play, in picker order: [id, name]
+  // v2.64: every stick figure you can play, in picker order: [id, name]
   const SKIN_LIST = [["classic","Classic"],["angel","Angel Stick"],["alien","Alien Stick"],["robot","Robo Stick"],
-                     ["rex","Rex Stick"],["rick","Rick Stick"],["sally","Sally Stick"],["sick","Sick Stick"]];
+                     ["rex","Rex Stick"],["rick","Rick Stick"],["sally","Sally Stick"],["sick","Sick Stick"],
+                     ["super","Super Stick"],["dip","Dip Stick"],["law","Law Stick"]];
   function cycleSkin(dir){
     const i = SKIN_LIST.findIndex(s => s[0] === (game.playerSkin || "classic"));
     setAndStoreSkin(SKIN_LIST[(i + dir + SKIN_LIST.length) % SKIN_LIST.length][0]);
@@ -12675,12 +12677,41 @@ function sfxMonsterVictoryStreak(){
     pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.clearRect(0, 0, cv.width, cv.height);
     const gr = pctx.createRadialGradient(150, 120, 10, 150, 120, 130); gr.addColorStop(0, "rgba(58,167,255,0.18)"); gr.addColorStop(1, "rgba(58,167,255,0)");
     pctx.fillStyle = gr; pctx.fillRect(0, 0, cv.width, cv.height);
-    const k = 2.75;   // sized so the tallest sticks (Rex ears, Robo antenna, Angel halo and wings) fit fully
-    pctx.setTransform(k, 0, 0, k, 150 - k * TILE / 2, 126 - k * TILE / 2);
+    // v2.64: each stick is measured once, then sized and centered so every one fills the box the same way
+    const fit = skinPickFit(game.playerSkin || "classic");
+    pctx.setTransform(fit.k, 0, 0, fit.k, cv.width / 2 - fit.k * fit.cx, cv.height / 2 - fit.k * fit.cy);
     try { ctx = pctx; fxNoSmooth = true; game.playerX = 0; game.playerY = 0; drawPlayer(); }
     catch(_){}
     finally { ctx = main; fxNoSmooth = false; game.playerX = sx; game.playerY = sy; pctx.setTransform(1, 0, 0, 1, 0, 0); }
     requestAnimationFrame(skinPickFrame);
+  }
+  // Measure a stick: draw it a few times (it sways and floats) on a scratch canvas and take the
+  // outline of everything drawn. Result is cached per stick (and per level, since some levels add hats).
+  const skinFitCache = {};
+  function skinPickFit(skin){
+    let key = skin; try { key += "|" + currentLevelTheme().name; } catch(_){}
+    const c = skinFitCache[key];
+    if (c && c.n >= 6) return c.fit;
+    const M = 4, S = 400, sc = document.createElement("canvas"); sc.width = S; sc.height = S;
+    const sctx = sc.getContext("2d"), main = ctx, sx = game.playerX, sy = game.playerY;
+    sctx.setTransform(M, 0, 0, M, S / 2 - M * TILE / 2, S / 2 - M * TILE / 2);
+    try { ctx = sctx; fxNoSmooth = true; game.playerX = 0; game.playerY = 0; drawPlayer(); }
+    catch(_){}
+    finally { ctx = main; fxNoSmooth = false; game.playerX = sx; game.playerY = sy; }
+    const d = sctx.getImageData(0, 0, S, S).data;
+    let t = S, b = -1, l = S, r = -1;
+    for (let y = 0; y < S; y += 2) for (let x = 0; x < S; x += 2){ if (d[(y * S + x) * 4 + 3] > 40){ if (y < t) t = y; if (y > b) b = y; if (x < l) l = x; if (x > r) r = x; } }
+    const prev = c || { n: 0, t: S, b: -1, l: S, r: -1 };
+    if (b >= 0){ prev.t = Math.min(prev.t, t); prev.b = Math.max(prev.b, b); prev.l = Math.min(prev.l, l); prev.r = Math.max(prev.r, r); }
+    prev.n++;
+    // back to game units (the stick's square is drawn at 0..TILE)
+    const toU = (v) => (v - S / 2) / M + TILE / 2;
+    const ut = toU(prev.t), ub = toU(prev.b), ul = toU(prev.l), ur = toU(prev.r);
+    const w = Math.max(8, ur - ul), h = Math.max(8, ub - ut);
+    const k = Math.min(250 / w, 176 / h, 4.4);   // fill about 80% of the box, capped so short sticks don't balloon
+    prev.fit = { k, cx: (ul + ur) / 2, cy: (ut + ub) / 2 };
+    skinFitCache[key] = prev;
+    return prev.fit;
   }
   function skinPickStart(){ if (skinPickRunning) return; skinPickRunning = true; requestAnimationFrame(skinPickFrame); }
 
@@ -12805,6 +12836,7 @@ function sfxMonsterVictoryStreak(){
   }
   function introFreezesGame(){
     // Freeze during fade-in and while waiting; release as soon as it starts fading out.
+    if (typeof talk !== "undefined" && talk.cut) return true;   // v2.65: zoom-in moment
     return levelIntro.active && levelIntro.phase !== 'fadeout';
   }
   // v2.43: the world also stays frozen while the Quick tutorial or the how-to card is open. Before,
@@ -12814,6 +12846,7 @@ function sfxMonsterVictoryStreak(){
               (ui.quickHowtoOverlay && ui.quickHowtoOverlay.classList.contains('show')));
   }
   function dismissLevelIntro(){
+    if (typeof talk !== "undefined" && talk.cut){ talkSkipCut(); return true; }   // v2.65: any input skips a zoom-in
     if (!levelIntro.active || levelIntro.dismissed) return false;
     levelIntro.dismissed = true;
     if (levelIntro.phase === 'fadein'){ levelIntro.phase = 'hold'; levelIntro.timer = 0; }
@@ -12884,6 +12917,7 @@ function sfxMonsterVictoryStreak(){
       if(levelIntro.timer >= INTRO_FADEOUT_TIME){
         levelIntro.active = false;
         levelIntro.opacity = 0;
+        try { talkLevelStarted(); } catch(e) {}   // v2.65
         // After the intro logo clears on Level 1, show the quick one-box how-to (if needed).
         if (quickHowtoPending && game.level === 1 && !tutorialIsDue() && !tutorial.active){
           quickHowtoPending = false;
@@ -15667,6 +15701,7 @@ Clear all sticks to advance — watch out for obstacles.`;
 
   function doRoll(){
     if (introFreezesGame()){ dismissLevelIntro(); return; }
+    talkNoteInput();
     markLearnActivity();
     if (!canRoll()){
       sfxError();
@@ -16058,6 +16093,7 @@ Clear all sticks to advance — watch out for obstacles.`;
   let playerFaceX = 0, playerFaceY = 1;
   function move(dx,dy){
     if (introFreezesGame()){ dismissLevelIntro(); return; }
+    talkNoteInput();
     if (game.inputLocked) return;
     markLearnActivity();
     if (dx !== 0 || dy !== 0){ playerFaceX = dx; playerFaceY = dy; }
@@ -16340,6 +16376,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   function pickOrDrop(){
     markLearnActivity();
     if (introFreezesGame()){ dismissLevelIntro(); return; }
+    talkNoteInput();
     if (game.inputLocked) return;
 
     // If a monster battle is pending, Pick/Drop should not spend actions.
@@ -16375,7 +16412,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         if (game.sticks.length === 0){
           sfxBonus();
           setHud("LEVEL CLEAR!");
-          newLevel();
+          talkLevelCleared(() => { newLevel(); updateUI(); });   // v2.65: zoom-in win line on harder levels
           updateUI();
           return;
         }
@@ -16446,7 +16483,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
       if (game.sticks.length === 0){
         logEvent("level","Cleared the field!");
-        newLevel();
+        talkLevelCleared(() => { newLevel(); updateUI(); });   // v2.65: zoom-in win line on harder levels
       } else {
         updateUI();
       }
@@ -17697,7 +17734,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.restore();
   }
 
-  // ===== v2.61 GAME FEEL: smooth walking, floating points, getting-hit punch =====
+  // ===== v2.64 GAME FEEL: smooth walking, floating points, getting-hit punch =====
   // Smooth walking: the game still moves one square at a time; only the DRAWING glides between
   // squares (with a little hop), so gameplay is unchanged. Big jumps (tunnels, teleports, respawns) snap.
   const fx = { vx: null, vy: null, lastT: 0, pops: [], lastScore: null, lastLives: null, shake: 0, flash: 0 };
@@ -17723,7 +17760,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     if (fx.lastScore === null){ fxResync(); return; }
     if (game.score > fx.lastScore){ const d = game.score - fx.lastScore;
       fxPop("+" + d, d >= 100 ? "#ffd54a" : "#9dffb0", d >= 500 ? 30 : d >= 100 ? 24 : 19); }
-    if (game.lives < fx.lastLives){ fx.shake = 1; fx.flash = 1; fxPop("OUCH!", "#ff5a6a", 22); }
+    if (game.lives < fx.lastLives){ fx.shake = 1; fx.flash = 1; talk.lastHurt = performance.now(); talk.bubble = null;
+      fxPop(talkPick("hurt"), "#ff5a6a", 18); talkSound(); }
     fx.lastScore = game.score; fx.lastLives = game.lives;
   }
   function fxShakeOffset(){
@@ -17738,7 +17776,10 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       const life = 1.15, k = p.t / life;
       if (k >= 1){ fx.pops.splice(i, 1); continue; }
       const sc = k < 0.15 ? 0.6 + (k / 0.15) * 0.55 : 1.15 - Math.min(0.15, (k - 0.15) * 0.5);
-      ctx.save(); ctx.translate(p.x, p.y - k * 34); ctx.scale(sc, sc);
+      ctx.save();
+      ctx.font = "900 " + p.size + "px ui-monospace, Menlo, Consolas, monospace";
+      const halfW = ctx.measureText(p.text).width * 0.6 + 6, px = Math.max(halfW, Math.min(CANVAS_W - halfW, p.x));
+      ctx.translate(px, p.y - k * 34); ctx.scale(sc, sc);
       ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
       ctx.font = "900 " + p.size + "px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.strokeText(p.text, 0, 0);
@@ -17757,6 +17798,275 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   }
   // ===== END GAME FEEL =====
 
+  // ===== v2.65 TALKING STICKS: each stick has a personality =====
+  // Pacing: easy levels (1-4) get a short bubble at the start and at most 2 more during play, at least
+  // a minute apart, only when things are calm. Harder levels (5-15) stay quiet during play; instead the
+  // camera zooms in on your stick for one line when the level starts and when you clear it (any key,
+  // click or button skips it). Getting hit swaps the "OUCH!" pop for the stick's own line on every level.
+  const TALK_LINES = {
+    classic: {
+      start:  ["I'll stick with it.", "Another day, another stick.", "Sticks won't pick themselves up!", "Ready, steady, stick!", "Let's do this. Team me!"],
+      win:    ["One level down, a bunch to go!", "Stuck the landing!", "That's how you stick it!", "All in a day's work.", "Easy peasy, stick squeezy!"],
+      hurt:   ["Ow! Still sticking with it!", "Just a scratch!", "That stung!", "I'm okay!"],
+      feed:   ["One stick down, a bunch to go.", "Into the hole you go!", "Hole-y moly!", "Special delivery!"],
+      pickup: ["Got one!", "Stick secured.", "Mine now!"],
+      idle:   ["Gonna roll or what?", "I'll just... stand here.", "Nice day for sticks."]
+    },
+    angel: {
+      start:  ["Bless this level.", "Heaven sent, ready to go.", "Let there be sticks!", "Have faith, friend."],
+      win:    ["A blessing in disguise!", "Hallelujah!", "Heaven smiles on us.", "Divine work, if I say so."],
+      hurt:   ["I forgive you.", "Oh, heavens!", "Ouch... still blessed."],
+      feed:   ["Go in peace.", "Blessed be the hole.", "Amen to that."],
+      pickup: ["What a gift!", "Thank you, stick."],
+      idle:   ["Patience is a virtue.", "Taking a halo break."]
+    },
+    alien: {
+      start:  ["Greetings, Earth sticks.", "Take me to your hole.", "Earth level... fascinating.", "Beam me in."],
+      win:    ["Mission report: crushed it.", "Earthlings, be amazed!", "Phoning home: we won!", "On Zorb this is easy."],
+      hurt:   ["Earth hurts!", "Bleep! Ow!", "Is that a welcome?"],
+      feed:   ["Specimen deposited.", "Earth sticks are crunchy.", "Feeding the Earth hole."],
+      pickup: ["Collecting specimen.", "Ooh, an Earth stick!"],
+      idle:   ["Earth is... slow.", "Phoning home..."]
+    },
+    robot: {
+      start:  ["SYSTEMS ONLINE.", "STICK PROTOCOL ENGAGED.", "LOADING... DONE.", "BEEP. LET'S GO."],
+      win:    ["MISSION COMPLETE.", "EFFICIENCY: 100%.", "VICTORY.EXE RUNNING.", "ERROR: TOO GOOD."],
+      hurt:   ["DAMAGE: MINOR.", "PRIDE: DENTED.", "RECALCULATING..."],
+      feed:   ["DEPOSIT CONFIRMED.", "HOLE: SATISFIED."],
+      pickup: ["STICK ACQUIRED.", "NOT USABLE AS SPARE PARTS."],
+      idle:   ["IDLE MODE...", "STILL WAITING. BEEP."]
+    },
+    rex: {
+      start:  ["WOOF!", "Woof woof!", "*sniff sniff* Sticks!", "Arf! Let's play!"],
+      win:    ["AROOOOO!", "Good boy! Me!", "*happy tail wag*", "Woof! Treat time?"],
+      hurt:   ["Yelp!", "Grrrr...", "*whimper*"],
+      feed:   ["Fetch complete!", "Arf!", "*drops stick*"],
+      pickup: ["FETCH!", "*chomp*"],
+      idle:   ["*scratches ear*", "Walk? WALK?"]
+    },
+    rick: {
+      start:  ["Watch and learn.", "Too easy already.", "Rick's in the house.", "Try to keep up."],
+      win:    ["Too easy.", "Was that it?", "Rick never misses.", "Hold your applause."],
+      hurt:   ["Didn't hurt.", "Lucky shot.", "Meant to do that."],
+      feed:   ["Nothing but hole.", "Smooth, right?"],
+      pickup: ["Obviously.", "Mine."],
+      idle:   ["Waiting on you, boss.", "Too good to wait."]
+    },
+    sally: {
+      start:  ["Let's think this through.", "Slow and steady.", "Okay, plan first.", "Eyes open, everyone."],
+      win:    ["That went to plan.", "See? Careful pays.", "Nicely done, team.", "Smart moves win."],
+      hurt:   ["Careful next time.", "Lesson learned.", "That was risky."],
+      feed:   ["Good, that's safe.", "Right on schedule."],
+      pickup: ["Got it, carefully.", "One more, safely."],
+      idle:   ["Let's not rush.", "Thinking it over..."]
+    },
+    sick: {
+      start:  ["*cough* Ready...", "I should be in bed.", "Ugh... let's go.", "ACHOO! Okay, go."],
+      win:    ["Did we win? *sniff*", "Feeling better already!", "ACHOO! Victory!", "Time for a nap."],
+      hurt:   ["ACHOO!", "*cough cough*", "Ugh, so dizzy."],
+      feed:   ["*sniff* There.", "Bless me. Achoo!"],
+      pickup: ["*cough* Got it.", "Need tissues..."],
+      idle:   ["I need a nap.", "*sniffle*"]
+    },
+    super: {
+      start:  ["Up, up, and stick!", "Have no fear!", "A hero is here!", "Cape on. Let's go!"],
+      win:    ["Another day saved!", "The day is saved!", "Faster than a falling stick!", "Heroes never quit!"],
+      hurt:   ["Merely a flesh wound!", "Heroes don't cry!", "My cape!"],
+      feed:   ["Super delivery!", "To the hole!"],
+      pickup: ["Super save!", "Gotcha, citizen!"],
+      idle:   ["Ready to fly...", "Cape check: good."]
+    },
+    dip: {
+      start:  ["Wait, which way is up?", "I'm ready! For what?", "Is this the bathroom?", "Hi! I'm Dip!"],
+      win:    ["We won? I won!", "I meant to do that!", "Duh-winning!", "Did I do the thing?"],
+      hurt:   ["Ow! Why'd I do that?", "Who put that there?", "Duh..."],
+      feed:   ["Is the hole hungry?", "Bye bye, stick!"],
+      pickup: ["Ooh, a stick! Wait...", "Found a stick! It was there."],
+      idle:   ["Is the hole supposed to be empty?", "I forgot what I'm doing.", "My stick is in my hand... right?"]
+    },
+    law: {
+      start:  ["Nobody move.", "Sticks, you're under arrest.", "Stick 'em up!", "This level's on lockdown."],
+      win:    ["Case closed.", "Justice is served.", "Book 'em.", "Crime doesn't pay."],
+      hurt:   ["That's assault!", "You're going down!", "That's a criminal offense!"],
+      feed:   ["Into the slammer!", "Locked up."],
+      pickup: ["Evidence collected.", "You have the right to be picked."],
+      idle:   ["I'm watching you.", "Move along."]
+    }
+  };
+  const TALK_EASY_MAX_LEVEL = 4;           // levels 1-4 chat during play; 5+ use zoom-ins
+  const TALK_GAP_MS = 60000;               // at least a minute between in-play bubbles
+  const TALK_MAX_PER_LEVEL = 2;            // in-play bubbles per easy level (start bubble not counted)
+  const talk = { bubble: null, cut: null, last: {}, level: -1, count: 0, lastAt: -1e9, lastInput: performance.now(),
+                 lastHurt: -1e9, lastCarry: 0, lastScore: null, idleSaid: false, pendingStart: 0, pendingLevel: 0 };
+  let talkZooming = false;   // hides the carry dots while the stick is drawn big
+  function talkSkin(){ return TALK_LINES[game.playerSkin] ? game.playerSkin : "classic"; }
+  function talkPick(kind){
+    const set = (TALK_LINES[talkSkin()] || TALK_LINES.classic)[kind] || TALK_LINES.classic[kind];
+    const key = talkSkin() + "|" + kind;
+    let line, tries = 0;
+    do { line = set[Math.floor(Math.random() * set.length)]; } while (set.length > 1 && line === talk.last[key] && ++tries < 6);
+    talk.last[key] = line;
+    return line;
+  }
+  function talkSound(){
+    try {
+      const s = talkSkin();
+      if (s === "rex"){ beep(330, 0.06, "square", 0.05); setTimeout(() => beep(250, 0.08, "square", 0.05), 90); }
+      else if (s === "robot"){ beep(880, 0.04, "square", 0.04); setTimeout(() => beep(660, 0.04, "square", 0.04), 60); }
+      else if (s === "sick"){ beep(700, 0.03, "sawtooth", 0.04); setTimeout(() => beep(240, 0.09, "sawtooth", 0.05), 70); }
+      else beep(560, 0.04, "triangle", 0.04);
+    } catch(_){}
+  }
+  function talkNoteInput(){ talk.lastInput = performance.now(); talk.idleSaid = false; }
+  function talkIsEasy(){ return (game.level | 0) <= TALK_EASY_MAX_LEVEL; }
+  function talkOverlayOpen(){
+    const shown = (el) => el && (el.style.display === "flex" || el.classList.contains("show"));
+    return paused || shown(ui.nameOverlay) || shown(ui.infoOverlay) || shown(ui.gameOverOverlay) || shown(ui.winOverlay) ||
+           shown(ui.tutorialOverlay) || shown(ui.quickHowtoOverlay) || (typeof previewMode !== "undefined" && previewMode);
+  }
+  function talkCalm(){
+    const now = performance.now();
+    return !talkOverlayOpen() && !levelIntro.active && !talk.cut && !game.pendingMonster && !game.inputLocked &&
+           now - talk.lastHurt > 10000 && now - talk.lastAt > TALK_GAP_MS;
+  }
+  function talkSay(kind, opts){
+    const text = talkPick(kind);
+    talk.bubble = { text, t0: performance.now(), dur: (opts && opts.dur) || 2600 };
+    talkSound();
+    return text;
+  }
+  // in-play line on an easy level, only if calm and under the per-level limit
+  function talkMaybe(kind, chance){
+    if (!talkIsEasy() || talk.count >= TALK_MAX_PER_LEVEL || !talkCalm()) return;
+    if (chance !== undefined && Math.random() > chance) return;
+    talkSay(kind); talk.count++; talk.lastAt = performance.now();
+  }
+  // ---- zoom-in moments (harder levels) ----
+  function talkCutActive(){ return !!talk.cut; }
+  function talkStartCut(kind, then){
+    const label = kind === "win" ? "LEVEL " + game.level + " CLEAR!" : "LEVEL " + game.level + "  ·  " + currentLevelTheme().name.toUpperCase();
+    talk.cut = { kind, text: talkPick(kind), label, t0: performance.now(), skipAt: 0, then: then || null };
+    talk.bubble = null; talkSound();
+  }
+  function talkSkipCut(){ if (talk.cut && !talk.cut.skipAt) talk.cut.skipAt = performance.now(); }
+  function talkEndCut(){
+    const c = talk.cut; talk.cut = null;
+    if (c && c.then){ try { c.then(); } catch(e){ console.warn(e); } }
+  }
+  // Level cleared: on harder levels, zoom in for the win line first, then move on.
+  function talkLevelCleared(advance){
+    if (talkOverlayOpen()){ advance(); return; }
+    talkStartCut("win", advance);
+    if (talkIsEasy()) talk.cut.small = true;   // easy levels: just a bubble over the stick, ~1.5s, no zoom
+  }
+  // Called when the level intro screen finishes.
+  function talkLevelStarted(){
+    if (talkIsEasy()){ talk.pendingStart = performance.now() + 700; talk.pendingLevel = game.level; }   // small bubble shortly after
+    else if (!talkOverlayOpen()) talkStartCut("start");
+  }
+  // Once per frame: watch for pickups, feeds and idling; run the start bubble.
+  function talkWatch(){
+    if (talk.level !== game.level){ talk.level = game.level; talk.count = 0; }
+    const carry = game.carry ? game.carry.length : 0;
+    if (talk.lastScore === null){ talk.lastScore = game.score; talk.lastCarry = carry; return; }
+    if (talk.pendingStart && performance.now() >= talk.pendingStart){
+      talk.pendingStart = 0;
+      if (talk.pendingLevel === game.level && !talk.cut && !talkOverlayOpen() && !levelIntro.active){
+        talkSay("start", { dur: 2400 }); talk.lastAt = performance.now();   // the start line counts toward the 1-minute gap
+      }
+    }
+    if (carry > talk.lastCarry) talkMaybe("pickup", 0.3);
+    if (carry === 0 && talk.lastCarry >= 3 && game.score > talk.lastScore) talkMaybe("feed");
+    if (!talk.idleSaid && performance.now() - talk.lastInput > 15000){ talk.idleSaid = true; talkMaybe("idle"); }
+    talk.lastCarry = carry; talk.lastScore = game.score;
+  }
+  // speech bubble with a tail pointing at (x, tipY). If there's no room above, and flipY is given,
+  // it sits below instead with the tail pointing up to (x, flipY).
+  function talkBubble(x, tipY, text, size, alpha, maxW, flipY){
+    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.font = "900 " + size + "px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const words = text.split(" "), lines = []; let cur = "";      // wrap into lines that fit maxW
+    words.forEach(w => { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW && cur){ lines.push(cur); cur = w; } else cur = t; });
+    if (cur) lines.push(cur);
+    const lh = size * 1.25, padX = size * 0.8, padY = size * 0.55, gap = size * 0.7, tw = size * 0.45;
+    const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + padX * 2, h = lines.length * lh + padY * 2;
+    const bx = Math.max(6, Math.min(CANVAS_W - w - 6, x - w / 2));
+    const below = flipY !== undefined && (tipY - h - gap) < 4;
+    const by = below ? flipY + gap : tipY - h - gap;
+    const r = Math.min(12, h / 2), tx = Math.max(bx + r + tw, Math.min(bx + w - r - tw, x));
+    ctx.beginPath();
+    ctx.moveTo(bx + r, by);
+    if (below){ ctx.lineTo(tx - tw, by); ctx.lineTo(tx, flipY + size * 0.15); ctx.lineTo(tx + tw, by); }
+    ctx.lineTo(bx + w - r, by); ctx.quadraticCurveTo(bx + w, by, bx + w, by + r);
+    ctx.lineTo(bx + w, by + h - r); ctx.quadraticCurveTo(bx + w, by + h, bx + w - r, by + h);
+    if (!below){ ctx.lineTo(tx + tw, by + h); ctx.lineTo(tx, tipY - size * 0.15); ctx.lineTo(tx - tw, by + h); }
+    ctx.lineTo(bx + r, by + h); ctx.quadraticCurveTo(bx, by + h, bx, by + h - r);
+    ctx.lineTo(bx, by + r); ctx.quadraticCurveTo(bx, by, bx + r, by); ctx.closePath();
+    ctx.fillStyle = "rgba(255,255,255,0.96)"; ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0;
+    ctx.lineWidth = 2; ctx.strokeStyle = "#111827"; ctx.stroke();
+    ctx.fillStyle = "#111827";
+    lines.forEach((l, i) => ctx.fillText(l, bx + w / 2, by + padY + lh * (i + 0.5)));
+    ctx.restore();
+  }
+  // draws the in-play bubble, and the zoom-in moment on top of everything
+  function talkDraw(){
+    talkWatch();
+    const now = performance.now();
+    if (talk.bubble && !talk.cut){
+      const b = talk.bubble, k = (now - b.t0) / b.dur;
+      if (k >= 1) talk.bubble = null;
+      else {
+        const a = k < 0.08 ? k / 0.08 : k > 0.85 ? (1 - k) / 0.15 : 1, p = fxPlayerPx();
+        talkBubble(p.x, p.y - TILE * 0.95, b.text, 13, a, 190, p.y + TILE * 0.95);
+      }
+    }
+    if (!talk.cut) return;
+    if (talk.cut.small){
+      const c = talk.cut, el = c.skipAt ? 1e9 : now - c.t0;
+      if (el >= 1600){ talkEndCut(); return; }
+      const p = fxPlayerPx(), a = el < 120 ? el / 120 : el > 1350 ? (1600 - el) / 250 : 1;
+      talkBubble(p.x, p.y - TILE * 0.95, c.text, 14, a, 200, p.y + TILE * 0.95);
+      return;
+    }
+    const c = talk.cut, IN = 380, HOLD = 2300, OUT = 320;
+    let el = now - c.t0;
+    if (c.skipAt) el = Math.max(el, IN + HOLD + (now - c.skipAt));
+    let e;
+    if (el < IN) e = el / IN; else if (el < IN + HOLD) e = 1; else e = Math.max(0, 1 - (el - IN - HOLD) / OUT);
+    if (el >= IN + HOLD + OUT){ talkEndCut(); return; }
+    const ease = e * e * (3 - 2 * e);
+    ctx.save(); ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+    // dim the board, with a soft spotlight
+    ctx.fillStyle = "rgba(4,7,14," + (0.78 * ease) + ")"; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    const p = fxPlayerPx(), tx = CANVAS_W / 2, ty = CANVAS_H * 0.64;
+    const cx = p.x + (tx - p.x) * ease, cy = p.y + (ty - p.y) * ease, s = 1 + 3.6 * ease;
+    const theme = currentLevelTheme(), col = theme.accent || "#3aa7ff";
+    const sg = ctx.createRadialGradient(cx, cy, 4, cx, cy, 150 * ease + 1);
+    sg.addColorStop(0, "rgba(255,255,255," + (0.16 * ease) + ")"); sg.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = sg; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+    // the stick, big
+    ctx.save(); ctx.translate(cx, cy); ctx.scale(s, s); ctx.translate(-p.x, -p.y);
+    talkZooming = true;
+    try { drawPlayer(); } catch(_){}
+    talkZooming = false;
+    ctx.restore();
+    // label and the line
+    if (ease > 0.6){
+      const a = (ease - 0.6) / 0.4;
+      ctx.globalAlpha = a; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = "900 22px ui-monospace, Menlo, Consolas, monospace";
+      ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.fillStyle = col;
+      ctx.fillText(c.label, CANVAS_W / 2, CANVAS_H * 0.13); ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      talkBubble(cx, cy - 26 * s, c.text, 22, a, 380);
+      ctx.globalAlpha = a * 0.7; ctx.font = "700 12px ui-monospace, Menlo, Consolas, monospace"; ctx.fillStyle = "#cbd5e1";
+      ctx.fillText("press any key", CANVAS_W / 2, CANVAS_H * 0.94);
+    }
+    ctx.restore();
+  }
+  // ===== END TALKING STICKS =====
+
+
   function drawPlayer(){
     const fpos = fxPlayerPos();
     const cx = fpos.x*TILE + TILE/2;
@@ -17766,9 +18076,9 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.translate(cx, cy);
     
     // Scale up player figure for better visibility (1.25 = 25% larger)
-    const playerScale = 1.45;   // v2.61: was 1.25; about 16% bigger and still mostly inside its square
+    const playerScale = 1.45;   // v2.64: was 1.25; about 16% bigger and still mostly inside its square
     ctx.scale(playerScale, playerScale);
-    {   // v2.61 idle life: every stick sways gently from the feet and breathes a little, even standing still
+    {   // v2.64 idle life: every stick sways gently from the feet and breathes a little, even standing still
       const it = Date.now() * 0.001;
       const lean = Math.sin(it * 1.7) * 0.045 + Math.sin(it * 0.9) * 0.02;
       ctx.translate(0, 15); ctx.rotate(lean); ctx.translate(0, -15 + Math.sin(it * 2.4) * 0.5);
@@ -17921,6 +18231,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     function isSnakeStickLevel(){
       try{ return currentLevelTheme().name === "Snake Stick"; }catch(_){ return false; }
     }
+    // v2.64: true when this level puts a hat on every stick (Santa hat on Ice, cowboy hat on Snake)
+    function levelHatOn(){ return theme.name === "Ice Stick" || isSnakeStickLevel(); }
     function drawCowboyHat(headY, headBob){
       // Draws a simple white cowboy hat above the player's head in local coords
       const y = (headY ?? -6) + (headBob ?? 0);
@@ -17966,6 +18278,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     }
 
     const drawCarryDots = () => {
+      if (fxNoSmooth || (typeof talkZooming !== "undefined" && talkZooming)) return;   // no carry dots in the picker or the zoom-in
       const cap = carryCap();
       const carried = game.carry.length;
       const slots = Math.min(6, cap);
@@ -18019,7 +18332,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       drawCarryDots();
     };
 
-    // v2.61 Sick Stick: a bandage for a body, stick arms and legs, a thermometer in its mouth,
+    // v2.64 Sick Stick: a bandage for a body, stick arms and legs, a thermometer in its mouth,
     // droopy eyes, a little shiver, and a sweat drop now and then
     const drawSickBody = () => {
       const time = Date.now() * 0.001;
@@ -18059,6 +18372,144 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       if (dp < 0.6){ const dy = -11 + dp * 10; ctx.globalAlpha = 1 - dp / 0.6; ctx.fillStyle = "#7cc8ff";
         ctx.beginPath(); ctx.moveTo(-6.5, dy - 2); ctx.quadraticCurveTo(-5, dy, -6.5, dy + 1.2); ctx.quadraticCurveTo(-8, dy, -6.5, dy - 2); ctx.fill(); ctx.globalAlpha = 1; }
       ctx.restore();
+      drawCarryDots();
+    };
+
+    // ===== v2.64 new sticks: Super, Dip, Law =====
+    // Super Stick: red cape that ripples, gold star on the chest; every few seconds it lifts off and
+    // hovers with a fist up, cape streaming, then lands again.
+    const drawSuperBody = () => {
+      const time = Date.now() * 0.001;
+      const ph = (time % 6) / 6;                                       // a 6-second cycle
+      const flyK = ph < 0.55 ? 0 : Math.sin(((ph - 0.55) / 0.45) * Math.PI);   // 0 standing, 1 fully up
+      const lift = -flyK * 5, rip = Math.sin(time * 9) * (1 + flyK * 1.5);
+      if (flyK > 0.05){ ctx.save(); ctx.globalAlpha = 0.25 * flyK; ctx.fillStyle = "#000";      // shadow on the ground
+        ctx.beginPath(); ctx.ellipse(0, 15.5, 6 - flyK * 2, 1.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+      ctx.save(); ctx.translate(0, lift);
+      // cape (behind the body)
+      ctx.fillStyle = "#e63946"; ctx.strokeStyle = "#9b1d2a"; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(-3.5, -0.5); ctx.lineTo(3.5, -0.5);
+      ctx.quadraticCurveTo(8 + flyK * 3, 6, 7 + flyK * 4 + rip * 0.6, 13 - flyK * 2);
+      ctx.quadraticCurveTo(3, 12 + rip * 0.8, 0, 13.5 - rip * 0.4);
+      ctx.quadraticCurveTo(-3, 12 - rip * 0.8, -7 - flyK * 4 - rip * 0.6, 13 - flyK * 2);
+      ctx.quadraticCurveTo(-8 - flyK * 3, 6, -3.5, -0.5); ctx.closePath(); ctx.fill(); ctx.stroke();
+      // head, with a little mask
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 2; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.arc(0, -6.5, 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = "#e63946"; ctx.beginPath(); ctx.moveTo(-4.6, -8); ctx.quadraticCurveTo(0, -9.6, 4.6, -8); ctx.lineTo(4.4, -5.8); ctx.quadraticCurveTo(0, -7.2, -4.4, -5.8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-1.9, -7.1, 0.8, 0, Math.PI * 2); ctx.arc(1.9, -7.1, 0.8, 0, Math.PI * 2); ctx.fill();
+      // body
+      ctx.beginPath(); ctx.moveTo(0, -1.5); ctx.lineTo(0, 9); ctx.stroke();
+      // arms: hands on hips standing; one fist punches up when flying
+      ctx.beginPath();
+      if (flyK > 0.35){ ctx.moveTo(0, 2); ctx.lineTo(3.5, -2.5); ctx.lineTo(5.5, -8); ctx.moveTo(0, 2); ctx.lineTo(-5, 4); ctx.lineTo(-7, 7); }
+      else { ctx.moveTo(0, 2); ctx.lineTo(-5, 3.5); ctx.lineTo(-2.6, 6.5); ctx.moveTo(0, 2); ctx.lineTo(5, 3.5); ctx.lineTo(2.6, 6.5); }
+      ctx.stroke();
+      // legs: wide hero stance, together and trailing when flying
+      ctx.beginPath();
+      if (flyK > 0.35){ ctx.moveTo(0, 9); ctx.lineTo(-2, 15); ctx.moveTo(0, 9); ctx.lineTo(1, 15); }
+      else { ctx.moveTo(0, 9); ctx.lineTo(-6.5, 15); ctx.moveTo(0, 9); ctx.lineTo(6.5, 15); }
+      ctx.stroke();
+      // gold star on the chest
+      ctx.fillStyle = "#ffd54a"; ctx.shadowColor = "#ffd54a"; ctx.shadowBlur = 4; ctx.beginPath();
+      for (let i = 0; i < 10; i++){ const a = -Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 1.1 : 2.6; ctx.lineTo(Math.cos(a) * r, 2.6 + Math.sin(a) * r); }
+      ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+      ctx.restore();
+      drawCarryDots();
+    };
+    // Dip Stick: lovable goof. Ball cap on sideways, googly eyes (one big, one small, looking different
+    // ways), tongue out, knock-knees, wobbly head, and now and then a "?" pops up over the cap.
+    const drawDipBody = () => {
+      const time = Date.now() * 0.001;
+      const wob = Math.sin(time * 2.3) * 0.18 + Math.sin(time * 5.1) * 0.05;
+      const look = Math.sin(time * 0.8);
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 2; ctx.lineCap = "round";
+      // body, droopy arms, knock-knees
+      ctx.beginPath(); ctx.moveTo(0, -0.5); ctx.lineTo(0.6, 9); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0.2, 2.5); ctx.lineTo(-4, 6); ctx.lineTo(-5, 9.5 + Math.sin(time * 3) * 0.6);
+      ctx.moveTo(0.2, 2.5); ctx.lineTo(4.5, 5.5); ctx.lineTo(5.5, 9 - Math.sin(time * 3) * 0.6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0.6, 9); ctx.lineTo(-2, 12.2); ctx.lineTo(-6, 15); ctx.moveTo(0.6, 9); ctx.lineTo(3, 12.2); ctx.lineTo(6.5, 15); ctx.stroke();
+      // wobbly head
+      ctx.save(); ctx.translate(0, -1.5); ctx.rotate(wob); ctx.translate(0, -5.5);
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, 5.3, 0, Math.PI * 2); ctx.stroke();
+      // googly eyes
+      ctx.fillStyle = "#fff"; ctx.strokeStyle = "#222"; ctx.lineWidth = 0.6;
+      ctx.beginPath(); ctx.arc(-2, -0.8, 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(2.1, -0.4, 1.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#111";
+      ctx.beginPath(); ctx.arc(-2 + look * 0.9, -0.8 - 0.6, 0.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(2.1 - look * 0.6, -0.4 + 0.5, 0.55, 0, Math.PI * 2); ctx.fill();
+      // goofy grin with tongue out
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-2.4, 2.2); ctx.quadraticCurveTo(0, 3.9, 2.6, 2); ctx.stroke();
+      ctx.fillStyle = "#ff6b8a"; ctx.beginPath(); ctx.ellipse(0.8, 3.4, 1, 1.2, 0.2, 0, Math.PI * 2); ctx.fill();
+      // ball cap, on sideways: dome on top, brim sticking out to the side (off when the level gives a hat)
+      if (!levelHatOn()){
+      ctx.fillStyle = "#ff9f1c"; ctx.strokeStyle = "#a85d00"; ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.arc(0, -3.2, 5.2, Math.PI * 1.02, Math.PI * 1.98); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(4, -3.8); ctx.lineTo(9.5, -4.8); ctx.quadraticCurveTo(10.3, -3.3, 9, -2.6); ctx.lineTo(4, -2.6); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#a85d00"; ctx.beginPath(); ctx.arc(0, -8.3, 0.8, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+      // the occasional "?"
+      const q = (time % 5) / 5;
+      if (q > 0.7){ const k = (q - 0.7) / 0.3; ctx.save(); ctx.globalAlpha = Math.sin(k * Math.PI);
+        ctx.fillStyle = "#ffd54a"; ctx.font = "bold 8px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "center";
+        ctx.fillText("?", 9, -11 - k * 2.5); ctx.restore(); }
+      drawCarryDots();
+    };
+    // Law Stick: police cap with a gold badge, mirrored aviator shades, gold star badge on the chest;
+    // every few seconds a hand shoots up in a "STOP!" palm.
+    const drawLawBody = () => {
+      const time = Date.now() * 0.001;
+      const st = (time % 7) / 7, stop = st > 0.78 ? Math.sin(((st - 0.78) / 0.22) * Math.PI) : 0;
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 2; ctx.lineCap = "round";
+      // head and shades
+      ctx.beginPath(); ctx.arc(0, -6, 5, 0, Math.PI * 2); ctx.stroke();
+      // silver mirrored aviators: teardrop lenses, thin gold-gray frame, a bridge, and a moving glint
+      const lens = (cx, dir) => { ctx.beginPath(); ctx.moveTo(cx - 1.9 * dir, -7.1);
+        ctx.quadraticCurveTo(cx + 2.1 * dir, -7.6, cx + 2.2 * dir, -6.6);
+        ctx.quadraticCurveTo(cx + 2.2 * dir, -4.2, cx + 0.2 * dir, -4.3);
+        ctx.quadraticCurveTo(cx - 2.1 * dir, -4.5, cx - 1.9 * dir, -7.1); ctx.closePath(); };
+      [[-2.2, -1], [2.2, 1]].forEach(L => {
+        const sg = ctx.createLinearGradient(L[0], -7.4, L[0], -4.3);
+        sg.addColorStop(0, "#f4f6fa"); sg.addColorStop(0.45, "#aeb6c4"); sg.addColorStop(0.55, "#7b8597"); sg.addColorStop(1, "#d5dae3");
+        lens(L[0], L[1]); ctx.fillStyle = sg; ctx.fill(); ctx.strokeStyle = "#5a6170"; ctx.lineWidth = 0.55; ctx.stroke(); });
+      ctx.strokeStyle = "#5a6170"; ctx.lineWidth = 0.55; ctx.beginPath(); ctx.moveTo(-0.6, -6.9); ctx.quadraticCurveTo(0, -7.4, 0.6, -6.9); ctx.stroke();   // bridge
+      const gl = (Date.now() * 0.001 % 3) / 3;                                                                                                       // glint sweeps across
+      if (gl < 0.3){ const gx = -4 + (gl / 0.3) * 8; ctx.save(); ctx.globalAlpha = 0.9; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(gx - 0.5, -4.6); ctx.lineTo(gx + 0.6, -7); ctx.stroke(); ctx.restore(); }
+      // serious: a thick mustache and a slight frown under it, no smile
+      ctx.fillStyle = "#3b2a1a"; ctx.beginPath();
+      ctx.moveTo(0, -3.9); ctx.quadraticCurveTo(-1.4, -4.6, -2.9, -3.7); ctx.quadraticCurveTo(-3.4, -2.6, -2.3, -2.6);
+      ctx.quadraticCurveTo(-1.1, -3.3, 0, -3.0); ctx.quadraticCurveTo(1.1, -3.3, 2.3, -2.6); ctx.quadraticCurveTo(3.4, -2.6, 2.9, -3.7);
+      ctx.quadraticCurveTo(1.4, -4.6, 0, -3.9); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.moveTo(-1.3, -1.5); ctx.quadraticCurveTo(0, -2.1, 1.3, -1.5); ctx.stroke();   // frown
+      // police cap: navy crown, black brim, gold badge (swapped for the level hat on Ice and Snake Stick)
+      if (!levelHatOn()){
+      ctx.fillStyle = "#1d3557"; ctx.strokeStyle = "#0b1626"; ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.moveTo(-5.8, -9.4); ctx.lineTo(-6.6, -12.6); ctx.quadraticCurveTo(0, -15.2, 6.6, -12.6); ctx.lineTo(5.8, -9.4); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#111"; ctx.beginPath(); ctx.moveTo(-6, -9.6); ctx.lineTo(6, -9.6); ctx.quadraticCurveTo(4, -7.6, -6, -8.4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#ffd54a"; ctx.beginPath(); ctx.arc(0, -11.8, 1.2, 0, Math.PI * 2); ctx.fill();
+      }
+      // body
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(0, -1); ctx.lineTo(0, 9); ctx.stroke();
+      // arms: one on the belt; the other swings or shoots up for STOP
+      ctx.beginPath(); ctx.moveTo(0, 2); ctx.lineTo(-5, 4); ctx.lineTo(-2.4, 7);
+      if (stop > 0.3){ ctx.moveTo(0, 2); ctx.lineTo(5, 0); ctx.lineTo(7, -4.5); }
+      else { const sw = Math.sin(time * 2.5) * 1.2; ctx.moveTo(0, 2); ctx.lineTo(6, 3 + sw); }
+      ctx.stroke();
+      if (stop > 0.3){ ctx.save(); ctx.globalAlpha = Math.min(1, stop * 1.5); ctx.strokeStyle = strokeBase; ctx.lineWidth = 1.2;   // open palm
+        ctx.beginPath(); for (let f = -1.5; f <= 1.5; f += 1){ ctx.moveTo(7 + f * 0.9, -4.5); ctx.lineTo(7 + f * 1.1, -6.8); } ctx.stroke(); ctx.restore(); }
+      // legs
+      ctx.beginPath(); ctx.moveTo(0, 9); ctx.lineTo(-5.5, 15); ctx.moveTo(0, 9); ctx.lineTo(5.5, 15); ctx.stroke();
+      // belt and gold star badge on the chest
+      ctx.strokeStyle = "#1d3557"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(-2.2, 7.4); ctx.lineTo(2.2, 7.4); ctx.stroke();
+      ctx.fillStyle = "#ffd54a"; ctx.shadowColor = "#ffd54a"; ctx.shadowBlur = 4; ctx.beginPath();
+      for (let i = 0; i < 12; i++){ const a = -Math.PI / 2 + i * Math.PI / 6, r = i % 2 ? 1.2 : 2.4; ctx.lineTo(-2.4 + Math.cos(a) * r, 2.6 + Math.sin(a) * r); }
+      ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
       drawCarryDots();
     };
 
@@ -18807,6 +19258,19 @@ ctx.restore();
         ctx.moveTo(0, 9);
         ctx.lineTo(6, 15);
         ctx.stroke();
+        // v2.64: the newer sticks keep their outline when possessed
+        ctx.fillStyle = darkBody; ctx.strokeStyle = "rgba(150,50,200,0.7)"; ctx.lineWidth = 0.8;
+        if (skin === "super"){          // tattered dark cape
+          ctx.beginPath(); ctx.moveTo(-3.5, -0.5); ctx.lineTo(3.5, -0.5); ctx.lineTo(8, 13); ctx.lineTo(4, 11); ctx.lineTo(1, 14); ctx.lineTo(-2, 11); ctx.lineTo(-8, 13); ctx.closePath(); ctx.fill(); ctx.stroke();
+        } else if (skin === "dip"){     // the sideways cap
+          ctx.beginPath(); ctx.arc(0, -9, 5.2, Math.PI * 1.02, Math.PI * 1.98); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(4, -9.6); ctx.lineTo(9.5, -10.6); ctx.lineTo(9, -8.4); ctx.lineTo(4, -8.4); ctx.closePath(); ctx.fill(); ctx.stroke();
+        } else if (skin === "law"){     // the police cap
+          ctx.beginPath(); ctx.moveTo(-5.8, -9.4); ctx.lineTo(-6.6, -12.6); ctx.quadraticCurveTo(0, -15.2, 6.6, -12.6); ctx.lineTo(5.8, -9.4); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.arc(0, -11.8, 1, 0, Math.PI * 2); ctx.fill();
+        } else if (skin === "sick"){    // the bandage body
+          ctx.beginPath(); ctx.rect(-3.6, -1.8, 7.2, 12.4); ctx.fill(); ctx.stroke();
+        }
       }
       
       ctx.restore();
@@ -18827,7 +19291,7 @@ ctx.restore();
       ctx.stroke();
 
       // Antenna bob
-      const antennaBob = Math.sin(time * 3) * 1.3;   // v2.61: was 0.5
+      const antennaBob = Math.sin(time * 3) * 1.3;   // v2.64: was 0.5
       ctx.beginPath();
       ctx.moveTo(-3, -14);
       ctx.lineTo(-6, -19 + antennaBob);
@@ -18903,7 +19367,7 @@ ctx.restore();
     else if (skin === "rick"){
       const time = Date.now() * 0.001;
       const armSwing = Math.sin(time * 2) * 1.2;
-      const hairWave = Math.sin(time * 4) * 1.4;   // v2.61: was 0.5
+      const hairWave = Math.sin(time * 4) * 1.4;   // v2.64: was 0.5
       const hs = [Math.sin(time * 3.1) * 1.2, Math.sin(time * 3.1 + 1.3) * 1.3, Math.sin(time * 3.1 + 2.6) * 1.2];
       
       ctx.beginPath();
@@ -19061,6 +19525,9 @@ ctx.restore();
     else if (skin === "sick"){
       drawSickBody();
     }
+    else if (skin === "super"){ drawSuperBody(); }
+    else if (skin === "dip"){ drawDipBody(); }
+    else if (skin === "law"){ drawLawBody(); }
     else {
       drawClassicBody();
     }
@@ -19114,6 +19581,9 @@ ctx.restore();
       else if (skin === "sally") hy = -8 + swayHat;
       else if (skin === "angel") hy = -6 + headBobHat;
       else if (skin === "rick") hy = -6;
+      else if (skin === "super") hy = -6.5;
+      else if (skin === "dip") hy = -7;
+      else if (skin === "sick") hy = -7;
 
       drawCowboyHat(hy, 0);
     }
@@ -19492,7 +19962,7 @@ ctx.restore();
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     try { ctx.imageSmoothingEnabled = false; } catch(e) {}
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    fxWatch(); const fsh = fxShakeOffset(); ctx.translate(fsh.x, fsh.y);   // v2.61: getting-hit shake
+    fxWatch(); const fsh = fxShakeOffset(); ctx.translate(fsh.x, fsh.y);   // v2.64: getting-hit shake
 
     const theme = currentLevelTheme();
     drawGrid(theme);
@@ -19665,7 +20135,8 @@ ctx.restore();
     
     if (theme.name === "Glow Stick") drawGlowDarkness();
 
-    fxDrawOverlay();   // v2.61: floating points and the hit flash
+    fxDrawOverlay();   // floating points and the hit flash
+    talkDraw();        // v2.65: speech bubbles and the zoom-in moments
 
     drawHudText();
     
@@ -20048,6 +20519,10 @@ ui.nameInput.addEventListener("keydown", (e) => {
       return;
     }
 
+    if (talk.cut){   // v2.65: any key skips the zoom-in
+      if (!e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); talkSkipCut(); }
+      return;
+    }
     if (introIsWaiting() || (levelIntro.active && levelIntro.phase === 'fadein')){
       if (!e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); dismissLevelIntro(); }
       return;
@@ -20255,7 +20730,7 @@ ui.nameInput.addEventListener("keydown", (e) => {
     const blocked = (padOverlayOpen(ui.nameOverlay) && !nameUp) || padShown(ui.quickHowtoOverlay);
     const dir = (blocked && !infoUp) ? null : padDirection(pad);
     const fire = function(d){
-      if (nameUp){   // v2.61: name screen: left/right picks your stick figure
+      if (nameUp){   // v2.64: name screen: left/right picks your stick figure
         if (d === "ArrowLeft") cycleSkin(-1); else if (d === "ArrowRight") cycleSkin(1);
         return;
       }
