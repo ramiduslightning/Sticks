@@ -1000,7 +1000,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.68</span></div>
+          <div>STICKS <span class="badge">v2.70</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -13189,6 +13189,14 @@ function sfxMonsterVictoryStreak(){
     return { hex: "#" + [R,G,B].map(v => v.toString(16).padStart(2,"0")).join(""), rgba: a => `rgba(${R},${G},${B},${a})` };
   }
 
+  // v2.69: the one color used for the hole's "drop" glow-up on each level (the rim color, brightened;
+  // Night Stick uses its gold stars and Mountain a brighter tan, since their rims are dull).
+  const HOLE_RIM = { "Sparkle Stick":"#c080e0", "Sun Stick":"#ffd400", "Cursed Stick":"#8b00ff", "Sea Stick":"#00bfff",
+    "Sky Stick":"#3aa7ff", "Fire Stick":"#ff5a6a", "Banana Stick":"#ffd700", "Snake Stick":"#caa14a", "Spell Stick":"#ff69ff",
+    "Ice Stick":"#7fdcff", "Glow Stick":"#ffb347", "Spider Stick":"#8b5cf6", "Victory Stick":"#27ae60",
+    "Night Stick":"#ffd54a", "Mountain Stick":"#e2b77a" };
+  function holeFxColor(theme){ return holeLitColor(HOLE_RIM[theme && theme.name] || (theme && theme.accent) || "#ffffff"); }
+
   // SANCTUARY (2026-10-19): standing on the hole = safe from every attack, every level.
   function inSanctuary(){
     return game.playerX === game.holeX && game.playerY === game.holeY;
@@ -16481,6 +16489,9 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
       game.holePulse = 1.0;
       spawnSparks(game.holeX, game.holeY, 28);
+      try { const _c = holeFxColor(currentLevelTheme()).hex;   // v2.69: sparks in the level's hole color, a few white
+        game.sparks.splice(Math.max(0, game.sparks.length - 28), 16);   // keep 12 of the 28: a light sprinkle
+        for (let _i = game.sparks.length - 12; _i < game.sparks.length; _i++) if (_i >= 0){ const s = game.sparks[_i]; s.color = _c; s.size = 2; s.vx *= 0.7; s.vy *= 0.7; } } catch(_){}
 
       commitScoreToLeaderboard();
 
@@ -17267,7 +17278,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     const cx = game.holeX*TILE + TILE/2;
     const cy = game.holeY*TILE + TILE/2;
 
-    if (game.holePulse > 0) game.holePulse = Math.max(0, game.holePulse - 0.03);
+    if (game.holePulse > 0) game.holePulse = Math.max(0, game.holePulse - 0.016);   // ~1s soft glow-up
     if (game.holeFlash > 0) game.holeFlash = Math.max(0, game.holeFlash - 0.04);
 
     const pulse = game.holePulse;
@@ -17343,12 +17354,20 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
     ctx.save();
 
+    const fxc = holeFxColor(theme);
+    // v2.69 GLOW-UP (behind the hole): a bright bloom in the level's color, white-hot in the middle
+    // v2.70: just a soft glow that swells brighter and fades (no rings)
+    let glowUp = 0;
     if (pulse > 0){
-      ctx.globalAlpha = 0.20 + pulse*0.55;
-      ctx.fillStyle = theme.accent;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 18 + pulse*12, 0, Math.PI*2);
-      ctx.fill();
+      const g0 = 1 - pulse;
+      glowUp = g0 < 0.25 ? Math.sin((g0 / 0.25) * Math.PI / 2) : Math.pow(1 - (g0 - 0.25) / 0.75, 1.6);   // quick swell, slow fade
+      const R = 24 + glowUp * 12;
+      const bloom = ctx.createRadialGradient(cx, cy, 4, cx, cy, R);
+      bloom.addColorStop(0, fxc.rgba(0.55 * glowUp));
+      bloom.addColorStop(0.5, fxc.rgba(0.32 * glowUp));
+      bloom.addColorStop(1, fxc.rgba(0));
+      ctx.globalAlpha = 1; ctx.fillStyle = bloom;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
     }
 
     if (flash > 0){
@@ -17372,7 +17391,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     // in its own color. The hole's outline stays exactly as it normally looks.
     const carrying = game.carry.length;
     const fullLoad = carrying > 0 && carrying >= carryCap();
-    const litColor = holeLitColor(holeStroke);           // brightened version of this level's rim color
+    const litColor = fxc;                                 // v2.70: same level color as the drop glow
     if (carrying > 0){
       const tt = Date.now() / 1000;
       const breathe = 0.5 + 0.5 * Math.sin(tt * (fullLoad ? 3.5 : 2.2));
@@ -17409,40 +17428,23 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.fillStyle = holeColor;
     ctx.globalAlpha = 0.92;
     ctx.beginPath();
-    ctx.arc(cx, cy, 8 + pulse*2, 0, Math.PI*2);
+    ctx.arc(cx, cy, 8, 0, Math.PI*2);
     ctx.fill();
     
     // Refined subtle pulsating outline
     ctx.globalAlpha = 0.85 + pulseIntensity * 0.15;
     ctx.lineWidth = 1.2 + pulseIntensity * 0.3;
-    ctx.strokeStyle = holeStroke;
-    ctx.shadowColor = holeStroke;
-    ctx.shadowBlur = 6 + pulseIntensity * 4;
+    ctx.strokeStyle = glowUp > 0.05 ? fxc.hex : holeStroke;
+    ctx.shadowColor = glowUp > 0.05 ? fxc.hex : holeStroke;
+    ctx.shadowBlur = 6 + pulseIntensity * 4 + glowUp * 12;
     ctx.beginPath();
-    ctx.arc(cx, cy, 16 + pulse*6, 0, Math.PI*2);
+    ctx.arc(cx, cy, 16, 0, Math.PI*2);
     ctx.stroke();
 
-    const beaconColor = litColor.hex;   // gulp uses the hole's own (brightened) color
+    const beaconColor = fxc.hex;   // v2.69: everything in the drop uses the one level color
 
 
-    // GULP: on deposit, streaks swirl down into the hole and the rim snaps inward.
-    if (pulse > 0){
-      const g = 1 - pulse;                      // 0 -> 1 over the gulp
-      ctx.strokeStyle = beaconColor;
-      ctx.lineWidth = 2;
-      for (let k = 0; k < 7; k++){
-        const ang = k * (Math.PI * 2 / 7) + g * 5;
-        const r0 = 26 * (1 - g) + 4, r1 = r0 * 0.55;
-        ctx.globalAlpha = 0.9 * pulse;
-        ctx.beginPath();
-        ctx.moveTo(cx + Math.cos(ang) * r0, cy + Math.sin(ang) * r0);
-        ctx.lineTo(cx + Math.cos(ang + 0.5) * r1, cy + Math.sin(ang + 0.5) * r1);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 0.8 * pulse;
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(cx, cy, 6 + 14 * (1 - g), 0, Math.PI * 2); ctx.stroke();
-    }
+    // (v2.70: the gulp streaks and rings were removed; the drop is now just the soft glow above)
 
     ctx.restore();
     ctx.globalAlpha = 1;
