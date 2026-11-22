@@ -832,6 +832,9 @@
         height:100%;
         max-width:100%;
         max-height:100%;
+        display:block;
+        margin:0 auto;
+        touch-action: manipulation;
       }
 
       .panel-right{
@@ -1000,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.72</span></div>
+          <div>STICKS <span class="badge">v2.76</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -11703,15 +11706,13 @@ function fitCanvasCSS(){
   try{
     // Phone layout has its own split-screen sizing rules.
     if (window.matchMedia('(max-width:720px)').matches){
-      canvas.style.width = '';
-      canvas.style.height = '';
-
-      // After layout, match the backing store to the rendered size.
-      requestAnimationFrame(() => {
-        const r = canvas.getBoundingClientRect();
-        const cssSize = Math.max(320, Math.floor(Math.min(r.width, r.height)));
-        applyCanvasBacking(cssSize);
-      });
+      // v2.76: keep the board square on phones (it used to stretch taller than wide)
+      const wrapEl = document.querySelector('.gameWrap');
+      const ww = wrapEl ? wrapEl.clientWidth : window.innerWidth, wh = wrapEl ? wrapEl.clientHeight : window.innerWidth;
+      const size = Math.max(240, Math.floor(Math.min(ww, wh || ww)));
+      canvas.style.width = size + 'px';
+      canvas.style.height = size + 'px';
+      applyCanvasBacking(size);
       return;
     }
 
@@ -12712,7 +12713,9 @@ function sfxMonsterVictoryStreak(){
     const toU = (v) => (v - S / 2) / M + TILE / 2;
     const ut = toU(prev.t), ub = toU(prev.b), ul = toU(prev.l), ur = toU(prev.r);
     const w = Math.max(8, ur - ul), h = Math.max(8, ub - ut);
-    const k = Math.min(250 / w, 176 / h, 4.4);   // fill about 80% of the box, capped so short sticks don't balloon
+    let k = Math.min(250 / w, 176 / h, 4.4);   // fill about 80% of the box, capped so short sticks don't balloon
+    // Mystic's pointed hood rises above a normal head; give it a little extra so its body matches the others
+    if (skin === "mystic") k = Math.min(k * 1.12, 204 / h);
     prev.fit = { k, cx: (ul + ur) / 2, cy: (ut + ub) / 2 };
     skinFitCache[key] = prev;
     return prev.fit;
@@ -17782,10 +17785,11 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       const life = 1.15, k = p.t / life;
       if (k >= 1){ fx.pops.splice(i, 1); continue; }
       const sc = k < 0.15 ? 0.6 + (k / 0.15) * 0.55 : 1.15 - Math.min(0.15, (k - 0.15) * 0.5);
-      ctx.save();
+      ctx.save(); camScreen();   // screen space (phone zoom doesn't double the text)
+      const sp = camW2S(p.x, p.y);
       ctx.font = "900 " + p.size + "px ui-monospace, Menlo, Consolas, monospace";
-      const halfW = ctx.measureText(p.text).width * 0.6 + 6, px = Math.max(halfW, Math.min(CANVAS_W - halfW, p.x));
-      ctx.translate(px, p.y - k * 34); ctx.scale(sc, sc);
+      const halfW = ctx.measureText(p.text).width * 0.6 + 6, px = Math.max(halfW, Math.min(CANVAS_W - halfW, sp.x));
+      ctx.translate(px, sp.y - k * 34); ctx.scale(sc, sc);
       ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
       ctx.font = "900 " + p.size + "px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.strokeText(p.text, 0, 0);
@@ -18038,16 +18042,16 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       const b = talk.bubble, k = (now - b.t0) / b.dur;
       if (k >= 1) talk.bubble = null;
       else {
-        const a = k < 0.08 ? k / 0.08 : k > 0.85 ? (1 - k) / 0.15 : 1, p = fxPlayerPx();
-        talkBubble(p.x, p.y - TILE * 0.95, b.text, 13, a, 190, p.y + TILE * 0.95);
+        const a = k < 0.08 ? k / 0.08 : k > 0.85 ? (1 - k) / 0.15 : 1, pw = fxPlayerPx(), p = camW2S(pw.x, pw.y), off = TILE * 0.95 * cam.z;
+        ctx.save(); camScreen(); talkBubble(p.x, p.y - off, b.text, 13, a, 190, p.y + off); ctx.restore();
       }
     }
     if (!talk.cut) return;
     if (talk.cut.small){
       const c = talk.cut, el = c.skipAt ? 1e9 : now - c.t0;
       if (el >= 1600){ talkEndCut(); return; }
-      const p = fxPlayerPx(), a = el < 120 ? el / 120 : el > 1350 ? (1600 - el) / 250 : 1;
-      talkBubble(p.x, p.y - TILE * 0.95, c.text, 14, a, 200, p.y + TILE * 0.95);
+      const pw = fxPlayerPx(), p = camW2S(pw.x, pw.y), off = TILE * 0.95 * cam.z, a = el < 120 ? el / 120 : el > 1350 ? (1600 - el) / 250 : 1;
+      ctx.save(); camScreen(); talkBubble(p.x, p.y - off, c.text, 14, a, 200, p.y + off); ctx.restore();
       return;
     }
     const c = talk.cut, IN = 380, HOLD = 2300, OUT = 320;
@@ -18060,8 +18064,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.save(); ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     // dim the board, with a soft spotlight
     ctx.fillStyle = "rgba(4,7,14," + (0.78 * ease) + ")"; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-    const p = fxPlayerPx(), tx = CANVAS_W / 2, ty = CANVAS_H * 0.64;
-    const cx = p.x + (tx - p.x) * ease, cy = p.y + (ty - p.y) * ease, s = 1 + 3.6 * ease;
+    const p = fxPlayerPx(), ps = camW2S(p.x, p.y), tx = CANVAS_W / 2, ty = CANVAS_H * 0.64;
+    const cx = ps.x + (tx - ps.x) * ease, cy = ps.y + (ty - ps.y) * ease, s = cam.z + (4.6 - cam.z) * ease;
     const theme = currentLevelTheme(), col = theme.accent || "#3aa7ff";
     const sg = ctx.createRadialGradient(cx, cy, 4, cx, cy, 150 * ease + 1);
     sg.addColorStop(0, "rgba(255,255,255," + (0.16 * ease) + ")"); sg.addColorStop(1, "rgba(255,255,255,0)");
@@ -18087,6 +18091,75 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.restore();
   }
   // ===== END TALKING STICKS =====
+
+  // ===== v2.76 PHONE CAMERA =====
+  // On phones the 24x24 board is small (about 16px squares). The camera zooms in 2x (a 12x12 window)
+  // and smoothly follows your stick, so squares are twice as big. The game itself is unchanged. When the
+  // hole is off-screen a glowing arrow at the edge points to it. Tap the board to switch between the
+  // zoomed view and the whole field (remembered). Laptops and desktops are not affected.
+  const LS_PHONE_ZOOM = "sticks_phoneZoom_v1";
+  let phoneZoomPref = (localStorage.getItem(LS_PHONE_ZOOM) || "1") === "1";
+  const cam = { on: false, z: 1, x: 0, y: 0, lastT: 0, level: -1, hintUntil: 0, hint: "" };
+  function camIsPhone(){ return !!(window.matchMedia && window.matchMedia("(max-width:720px)").matches); }
+  function camUpdate(){
+    cam.on = camIsPhone() && phoneZoomPref;
+    const targetZ = cam.on ? 2 : 1;
+    const now = performance.now(), dt = Math.min(0.05, cam.lastT ? (now - cam.lastT) / 1000 : 0.016); cam.lastT = now;
+    const p = fxPlayerPx(), k = 1 - Math.exp(-dt * 7);
+    const snap = cam.level !== game.level;
+    if (snap){ cam.level = game.level; cam.z = targetZ;
+      if (cam.on){ cam.hintUntil = now + 5000; cam.hint = "Tap the board to see the whole field"; } }
+    else cam.z += (targetZ - cam.z) * k;
+    if (Math.abs(cam.z - targetZ) < 0.002) cam.z = targetZ;
+    const vw = CANVAS_W / cam.z, vh = CANVAS_H / cam.z;
+    const tx = Math.max(0, Math.min(CANVAS_W - vw, p.x - vw / 2)), ty = Math.max(0, Math.min(CANVAS_H - vh, p.y - vh / 2));
+    if (snap){ cam.x = tx; cam.y = ty; } else { cam.x += (tx - cam.x) * k; cam.y += (ty - cam.y) * k; }
+    cam.x = Math.max(0, Math.min(CANVAS_W - vw, cam.x)); cam.y = Math.max(0, Math.min(CANVAS_H - vh, cam.y));
+  }
+  function camApply(){ if (cam.z !== 1 || cam.x || cam.y){ ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y); } }
+  function camW2S(x, y){ return { x: (x - cam.x) * cam.z, y: (y - cam.y) * cam.z }; }
+  function camScreen(){ ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0); }
+  function camToggle(){
+    phoneZoomPref = !phoneZoomPref;
+    try { localStorage.setItem(LS_PHONE_ZOOM, phoneZoomPref ? "1" : "0"); } catch(_){}
+    cam.hintUntil = performance.now() + 2200; cam.hint = phoneZoomPref ? "Zoomed in  ·  tap to see the whole field" : "Whole field  ·  tap to zoom in";
+  }
+  // screen-space extras: an arrow to the hole when it's off-screen, and the short tap hint
+  function camDrawOverlay(){
+    if (!camIsPhone()) return;
+    const now = performance.now();
+    if (cam.z > 1.05 && typeof holeVisible !== "undefined" && holeVisible){
+      const hx = game.holeX * TILE + TILE / 2, hy = game.holeY * TILE + TILE / 2, s = camW2S(hx, hy), M = 22;
+      if (s.x < -6 || s.x > CANVAS_W + 6 || s.y < -6 || s.y > CANVAS_H + 6){
+        const cx = CANVAS_W / 2, cy = CANVAS_H / 2, dx = s.x - cx, dy = s.y - cy;
+        const f = Math.min((CANVAS_W / 2 - M) / Math.max(1, Math.abs(dx)), (CANVAS_H / 2 - M) / Math.max(1, Math.abs(dy)));
+        const ax = cx + dx * f, ay = cy + dy * f, ang = Math.atan2(dy, dx);
+        const col = holeFxColor(currentLevelTheme()), pul = 0.75 + 0.25 * Math.sin(now / 260);
+        ctx.save(); ctx.translate(ax, ay);
+        const gl = ctx.createRadialGradient(0, 0, 2, 0, 0, 24); gl.addColorStop(0, col.rgba(0.45 * pul)); gl.addColorStop(1, col.rgba(0));
+        ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#06080d"; ctx.strokeStyle = col.hex; ctx.lineWidth = 2.5;
+        ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI * 2); ctx.fill(); ctx.stroke();       // a little hole icon
+        ctx.rotate(ang); ctx.fillStyle = col.hex; ctx.shadowColor = col.hex; ctx.shadowBlur = 10;
+        ctx.beginPath(); ctx.moveTo(19, 0); ctx.lineTo(11, -6); ctx.lineTo(11, 6); ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
+    if (now < cam.hintUntil && cam.hint){
+      const a = Math.min(1, (cam.hintUntil - now) / 600);
+      ctx.save(); ctx.globalAlpha = 0.9 * a; ctx.font = "800 15px ui-monospace, Menlo, Consolas, monospace";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      const w = ctx.measureText(cam.hint).width + 28;
+      ctx.fillStyle = "rgba(6,10,18,0.82)"; ctx.strokeStyle = "rgba(58,167,255,0.6)"; ctx.lineWidth = 1.5;
+      const bx = CANVAS_W / 2 - w / 2, by = CANVAS_H - 46;
+      ctx.beginPath(); ctx.moveTo(bx + 14, by); ctx.arcTo(bx + w, by, bx + w, by + 30, 14); ctx.arcTo(bx + w, by + 30, bx, by + 30, 14);
+      ctx.arcTo(bx, by + 30, bx, by, 14); ctx.arcTo(bx, by, bx + w, by, 14); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = "#e6edf3"; ctx.fillText(cam.hint, CANVAS_W / 2, by + 15);
+      ctx.restore();
+    }
+  }
+  // ===== END PHONE CAMERA =====
+
 
 
   function drawPlayer(){
@@ -18403,7 +18476,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     const drawSuperBody = () => {
       const time = Date.now() * 0.001;
       const ph = (time % 6) / 6;                                       // a 6-second cycle
-      const flyK = ph < 0.55 ? 0 : Math.sin(((ph - 0.55) / 0.45) * Math.PI);   // 0 standing, 1 fully up
+      const flyK = (ph < 0.55 || (typeof skinMeasuring !== "undefined" && skinMeasuring)) ? 0 : Math.sin(((ph - 0.55) / 0.45) * Math.PI);   // 0 standing, 1 fully up (measured standing)
       const lift = -flyK * 5, rip = Math.sin(time * 9) * (1 + flyK * 1.5);
       if (flyK > 0.05){ ctx.save(); ctx.globalAlpha = 0.25 * flyK; ctx.fillStyle = "#000";      // shadow on the ground
         ctx.beginPath(); ctx.ellipse(0, 15.5, 6 - flyK * 2, 1.4, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
@@ -18476,7 +18549,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.restore();
       // the occasional "?"
       const q = (time % 5) / 5;
-      if (q > 0.7){ const k = (q - 0.7) / 0.3; ctx.save(); ctx.globalAlpha = Math.sin(k * Math.PI);
+      if (q > 0.7 && !(typeof skinMeasuring !== "undefined" && skinMeasuring)){ const k = (q - 0.7) / 0.3; ctx.save(); ctx.globalAlpha = Math.sin(k * Math.PI);
         ctx.fillStyle = "#ffd54a"; ctx.font = "bold 8px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "center";
         ctx.fillText("?", 9, -11 - k * 2.5); ctx.restore(); }
       drawCarryDots();
@@ -18630,7 +18703,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       const time = Date.now() * 0.001;
       const RED = "#8b0a14", EDGE = "#4a0208", GOLD = "#ffd36b", hatLvl = levelHatOn();
       const sw = Math.sin(time * 1.3) * 0.7, sw2 = Math.sin(time * 1.3 + 0.8) * 0.5;
-      // magic moment: every 7 seconds, about 2.5 seconds of gold sparkles and mist
+      // magic moment: every 7 seconds, about 2.5 seconds of gold sparkles and mist (left out while the picker measures it)
       const mp = (time % 7) / 7, magic = (mp < 0.36 && !(typeof skinMeasuring !== "undefined" && skinMeasuring)) ? Math.sin((mp / 0.36) * Math.PI) : 0;
       ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.shadowBlur = 0;
       if (magic > 0){
@@ -20153,7 +20226,8 @@ ctx.restore();
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     try { ctx.imageSmoothingEnabled = false; } catch(e) {}
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    fxWatch(); const fsh = fxShakeOffset(); ctx.translate(fsh.x, fsh.y);   // v2.64: getting-hit shake
+    fxWatch(); const fsh = fxShakeOffset(); ctx.translate(fsh.x, fsh.y);   // getting-hit shake
+    camUpdate(); camApply();                                                 // v2.76: phone camera (zoom + follow)
 
     const theme = currentLevelTheme();
     drawGrid(theme);
@@ -20329,6 +20403,7 @@ ctx.restore();
     fxDrawOverlay();   // floating points and the hit flash
     talkDraw();        // v2.65: speech bubbles and the zoom-in moments
 
+    camScreen(); camDrawOverlay();   // v2.76: back to screen space: hole arrow and tap hint (phones)
     drawHudText();
     
     // Draw level intro logo (on top of everything)
@@ -20732,7 +20807,10 @@ ui.nameInput.addEventListener("keydown", (e) => {
   });
 
   // Tap/click the board to dismiss the level Ready screen.
-  try { canvas.addEventListener('pointerdown', () => { if (introFreezesGame()) dismissLevelIntro(); }); } catch(e) {}
+  try { canvas.addEventListener('pointerdown', () => {
+    if (introFreezesGame()) { dismissLevelIntro(); return; }
+    if (camIsPhone()) camToggle();   // v2.76: tap the board to switch between zoomed in and the whole field
+  }); } catch(e) {}
 
   // ===== CONTROLLER / ARCADE STICK SUPPORT (v2.42, 2026-11-21) =====
   // Works with any USB controller the browser can see (built for the Hyperkin Trooper II).
