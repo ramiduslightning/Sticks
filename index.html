@@ -977,7 +977,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.47</span></div>
+          <div>STICKS <span class="badge">v2.49</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -13678,7 +13678,7 @@ function sfxMonsterVictoryStreak(){
       X.save(); X.translate(x, y); X.rotate(rot || 0);
       neon(() => { X.roundRect ? X.roundRect(-s/2, -s/2, s, s, s*0.18) : X.rect(-s/2, -s/2, s, s); }, color, 4);
       X.fillStyle = 'rgba(10,14,24,0.88)'; X.beginPath(); X.rect(-s/2+5, -s/2+5, s-10, s-10); X.fill();
-      const P = {1:[[0,0]],2:[[-1,-1],[1,1]],3:[[-1,-1],[0,0],[1,1]],4:[[-1,-1],[1,-1],[-1,1],[1,1]],5:[[-1,-1],[1,-1],[0,0],[-1,1],[1,1]]}[face];
+      const P = {1:[[0,0]],2:[[-1,-1],[1,1]],3:[[-1,-1],[0,0],[1,1]],4:[[-1,-1],[1,-1],[-1,1],[1,1]],5:[[-1,-1],[1,-1],[0,0],[-1,1],[1,1]],6:[[-1,-1],[1,-1],[-1,0],[1,0],[-1,1],[1,1]]}[face];
       if (!face){ text('0', 0, 2, s*0.55, color); }
       else P.forEach(d => { X.fillStyle = '#fff'; X.shadowColor = color; X.shadowBlur = 10; X.beginPath(); X.arc(d[0]*s*0.25, d[1]*s*0.25, s*0.08, 0, TAU); X.fill(); });
       X.restore();
@@ -13780,6 +13780,53 @@ function sfxMonsterVictoryStreak(){
         text('roll 2–5 to win', 320, 570, 26, '#ffd54a', { weight:800 });
         frame('#ff4d6d');
       },
+      // 5b. Bonus Stick: walk to a glowing stick, actions double, then a two-dice bonus roll lands on 12
+      function(t){
+        bg('#141100', '#050400', 'rgba(255,213,74,0.06)', 30, t);
+        const p = t % 6.5;
+        const walk = Math.min(1, p / 1.6), px = 140 + walk * 170, step = p < 1.6 ? Math.sin(p * 12) : 0;
+        const picked = p >= 1.7;
+        if (!picked){ glow(345, 410, 70 + wave(t, 6, 10), '#ffd54a', 0.6); stick(345, 410, 46, 0.5, '#ffd54a', 5); }
+        figure(px, 210, 30, '#4dd0ff', { lLeg:[110 + step * 22, 100], rLeg:[70 - step * 22, 80],
+          lArm: picked ? [-150, -120] : [-140 + step * 20, -170], rArm: picked ? [-30, -60] : [-40 - step * 20, -10] });
+        if (picked){ const h = Math.min(1, (p - 1.7) * 3); glow(px, 160, 90, '#ffd54a', 0.35 * h); stick(px + 52, 150, 40, 1.2, '#ffd54a', 5); }
+        if (p >= 1.9 && p < 3.4) text('x2 ACTIONS!', 320, 110 - (p - 1.9) * 12, 50, '#ffd54a', { spacing:3, alpha:Math.min(1, (3.4 - p) * 2) });
+        if (p >= 3.2){
+          const rolling = p < 4.4, q = Math.floor(t * 12);
+          const f1 = rolling ? 1 + q % 6 : 6, f2 = rolling ? 1 + (q + 2) % 6 : 6;   // bonus dice are real six-siders
+          const bnc = k => rolling ? -Math.abs(Math.sin(t * 9 + k)) * 24 : 0, sp = k => rolling ? Math.sin(t * 13 + k) * 0.6 : 0;
+          die(420, 430 + bnc(0), 80, f1, '#ffd54a', 0.15 + sp(0)); die(530, 440 + bnc(1), 80, f2, '#ff9f43', -0.2 + sp(1));
+          if (!rolling) text('BONUS ROLL: 12!', 320, 540, 34, '#ff9f43', { spacing:2, alpha:0.6 + wave(t, 8, 0.4) });
+        }
+        text('BONUS STICK', 320, 600, 30, '#ffd54a', { weight:800, spacing:4 });
+        frame('#ffd54a');
+      },
+      // 5c. Mystery Tree: it sprouts, the player feeds it a stick, a heart rises: +1 LIFE
+      function(t){
+        bg('#04140a', '#010603', 'rgba(74,222,128,0.05)', 40, t);
+        const p = t % 6.5, grow = Math.min(1, p / 1.0), blink = p > 5.6 ? (Math.sin(p * 30) > 0 ? 1 : 0.25) : 1;
+        // tree (brown trunk, green glowing canopy, like the game's tree)
+        X.save(); X.globalAlpha = blink; X.translate(420, 420); X.scale(grow, grow);
+        glow(0, -120, 150, '#4ade80', 0.35 + wave(t, 3, 0.08));
+        X.fillStyle = '#8B4513'; X.fillRect(-14, -90, 28, 90);
+        X.shadowColor = '#4ade80'; X.shadowBlur = 25; X.fillStyle = '#22c55e';
+        [[0, -130, 90, 70], [0, -190, 55, 45], [-62, -110, 50, 40], [62, -110, 50, 40]].forEach(e => { X.beginPath(); X.ellipse(e[0], e[1], e[2], e[3], 0, 0, TAU); X.fill(); });
+        X.shadowBlur = 0; X.restore();
+        // player walks up carrying a stick, then feeds it to the tree
+        const walk = Math.min(1, Math.max(0, (p - 0.8) / 1.4)), px = 120 + walk * 170, moving = walk > 0 && walk < 1, s2 = moving ? Math.sin(p * 12) : 0;
+        figure(px, 250, 28, '#4dd0ff', { lLeg:[110 + s2 * 22, 100], rLeg:[70 - s2 * 22, 80], lArm:[-140 + s2 * 20, -170], rArm:[-20, 10] });
+        const feed = Math.min(1, Math.max(0, (p - 2.4) / 0.8));
+        if (p < 3.2) stick(px + 60 + feed * 70, 300 - feed * 20, 36, 0.6 + feed * 3, '#ff9f43', 4);
+        if (p >= 3.2 && p < 5.6){ const r = (p - 3.2) / 2.4;
+          const hx = 420, hy = 250 - r * 140, hs = 26 + Math.sin(p * 10) * 3;
+          X.save(); X.globalAlpha = Math.min(1, (1 - r) * 3); X.fillStyle = '#ff4d6d'; X.shadowColor = '#ff4d6d'; X.shadowBlur = 30; X.beginPath();
+          X.moveTo(hx, hy + hs * 0.9); X.bezierCurveTo(hx - hs * 1.6, hy - hs * 0.2, hx - hs * 0.6, hy - hs * 1.3, hx, hy - hs * 0.4);
+          X.bezierCurveTo(hx + hs * 0.6, hy - hs * 1.3, hx + hs * 1.6, hy - hs * 0.2, hx, hy + hs * 0.9); X.fill(); X.restore();
+          text('+1 LIFE', 420, hy - 60, 36, '#ff6b8a', { spacing:2, alpha:Math.min(1, (1 - r) * 3) }); }
+        text('MYSTERY TREE', 320, 560, 40, '#4ade80', { spacing:4 });
+        text('feed it a stick for a life', 320, 602, 20, '#cdd9e5', { weight:700, alpha:0.85 });
+        frame('#4ade80');
+      },
       // 6. Night Stick: the triangle UFO from Level 1 beams the player up
       function(t){
         bg('#020414', '#000107', null, 200, t);
@@ -13805,15 +13852,92 @@ function sfxMonsterVictoryStreak(){
         text('Rex catches a free ride', 320, 598, 22, '#cdd9e5', { weight:700, alpha:0.85 });
         frame('#6464ff');
       },
-      // 7. Fifteen worlds: nine themed figures bouncing in turn
+      // 6b. Glow Stick: pitch dark, a flashlight sweeps the board, shadow monsters lurk just outside the light
+      function(t){
+        bg('#1a1206', '#0a0702', 'rgba(255,179,71,0.08)', 0, t);
+        seed = 77; for (let i = 0; i < 12; i++) stick(R(60, 580), R(80, 480), R(20, 34), R(0, Math.PI), COLORS[i % COLORS.length], 3);
+        const px = 250 + wave(t, 0.6, 40), py = 300, ang = -0.4 + Math.sin(t * 0.8) * 1.3;
+        const mons = [[470, 170], [520, 400], [120, 140], [150, 450], [360, 470]];
+        mons.forEach((m, i) => { const mx = m[0] + wave(t, 1.3, 14, i), my = m[1] + wave(t, 1.7, 10, i);
+          const g = X.createRadialGradient(mx, my, 0, mx, my, 46); g.addColorStop(0, 'rgba(80,40,0,0.9)'); g.addColorStop(1, 'rgba(40,20,0,0)');
+          X.fillStyle = g; X.beginPath(); X.arc(mx, my, 46, 0, TAU); X.fill(); });
+        figure(px, py - 70, 22, '#ffb347', { lArm:[-140, -170], rArm:[ang * 57, ang * 57], lLeg:[110 + wave(t, 6, 10), 100], rLeg:[70 - wave(t, 6, 10), 80] });
+        // darkness everywhere except the flashlight cone and a small circle around the player
+        const reach = 360, spread = 0.42, hx = px + Math.cos(ang) * 30, hy = py - 50 + Math.sin(ang) * 30;
+        X.save(); X.fillStyle = 'rgba(0,0,0,0.93)'; X.beginPath(); X.rect(0, 0, W, H);
+        X.moveTo(hx, hy); X.arc(hx, hy, reach, ang - spread, ang + spread); X.closePath();
+        X.moveTo(px + 70, py - 20); X.arc(px, py - 20, 70, 0, TAU);
+        X.fill('evenodd'); X.restore();
+        const beam = X.createRadialGradient(hx, hy, 0, hx, hy, reach); beam.addColorStop(0, 'rgba(255,230,160,0.28)'); beam.addColorStop(1, 'rgba(255,230,160,0)');
+        X.fillStyle = beam; X.beginPath(); X.moveTo(hx, hy); X.arc(hx, hy, reach, ang - spread, ang + spread); X.closePath(); X.fill();
+        // glowing eyes show even in the dark
+        mons.forEach((m, i) => { const mx = m[0] + wave(t, 1.3, 14, i), my = m[1] + wave(t, 1.7, 10, i), bl = ((t + i) % 2.8) < 0.12 ? 0.2 : 1;
+          X.fillStyle = '#ffb347'; X.shadowColor = '#ffb347'; X.shadowBlur = 14;
+          [-9, 9].forEach(ex => { X.beginPath(); X.ellipse(mx + ex, my - 6, 4.5, 4.5 * bl, 0, 0, TAU); X.fill(); }); X.shadowBlur = 0; });
+        text('GLOW STICK', 320, 560, 40, '#ffb347', { spacing:4 });
+        text('stay in the light', 320, 602, 20, '#cdd9e5', { weight:700, alpha:0.85 });
+        frame('#ffb347');
+      },
+      // 6c. Spell Stick: step into one portal, pop out of its twin across the board
+      function(t){
+        bg('#14041a', '#050108', 'rgba(255,79,216,0.05)', 50, t);
+        const p = t % 6.5, A = { x:190, y:330 }, B = { x:470, y:230 };
+        [A, B].forEach((o, i) => { const pulse = 0.5 + 0.5 * Math.sin(t * 4 + i);
+          glow(o.x, o.y, 80 + pulse * 20, '#ff4fd8', 0.35 + pulse * 0.2);
+          neon(() => { X.ellipse(o.x, o.y, 52, 20, 0, 0, TAU); }, '#ff4fd8', 4);
+          neon(() => { X.ellipse(o.x, o.y, 34 + pulse * 6, 12 + pulse * 3, 0, 0, TAU); }, '#ffb3f0', 2);
+          seed = 300 + i; for (let k = 0; k < 6; k++){ const a = t * (1.5 + k * 0.2) + k, r = R(40, 70);
+            X.fillStyle = '#ffe0fa'; X.beginPath(); X.arc(o.x + Math.cos(a) * r, o.y + Math.sin(a) * r * 0.45 - 20, 2, 0, TAU); X.fill(); } });
+        let fx, fy, sc = 1, rot = 0, vis = true;
+        if (p < 1.6){ const w = p / 1.6; fx = 60 + w * (A.x - 60); fy = A.y; }
+        else if (p < 2.3){ const k = (p - 1.6) / 0.7; fx = A.x; fy = A.y + k * 10; sc = 1 - k; rot = k * 6; }
+        else if (p < 2.8){ vis = false; }
+        else if (p < 3.5){ const k = (p - 2.8) / 0.7; fx = B.x; fy = B.y + (1 - k) * 10; sc = k; rot = (1 - k) * 6; }
+        else { const w = Math.min(1, (p - 3.5) / 1.6); fx = B.x + w * 110; fy = B.y; }
+        if (p >= 2.2 && p < 3.0){ const k = 1 - Math.abs(p - 2.6) / 0.4; glow(A.x, A.y, 120, '#ffffff', 0.4 * k); glow(B.x, B.y, 120, '#ffffff', 0.4 * k); }
+        if (vis){ const walking = p < 1.6 || p >= 3.5, st = walking ? Math.sin(p * 12) : 0;
+          X.save(); X.translate(fx, fy); X.rotate(rot); X.scale(sc, sc); X.translate(-fx, -fy);
+          figure(fx, fy - 140, 24, '#4dd0ff', { lLeg:[110 + st * 22, 100], rLeg:[70 - st * 22, 80], lArm:[-140 + st * 20, -170], rArm:[-40 - st * 20, -10] });
+          X.restore(); }
+        text('SPELL STICK', 320, 520, 44, '#ff4fd8', { spacing:4 });
+        text('step in here... pop out there', 320, 575, 20, '#cdd9e5', { weight:700, alpha:0.85 });
+        frame('#ff4fd8');
+      },
+      // 6d. Sea Stick: shark fins circle while the player dashes to the hole
+      function(t){
+        const g = X.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#022a4d'); g.addColorStop(1, '#001223'); X.fillStyle = g; X.fillRect(0, 0, W, H);
+        X.strokeStyle = 'rgba(0,191,255,0.06)'; X.lineWidth = 1; X.beginPath(); for (let i = 0; i <= W; i += 40){ X.moveTo(i, 0); X.lineTo(i, H); X.moveTo(0, i); X.lineTo(W, i); } X.stroke();
+        seed = 500; for (let i = 0; i < 22; i++){ const bx = R(20, 620), sp = R(20, 50), by = H - ((t * sp + R(0, H)) % H), r = R(2, 6);
+          X.strokeStyle = 'rgba(200,230,255,0.35)'; X.lineWidth = 1.5; X.beginPath(); X.arc(bx + wave(t, 2, 4, i), by, r, 0, TAU); X.stroke(); }
+        const p = t % 6.5, run = Math.min(1, p / 4.2), px = 100 + run * 350, py = 300 - Math.sin(run * Math.PI) * 30;
+        hole(470, 400, 60, '#00bfff', p > 4.2 ? Math.max(0, 1 - (p - 4.2) * 2) : 0.2);
+        // sharks: blue-grey bodies just under the water, fins cutting the surface
+        [[320, 300, 150, 0.9, 0], [320, 300, 220, -0.6, 2], [200, 470, 90, 1.3, 4]].forEach(sh => {
+          const a = t * sh[3] + sh[4], sx = sh[0] + Math.cos(a) * sh[2], sy = sh[1] + Math.sin(a) * sh[2] * 0.55, dir = Math.sign(sh[3]) * (Math.sin(a) > 0 ? -1 : 1);
+          X.save(); X.translate(sx, sy); X.scale(dir, 1);
+          X.fillStyle = 'rgba(74,107,138,0.55)'; X.beginPath(); X.ellipse(0, 6, 48, 16, 0, 0, TAU); X.fill();
+          X.fillStyle = '#3a5b7a'; X.strokeStyle = '#9ed8ff'; X.lineWidth = 2; X.shadowColor = '#00bfff'; X.shadowBlur = 10;
+          X.beginPath(); X.moveTo(-14, 2); X.quadraticCurveTo(-2, -34, 16, -40); X.quadraticCurveTo(8, -18, 14, 2); X.closePath(); X.fill(); X.stroke();
+          X.shadowBlur = 0; X.strokeStyle = 'rgba(200,230,255,0.5)'; X.beginPath(); X.ellipse(0, 3, 30, 5, 0, 0, TAU); X.stroke(); X.restore(); });
+        if (p < 4.4){ const st = Math.sin(p * 16);
+          figure(px, py - 130, 24, '#ffd54a', { tilt:8, lLeg:[100 + st * 35, 90], rLeg:[80 - st * 35, 90], lArm:[-150 + st * 40, -170], rArm:[-30 - st * 40, -10] });
+          stick(px + 34, py - 70, 30, 0.8, '#7cff6b', 3); }
+        if (p >= 4.3 && p < 6) text('SAFE! + POINTS', 470, 300 - (p - 4.3) * 15, 32, '#00e5ff', { spacing:2, alpha:Math.min(1, (6 - p) * 2) });
+        text('SEA STICK', 320, 560, 40, '#00bfff', { spacing:4 });
+        text('dodge the sharks', 320, 602, 20, '#cdd9e5', { weight:700, alpha:0.85 });
+        frame('#00bfff');
+      },
+      // 7. Fifteen worlds: all 15 level themes in level order, hopping in a wave from Level 1 to 15
       function(t){
         bg('#0a0d16', '#020306', null, 40, t);
-        const T = [['FIRE','#ff4d2e'],['ICE','#9be7ff'],['SEA','#00bfff'],['SUN','#ffd400'],['SPIDER','#c77dff'],['SNAKE','#7cff6b'],['SKY','#4dd0ff'],['SPELL','#ff4fd8'],['GLOW','#ffb347']];
-        T.forEach((w, i) => { const cx = 120 + (i % 3) * 200, cy = 120 + Math.floor(i / 3) * 140;
-          const hop = Math.max(0, Math.sin(t * 4 - i * 0.7)) * 8;
-          glow(cx, cy, 70, w[1], 0.25 + hop / 50);
-          figure(cx, cy - 38 - hop, 12, w[1], { lArm:[-150, -120 + hop * 2], rArm:[-30, -60 - hop * 2] });
-          text(w[0], cx, cy + 64, 21, w[1], { spacing:3 }); });
+        const T = [['NIGHT','#e0b04a'],['SPARKLE','#e7b3ff'],['SUN','#ffd400'],['SKY','#4da6ff'],['FIRE','#ff4d4d'],
+                   ['MOUNTAIN','#c8b49a'],['CURSED','#9b4dff'],['BANANA','#ffe14d'],['ICE','#a8dcff'],['GLOW','#ff9f2e'],
+                   ['SPELL','#ff3fa8'],['SEA','#00bfff'],['SNAKE','#e8c88a'],['SPIDER','#a77dff'],['VICTORY','#4dff88']];
+        T.forEach((w, i) => { const cx = 80 + (i % 5) * 120, cy = 128 + Math.floor(i / 5) * 140;
+          const hop = Math.max(0, Math.sin(t * 3.2 - i * 0.42)) * 8;
+          glow(cx, cy, 56, w[1], 0.22 + hop / 45);
+          figure(cx, cy - 36 - hop, 10, w[1], { lArm:[-150, -120 + hop * 2], rArm:[-30, -60 - hop * 2] });
+          text(w[0], cx, cy + 56, 15, w[1], { spacing:1 }); });
         text('15 WORLDS', 320, 575, 58, '#ffffff', { spacing:6 });
         frame('#ffffff');
       },
