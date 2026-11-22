@@ -999,7 +999,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.52</span></div>
+          <div>STICKS <span class="badge">v2.55</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -13755,18 +13755,32 @@ function sfxMonsterVictoryStreak(){
         text('FEED THE HOLE.', 320, 570, 40, '#ffd54a', { spacing:2 });
         frame('#4dd0ff');
       },
-      // 3. Feed the hole: sticks arc in, the hole pulses, points pop
+      // 3. Feed the hole: an overarm throw (wind up behind the head, whip forward, release) into the hole
       function(t){
         bg('#170b02', '#060300', 'rgba(255,159,67,0.06)', 30, t);
-        const cycle = 0.45, phase = (t % cycle) / cycle, landed = Math.floor(t / cycle);
-        hole(410, 470, 110, '#ff9f43', Math.max(0, 1 - phase * 3));
-        const f = figure(190, 200 + Math.abs(wave(t, TAU/cycle/2, 5)), 40, '#ffd54a', { lArm:[-20 + wave(t, 14, 8), 10], rArm:[-5 + wave(t, 14, 8, 1), 25], lLeg:[115, 95], rLeg:[70, 85] });
-        for (let k = 0; k < 3; k++){
-          const p = (phase + k / 3) % 1, h = f.hands[1];
-          const x = h.x + 20 + p * 200, y = h.y - 20 + p * p * 220 - 70 * Math.sin(p * Math.PI);
-          stick(x, y, 30, p * 9 + k, COLORS[(landed + k) % COLORS.length], 3);
+        const CYC = 1.5, n = Math.floor(t / CYC), c = (t % CYC) / CYC;
+        // throwing arm: back (wind-up) -> over the top -> forward (release) -> follow-through
+        let up, lo, tilt;
+        if (c < 0.45){ const k = c / 0.45; up = 30 - k * 190; lo = up - 40 * k; tilt = -8 * k; }            // swing back and up behind the head
+        else if (c < 0.62){ const k = (c - 0.45) / 0.17; up = -160 + k * 150; lo = up - 40 + k * 40; tilt = -8 + k * 20; }   // whip over the top
+        else { const k = (c - 0.62) / 0.38; up = -10 + k * 40; lo = up + k * 20; tilt = 12 - k * 12; }        // follow through
+        const holeX = 420, holeY = 470;
+        const lastLand = c >= 0.95 || c < 0.3 ? 1 : 0;
+        hole(holeX, holeY, 110, '#ff9f43', c < 0.3 ? 1 - c / 0.3 : 0);
+        // the other arm points at the hole while winding up, then pulls down and back as the throw comes through
+        const pull = c < 0.45 ? 0 : (c < 0.62 ? (c - 0.45) / 0.17 : 1 - (c - 0.62) / 0.38);
+        const lA = c < 0.45 ? -25 + (c / 0.45) * 10 : -15 + pull * 115;
+        const f = figure(170, 190, 40, '#ffd54a', { tilt:tilt, rArm:[up, lo], lArm:[lA, lA + 15], lLeg:[120, 100], rLeg:[62, 82] });
+        const hand = f.hands[1];
+        if (c < 0.62){
+          stick(hand.x, hand.y, 34, (lo + 90) * Math.PI / 180, COLORS[n % COLORS.length], 3);   // held, pointing along the forearm
+        } else {
+          // released: the stick spins along an arc into the hole
+          const k = (c - 0.62) / 0.38, sx = 286, sy = 225;
+          const x = sx + (holeX - sx) * k, y = sy + (holeY - 10 - sy) * k * k - 120 * Math.sin(k * Math.PI);
+          stick(x, y, 34, k * 12, COLORS[n % COLORS.length], 3);
         }
-        text('+ POINTS!', 470, 150 - phase * 20, 46 + (1 - phase) * 6, '#ff9f43', { spacing:2, alpha:0.55 + 0.45 * (1 - phase) });
+        if (c < 0.35 && n > 0){ const k = c / 0.35; text('+ POINTS!', 470, 150 - k * 20, 46 + (1 - k) * 6, '#ff9f43', { spacing:2, alpha:1 - k }); }
         text('FEED THE HOLE', 320, 600, 26, '#ffd54a', { weight:800, spacing:4 });
         frame('#ff9f43');
       },
@@ -13981,33 +13995,44 @@ function sfxMonsterVictoryStreak(){
         text('a demon is hunting you', 320, 602, 20, '#ffd0d6', { weight:700, alpha:0.9 });
         frame('#ff1f3a');
       },
-      // Banana Stick: slip on a peel and slide, while a monkey runs off with a stick
+      // Banana Stick: a quick slip on a banana, while a monkey runs off with a stick
       function(t){
         bg('#1f3a0c', '#091503', 'rgba(255,235,59,0.07)', 0, t);
         const p = t % SLIDE;
-        // a proper banana peel: three floppy yellow flaps around a stem, brown tips
-        function peel(x, y, sc, rot){
+        // single whole bananas: a curved yellow crescent with brown tips
+        function banana(x, y, sc, rot){
+          // a classic whole banana: fat curved body, ridge down the side, green-brown stem, dark tip
           X.save(); X.translate(x, y); X.rotate(rot); X.scale(sc, sc);
-          X.shadowColor = '#ffeb3b'; X.shadowBlur = 12;
-          [[-1, 1], [0, 1.15], [1, 1]].forEach(f => { X.save(); X.rotate(f[0] * 0.95);
-            X.fillStyle = '#f7d83a'; X.strokeStyle = '#8a6a10'; X.lineWidth = 1.5;
-            X.beginPath(); X.moveTo(-6, -2); X.quadraticCurveTo(-11, 14 * f[1], -3, 26 * f[1]); X.quadraticCurveTo(2, 30 * f[1], 5, 24 * f[1]); X.quadraticCurveTo(10, 12 * f[1], 6, -2); X.closePath(); X.fill(); X.stroke();
-            X.fillStyle = '#6b4a12'; X.beginPath(); X.arc(1, 27 * f[1], 2.6, 0, TAU); X.fill(); X.restore(); });
-          X.fillStyle = '#fff3b0'; X.beginPath(); X.ellipse(0, -4, 8, 6, 0, 0, TAU); X.fill();
-          X.fillStyle = '#7a5a14'; X.fillRect(-2.5, -18, 5, 12);
-          X.shadowBlur = 0; X.restore();
+          const body = () => { X.beginPath(); X.moveTo(-30, -10);
+            X.bezierCurveTo(-24, 24, 24, 24, 32, -12);          // outer (belly) curve
+            X.quadraticCurveTo(34, -16, 30, -16);               // rounded far end
+            X.bezierCurveTo(20, 4, -18, 6, -26, -14);           // inner curve
+            X.quadraticCurveTo(-31, -15, -30, -10); X.closePath(); };
+          const gr = X.createLinearGradient(0, -14, 0, 20); gr.addColorStop(0, '#fff27a'); gr.addColorStop(0.55, '#f7d23a'); gr.addColorStop(1, '#d9a91c');
+          X.shadowColor = '#ffeb3b'; X.shadowBlur = 16; X.fillStyle = gr; body(); X.fill();
+          X.shadowBlur = 0; X.strokeStyle = '#8a6510'; X.lineWidth = 1.6; body(); X.stroke();
+          // ridge line and a soft highlight along the top
+          X.strokeStyle = 'rgba(150,110,15,0.55)'; X.lineWidth = 1.2;
+          X.beginPath(); X.moveTo(-26, -8); X.bezierCurveTo(-18, 14, 20, 14, 30, -13); X.stroke();
+          X.strokeStyle = 'rgba(255,255,220,0.7)'; X.lineWidth = 2; X.lineCap = 'round';
+          X.beginPath(); X.moveTo(-14, -1); X.bezierCurveTo(-6, 5, 8, 5, 16, -1); X.stroke();
+          // stem (thick neck with a cut end) and the little dark tip
+          X.fillStyle = '#7a8a2a'; X.strokeStyle = '#4a4a12'; X.lineWidth = 1.2;
+          X.beginPath(); X.moveTo(-30, -11); X.lineTo(-38, -24); X.lineTo(-33, -27); X.lineTo(-25, -14); X.closePath(); X.fill(); X.stroke();
+          X.fillStyle = '#5a3d0c'; X.beginPath(); X.ellipse(-35.5, -25.5, 3.2, 2, -0.6, 0, TAU); X.fill();
+          X.beginPath(); X.ellipse(31.5, -14, 3, 2.4, 0.4, 0, TAU); X.fill();
+          X.restore();
         }
-        seed = 900; for (let i = 0; i < 5; i++) peel(R(60, 580), R(400, 480) - (i % 2) * 300, 1.1, R(-0.6, 0.6));
-        peel(200, 352, 1.3, 0.2);
-        // the player walks onto the peel and slides off on their back
-        let px, rot = 0;
-        if (p < 1.6){ px = 80 + p * 75; } else if (p < 3.6){ const s2 = (p - 1.6) / 2; px = 200 + s2 * 210; rot = Math.min(1, s2 * 4) * -1.25; } else { px = 410; rot = -1.25 + Math.min(1.25, (p - 3.6) * 1.4); }
-        X.save(); X.translate(px, 345); X.rotate(rot); X.translate(-px, -345);
-        const st = p < 1.6 ? Math.sin(p * 12) : 0, flail = p >= 1.6 && p < 3.6 ? Math.sin(p * 14) * 30 : 0;
-        figure(px, 182, 28, '#ffeb3b', { lLeg:[110 + st * 22, 100], rLeg:[70 - st * 22, 80], lArm:[-140 + st * 20 + flail, -170], rArm:[-40 - st * 20 - flail, -10] });
+        seed = 900; for (let i = 0; i < 6; i++) banana(R(60, 580), i % 2 ? R(90, 150) : R(420, 480), 1.05, R(-0.4, 0.4));
+        banana(250, 372, 1.05, 0.15);   // the one the player steps on
+        // the player walks across, steps on a banana, wobbles back for a moment, recovers and keeps going
+        const walk = p / SLIDE, px = 90 + walk * 300, st = Math.sin(p * 9);
+        const slipK = p > 2.2 && p < 3.0 ? Math.sin((p - 2.2) / 0.8 * Math.PI) : 0;   // short, then back on their feet
+        X.save(); X.translate(px, 365); X.rotate(-slipK * 0.4); X.translate(-px, -365);
+        figure(px + slipK * 14, 182, 28, '#ffeb3b', { lLeg:[112 + st * 18 - slipK * 30, 98], rLeg:[68 - st * 18 - slipK * 25, 82],
+          lArm:[-150 + st * 10 - slipK * 40, -175], rArm:[-30 - st * 10 + slipK * 40, -5] });
         X.restore();
-        if (p > 1.6 && p < 3.6){ for (let i = 0; i < 4; i++){ X.save(); X.globalAlpha = 0.6 - i * 0.12; neon(() => { X.moveTo(px - 50 - i * 26, 348 + i * 3); X.lineTo(px - 80 - i * 26, 348 + i * 3); }, '#fff8c4', 2); X.restore(); } }
-        if (p > 1.7 && p < 3.4) text('WHOOPS!', px, 120, 34, '#ffeb3b', { spacing:2 });
+        if (p > 2.25 && p < 3.4) text('WHOA!', px, 120, 34, '#ffeb3b', { spacing:2, alpha:Math.min(1, (3.4 - p) * 2) });
         // the monkey: brown fur, tan face, big ears, curly tail, hopping off with a stick
         const mq = Math.min(1, p / SLIDE), mx = 560 - mq * 60, my = 230 - Math.abs(Math.sin(t * 5)) * 22;
         X.save(); X.translate(mx, my);
@@ -14028,7 +14053,7 @@ function sfxMonsterVictoryStreak(){
         X.restore();
         stick(mx - 50, my + 18 + Math.sin(t * 5) * 6, 34, 1.1, '#4dd0ff', 3);
         text('BANANA STICK', 320, 560, 40, '#ffeb3b', { spacing:4 });
-        text('slippery peels, sneaky monkeys', 320, 602, 20, '#fff8c4', { weight:700, alpha:0.9 });
+        text('slippery bananas, sneaky monkeys', 320, 602, 20, '#fff8c4', { weight:700, alpha:0.9 });
         frame('#ffd700');
       },
       // Ice Stick: snow falls, wind pushes, and the snowman gives chase (Santa hat on the player, like the game)
@@ -14092,7 +14117,7 @@ function sfxMonsterVictoryStreak(){
         else if (p < 2.3){ const k = (p - 1.6) / 0.7; fx = A.x; fy = A.y + k * 10; sc = 1 - k; rot = k * 6; }
         else if (p < 2.8){ vis = false; }
         else if (p < 3.5){ const k = (p - 2.8) / 0.7; fx = B.x; fy = B.y + (1 - k) * 10; sc = k; rot = (1 - k) * 6; }
-        else { const w = Math.min(1, (p - 3.5) / 1.6); fx = B.x + w * 110; fy = B.y; }
+        else { const w = (p - 3.5) / 3.0; fx = B.x + w * 260; fy = B.y; }   // keeps walking off the right edge
         if (p >= 2.2 && p < 3.0){ const k = 1 - Math.abs(p - 2.6) / 0.4; glow(A.x, A.y, 120, '#ffffff', 0.4 * k); glow(B.x, B.y, 120, '#ffffff', 0.4 * k); }
         if (vis){ const walking = p < 1.6 || p >= 3.5, st = walking ? Math.sin(p * 12) : 0;
           X.save(); X.translate(fx, fy); X.rotate(rot); X.scale(sc, sc); X.translate(-fx, -fy);
@@ -14126,24 +14151,56 @@ function sfxMonsterVictoryStreak(){
         text('dodge the sharks', 320, 602, 20, '#cdd9e5', { weight:700, alpha:0.85 });
         frame('#00bfff');
       },
-      // Snake Stick: a rattler slithers, the cowboy-hat player escapes through a glowing edge tunnel
+      // Snake Stick: saddle up! The cowboy rides the wild horse in, it stomps the rattler (SNAKE PANCAKES!),
+      // and they ride out through the saloon doors of the edge tunnel
       function(t){
         bg('#2b2418', '#100d08', 'rgba(226,194,122,0.08)', 0, t);
         const p = t % SLIDE;
-        [[22, 300], [618, 300]].forEach((e, i) => { const pulse = 0.5 + 0.5 * Math.sin(t * 5 + i * 2);
-          glow(e[0], e[1], 70, '#e2c27a', 0.4 + pulse * 0.3); neon(() => { X.moveTo(e[0], e[1] - 50); X.lineTo(e[0], e[1] + 50); }, '#ffe7a8', 6); });
-        const head = { x: 560 - (p / SLIDE) * 380, y: 420 };
-        neon(() => { for (let i = 0; i <= 40; i++){ const sx = head.x + i * 6, sy = head.y + Math.sin(i * 0.45 - t * 8) * 14; i ? X.lineTo(sx, sy) : X.moveTo(sx, sy); } }, '#7cff6b', 6);
-        X.fillStyle = '#7cff6b'; X.beginPath(); X.ellipse(head.x - 4, head.y + Math.sin(-t * 8) * 14, 14, 9, 0, 0, TAU); X.fill();
-        neon(() => { const tx = head.x + 246, ty = head.y + Math.sin(40 * 0.45 - t * 8) * 14; X.moveTo(tx, ty); X.lineTo(tx + 18 + wave(t, 40, 3), ty); }, '#e2c27a', 6);
-        let px = 0, vis = true, st = Math.sin(p * 14);
-        if (p < 2.4) px = 260 - (p / 2.4) * 230; else if (p < 2.8) vis = false; else px = Math.max(470, 610 - (p - 2.8) * 140);
-        if (p > 2.2 && p < 3.0){ glow(22, 300, 110, '#ffffff', 0.4); glow(618, 300, 110, '#ffffff', 0.4); }
-        if (vis){ figure(px, 190, 26, '#e2c27a', { lLeg:[100 + st * 30, 90], rLeg:[80 - st * 30, 90], lArm:[-150 + st * 30, -170], rArm:[-30 - st * 30, -10] });
-          X.fillStyle = '#8b5a2b'; X.strokeStyle = '#e2c27a'; X.lineWidth = 2; X.beginPath(); X.ellipse(px, 166, 40, 8, 0, 0, TAU); X.fill(); X.stroke();
-          X.beginPath(); X.moveTo(px - 20, 166); X.quadraticCurveTo(px - 22, 136, px, 140); X.quadraticCurveTo(px + 22, 136, px + 20, 166); X.fill(); X.stroke(); }
+        X.fillStyle = 'rgba(201,184,150,0.10)'; X.fillRect(0, 380, W, 120);   // dusty trail
+        // saloon doors at the right edge (the game's tunnel), swinging as the horse passes
+        const swing = p > 5.0 && p < 6.4 ? Math.sin((p - 5.0) * 9) * 0.6 * (1 - (p - 5.0) / 1.4) : 0;
+        [[575, 330, 1], [575, 430, -1]].forEach(d => { X.save(); X.translate(d[0], d[1]); X.scale(1, d[2]); X.rotate(swing);
+          X.fillStyle = '#8a5a2b'; X.strokeStyle = '#4e3015'; X.lineWidth = 2; X.fillRect(0, 0, 18, 48); X.strokeRect(0, 0, 18, 48);
+          X.strokeStyle = '#b07a3e'; for (let k = 8; k < 46; k += 8){ X.beginPath(); X.moveTo(2, k); X.lineTo(16, k); X.stroke(); } X.restore(); });
+        glow(610, 380, 80, '#e2c27a', 0.35 + wave(t, 5, 0.1));
+        // the rattler slithers in from the right... until the stomp
+        const stompT = 3.0, snakeX = 470 - Math.min(p, stompT) * 30;
+        if (p < stompT){
+          neon(() => { for (let i = 0; i <= 26; i++){ const sx = snakeX + i * 6, sy = 450 + Math.sin(i * 0.5 - t * 8) * 10; i ? X.lineTo(sx, sy) : X.moveTo(sx, sy); } }, '#7cff6b', 6);
+          X.fillStyle = '#7cff6b'; X.beginPath(); X.ellipse(snakeX - 4, 450 + Math.sin(-t * 8) * 10, 13, 8, 0, 0, TAU); X.fill();
+          neon(() => { const tx = snakeX + 160, ty = 450 + Math.sin(26 * 0.5 - t * 8) * 10; X.moveTo(tx, ty); X.lineTo(tx + 14 + wave(t, 40, 3), ty); }, '#e2c27a', 6);
+        } else if (p < stompT + 1.8){
+          X.fillStyle = '#5fbf4f'; X.beginPath(); X.ellipse(snakeX + 60, 458, 70, 6, 0, 0, TAU); X.fill();   // flattened
+          const k = (p - stompT) / 1.8;
+          text('SNAKE PANCAKES!', 320, 150 - k * 20, 40, '#e2c27a', { spacing:2, alpha:Math.min(1, (1 - k) * 2.5) });
+        }
+        // the bay horse with black mane and tail, galloping; the cowboy rides on top
+        const hx = -150 + (p / SLIDE) * 800, hy = 370 + Math.abs(Math.sin(t * 9)) * -10, gal = t * 9;
+        X.save(); X.translate(hx, hy); X.scale(1.45, 1.45);
+        const leg = (x0, ph) => { const a = Math.sin(gal + ph) * 0.7; X.strokeStyle = '#5D3A1A'; X.lineWidth = 8; X.lineCap = 'round';
+          X.beginPath(); X.moveTo(x0, 10); X.lineTo(x0 + Math.sin(a) * 18, 40); X.lineTo(x0 + Math.sin(a) * 18 + Math.sin(a + 0.6) * 10, 66); X.stroke();
+          X.fillStyle = '#1a1a1a'; X.fillRect(x0 + Math.sin(a) * 18 + Math.sin(a + 0.6) * 10 - 5, 63, 10, 6); };
+        leg(-34, 0); leg(30, Math.PI);
+        X.strokeStyle = '#1a1a1a'; X.lineWidth = 6; const tw = Math.sin(gal) * 6;
+        X.beginPath(); X.moveTo(-50, -6); X.quadraticCurveTo(-72, 4 + tw, -80, 28 + tw); X.moveTo(-50, -4); X.quadraticCurveTo(-68, 10 + tw, -72, 34 + tw); X.stroke();
+        X.fillStyle = '#8B4513'; X.shadowColor = '#e2c27a'; X.shadowBlur = 10;
+        X.beginPath(); X.ellipse(0, 0, 58, 26, 0, 0, TAU); X.fill();
+        X.beginPath(); X.moveTo(36, -14); X.quadraticCurveTo(58, -44, 66, -56); X.lineTo(86, -50); X.quadraticCurveTo(70, -30, 56, 6); X.closePath(); X.fill();
+        X.beginPath(); X.ellipse(84, -54, 22, 12, 0.35, 0, TAU); X.fill();
+        X.shadowBlur = 0; X.fillStyle = '#1a1a1a';
+        X.beginPath(); X.moveTo(40, -18); X.quadraticCurveTo(54, -52, 66, -62); X.lineTo(60, -40); X.quadraticCurveTo(52, -26, 46, -10); X.closePath(); X.fill();
+        X.beginPath(); X.moveTo(74, -64); X.lineTo(78, -80); X.lineTo(84, -64); X.fill();
+        X.fillStyle = '#fff'; X.beginPath(); X.arc(88, -58, 2.5, 0, TAU); X.fill();
+        leg(-24, Math.PI / 2); leg(40, Math.PI * 1.5);
+        X.fillStyle = '#6b3a1a'; X.fillRect(-18, -30, 34, 8);   // saddle
+        X.restore();
+        figure(hx - 4, hy - 112, 18, '#e2c27a', { lLeg:[125, 70], rLeg:[55, 110], lArm:[-150 + wave(t, 8, 25), -110], rArm:[20, 40] });
+        X.fillStyle = '#8b5a2b'; X.strokeStyle = '#e2c27a'; X.lineWidth = 2;
+        X.beginPath(); X.ellipse(hx - 4, hy - 128, 28, 6, 0, 0, TAU); X.fill(); X.stroke();
+        X.beginPath(); X.moveTo(hx - 18, hy - 128); X.quadraticCurveTo(hx - 20, hy - 150, hx - 4, hy - 147); X.quadraticCurveTo(hx + 12, hy - 150, hx + 10, hy - 128); X.fill(); X.stroke();
+        if (p > 0.3 && p < 1.6) text('GIDDYUP!', 200, 120, 34, '#e2c27a', { spacing:2, alpha:Math.min(1, (1.6 - p) * 2) });
         text('SNAKE STICK', 320, 560, 40, '#e2c27a', { spacing:4 });
-        text('rattlers bite, edge tunnels save you', 320, 602, 20, '#fff0cc', { weight:700, alpha:0.9 });
+        text('saddle up, partner', 320, 602, 20, '#fff0cc', { weight:700, alpha:0.9 });
         frame('#caa14a');
       },
       // Spider Stick: webs in the corners, momma spider drops down and steals a stick
