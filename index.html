@@ -1000,7 +1000,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.65</span></div>
+          <div>STICKS <span class="badge">v2.66</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -12700,7 +12700,9 @@ function sfxMonsterVictoryStreak(){
     finally { ctx = main; fxNoSmooth = false; game.playerX = sx; game.playerY = sy; }
     const d = sctx.getImageData(0, 0, S, S).data;
     let t = S, b = -1, l = S, r = -1;
-    for (let y = 0; y < S; y += 2) for (let x = 0; x < S; x += 2){ if (d[(y * S + x) * 4 + 3] > 40){ if (y < t) t = y; if (y > b) b = y; if (x < l) l = x; if (x > r) r = x; } }
+    // size by the solid parts only: faint, see-through extras (Angel's wings, glows) can spread past the box
+    const solid = skin === "angel" ? 60 : 40;   // Angel: count her (slightly see-through) body, not her faint wings
+    for (let y = 0; y < S; y += 2) for (let x = 0; x < S; x += 2){ if (d[(y * S + x) * 4 + 3] > solid){ if (y < t) t = y; if (y > b) b = y; if (x < l) l = x; if (x > r) r = x; } }
     const prev = c || { n: 0, t: S, b: -1, l: S, r: -1 };
     if (b >= 0){ prev.t = Math.min(prev.t, t); prev.b = Math.max(prev.b, b); prev.l = Math.min(prev.l, l); prev.r = Math.max(prev.r, r); }
     prev.n++;
