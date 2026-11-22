@@ -688,7 +688,9 @@
     /* v2.50: Preview fills the screen: black backdrop, the art as large as the screen allows */
     body.previewFull #previewGallery{
       left:0; top:0; right:0; bottom:0; transform:none;
-      background:#000;
+      background-color: var(--pgTint, #000);
+      background-image: radial-gradient(circle at 50% 52%, rgba(0,0,0,0) 0%, rgba(0,0,0,0.25) 45%, rgba(0,0,0,0.8) 100%);
+      transition: background-color 1.2s ease;
       align-items:center; justify-content:center;
       padding-top:76px;
     }
@@ -997,7 +999,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.50</span></div>
+          <div>STICKS <span class="badge">v2.51</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -13704,7 +13706,8 @@ function sfxMonsterVictoryStreak(){
       else P.forEach(d => { X.fillStyle = '#fff'; X.shadowColor = color; X.shadowBlur = 10; X.beginPath(); X.arc(d[0]*s*0.25, d[1]*s*0.25, s*0.08, 0, TAU); X.fill(); });
       X.restore();
     }
-    function frame(color){ neon(() => { X.rect(12, 12, W-24, H-24); }, color, 2); }
+    let curFrame = null, reportedFrame = null;   // v2.51: each slide's frame colour also tints the full-screen backdrop
+    function frame(color){ curFrame = color; neon(() => { X.rect(12, 12, W-24, H-24); }, color, 2); }
     function signature(){ X.save(); X.font = '700 13px ' + FONT; X.fillStyle = 'rgba(255,255,255,0.35)'; X.textAlign = 'right'; X.fillText('RAMIDUS', W-28, H-26); X.restore(); }
     // falling confetti sticks that loop from top to bottom
     function rain(t, n, sd, top, bottom, speed){
@@ -14196,17 +14199,27 @@ function sfxMonsterVictoryStreak(){
       fitCanvas();
       X.setTransform(1, 0, 0, 1, 0, 0); X.clearRect(0, 0, canvas.width, canvas.height); X.setTransform(scale, 0, 0, scale, 0, 0);
       try { SCENES[scene](t); } catch(_){}
+      if (curFrame && curFrame !== reportedFrame){ reportedFrame = curFrame; if (api.onColor) try { api.onColor(curFrame); } catch(_){} }
       vignette(); signature();
     }
-    return {
+    const api = {
+      onColor: null,   // set by the game: called with the current slide's colour
       count: SCENES.length,
       attach: function(cv){ if (canvas === cv) return; canvas = cv; X = cv.getContext('2d'); cv.width = W; cv.height = H; },
-      show: function(i){ scene = ((i % SCENES.length) + SCENES.length) % SCENES.length; t0 = performance.now(); },
+      show: function(i){ scene = ((i % SCENES.length) + SCENES.length) % SCENES.length; t0 = performance.now(); reportedFrame = null; },
       start: function(){ if (!raf){ t0 = performance.now(); lastDraw = 0; raf = requestAnimationFrame(draw); } },
       stop: function(){ if (raf){ cancelAnimationFrame(raf); raf = 0; } },
       renderAt: function(i, t){ scene = i; X.setTransform(1,0,0,1,0,0); X.clearRect(0,0,W,H); SCENES[i](t); vignette(); signature(); }   // for testing
     };
+    return api;
   })();
+  // v2.51: tint the full-screen Preview backdrop with a deep shade of the current slide's colour
+  PreviewArt.onColor = function(hex){
+    const g = document.getElementById("previewGallery");
+    if (!g || !/^#[0-9a-f]{6}$/i.test(hex)) return;
+    const k = 0.30, ch = i => Math.round(parseInt(hex.slice(i, i + 2), 16) * k);
+    g.style.setProperty("--pgTint", "rgb(" + ch(1) + "," + ch(3) + "," + ch(5) + ")");
+  };
   // ===== END PREVIEW ART =====
 
   previewMode = false;
