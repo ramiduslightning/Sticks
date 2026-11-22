@@ -617,6 +617,17 @@
       color:#200007 !important;
       box-shadow:none;
     }
+    /* v2.59: stick picker on the name screen */
+    #skinPicker{ margin-top:14px; padding:10px 10px 8px; border:1px solid #2b3a4c; border-radius:14px; background:#070d18; text-align:center; }
+    .skinPickTitle{ font-weight:1000; letter-spacing:2px; font-size:13px; color:#ffd54a; }
+    .skinPickRow{ display:flex; align-items:center; justify-content:center; gap:12px; margin-top:6px; }
+    #skinCanvas{ width:150px; height:110px; border-radius:10px; background:#0b1220; }
+    .skinArrow{ width:44px; height:44px; border-radius:50%; border:1px solid #3aa7ff; background:#0f1a2c; color:#9fd4ff; font-size:18px; cursor:pointer; }
+    .skinArrow:hover{ background:#16304f; color:#fff; }
+    .skinPickName{ margin-top:6px; font-weight:1000; letter-spacing:1.5px; font-size:16px; color:#e6edf3; }
+    .skinPickDots{ margin-top:4px; display:flex; gap:6px; justify-content:center; }
+    .skinPickDots span{ width:7px; height:7px; border-radius:50%; background:#2b3a4c; }
+    .skinPickDots span.on{ background:#ffd54a; box-shadow:0 0 6px #ffd54a; }
     /* Keep the start-screen action buttons a consistent visual size */
     #nameOverlay .modalActions .startActionBtn{
       flex: 0 0 160px;
@@ -959,17 +970,7 @@
 
         <div class="kv"><span>Player</span><span id="uiPlayer" class="playerArcade">PLAYER1</span></div>
 
-        <div class="kv"><span>Stick Figure</span>
-          <select id="uiSkin" aria-label="Stick Figure">
-	            <option value="classic">Classic</option>
-	            <option value="angel">Angel Stick</option>
-	            <option value="alien">Alien Stick</option>
-	            <option value="robot">Robo Stick</option>
-	            <option value="rex">Rex Stick</option>
-	            <option value="rick">Rick Stick</option>
-	            <option value="sally">Sally Stick</option>
-          </select>
-        </div>
+        <div class="kv"><span>Stick Figure</span><span id="uiSkinName" class="playerArcade" style="font-size:13px;">CLASSIC</span></div>
 <div class="statsGrid">
           <div class="kv"><span>Lives</span><span id="uiLives" class="big">3</span></div>
           <div class="kv"><span>Level</span><span id="uiLevel" class="big">1</span></div>
@@ -999,7 +1000,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.57</span></div>
+          <div>STICKS <span class="badge">v2.59</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -1100,13 +1101,24 @@
 
       <div class="hintRow" id="savedNameHint" style="display:none;"></div>
 
+      <div id="skinPicker">
+        <div class="skinPickTitle">CHOOSE YOUR STICK</div>
+        <div class="skinPickRow">
+          <button id="skinPrev" class="skinArrow" aria-label="Previous stick">&#9664;</button>
+          <canvas id="skinCanvas" width="300" height="220" aria-label="Stick figure preview"></canvas>
+          <button id="skinNext" class="skinArrow" aria-label="Next stick">&#9654;</button>
+        </div>
+        <div id="skinPickName" class="skinPickName">CLASSIC</div>
+        <div class="skinPickDots" id="skinPickDots"></div>
+      </div>
+
       <div class="modalActions" style="justify-content:flex-start;">
 <button id="nameLoadBtn" class="whiteBtn startActionBtn" disabled>Resume Saved</button>
         <button id="namePreviewBtn" class="modalClose startActionBtn" style="background:linear-gradient(180deg,#3aa7ff,#1172ff); color:#000;">Preview</button>
         <button id="nameHowtoBtn" class="whiteBtn startActionBtn">How to Play</button>
       </div>
 
-      <div class="modalText" style="color:#9fb1c6; margin-top:10px;">Press <b>Enter</b> to start, or any button on a controller. New here? Tap <b>How to Play</b> (or <b>SELECT</b>).</div>
+      <div class="modalText" style="color:#9fb1c6; margin-top:10px;"><b>&#9664; &#9654;</b> arrows (or the joystick) pick your stick. Press <b>Enter</b> to start, or any button on a controller. New here? Tap <b>How to Play</b> (or <b>SELECT</b>).</div>
     </div>
   </div>
 
@@ -10949,8 +10961,7 @@ function updateSpiderWebs(){
   function drawPlayerGlow(){
     if (playerGlowTimer <= 0) return;
     
-    const px = game.playerX * TILE + TILE / 2;
-    const py = game.playerY * TILE + TILE / 2;
+    const fpp = fxPlayerPx(), px = fpp.x, py = fpp.y;
     const pulse = Math.sin(playerGlowTimer * 0.2) * 0.5 + 0.5;
     
     ctx.save();
@@ -11663,7 +11674,7 @@ function updateSpiderWebs(){
 
   
 const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let ctx = canvas.getContext("2d");   // v2.59: "let" so the stick picker can borrow drawPlayer() for its preview
 
 // HiDPI rendering:
 // - Game logic remains in CANVAS_W/H units.
@@ -12627,18 +12638,51 @@ function sfxMonsterVictoryStreak(){
     if (raw === "robot") return "robot";
     if (raw === "rex") return "rex";
     if (raw === "angel") return "angel";
+    if (raw === "sick") return "sick";
     return "classic";
   }
   function setAndStoreSkin(s){
     let val = (s || "classic").toLowerCase();
     if (val === "bighead") val = "alien";
     if (val === "runner") val = "sally";
-    const allowed = ["classic","angel","alien","sally","rick","robot","rex"];
+    const allowed = SKIN_LIST.map(s => s[0]);
     const skin = allowed.includes(val) ? val : "classic";
     game.playerSkin = skin;
     localStorage.setItem(LS_PLAYER_SKIN, skin);
     if (ui.skin) ui.skin.value = skin;
+    const nm = (SKIN_LIST.find(s => s[0] === skin) || SKIN_LIST[0])[1];
+    const side = document.getElementById("uiSkinName"); if (side) side.textContent = nm.toUpperCase();
+    const pk = document.getElementById("skinPickName"); if (pk) pk.textContent = nm.toUpperCase();
+    const dots = document.getElementById("skinPickDots");
+    if (dots){ if (!dots.children.length) SKIN_LIST.forEach(() => dots.appendChild(document.createElement("span")));
+      SKIN_LIST.forEach((s, i) => dots.children[i].className = s[0] === skin ? "on" : ""); }
   }
+  // v2.59: every stick figure you can play, in picker order: [id, name]
+  const SKIN_LIST = [["classic","Classic"],["angel","Angel Stick"],["alien","Alien Stick"],["robot","Robo Stick"],
+                     ["rex","Rex Stick"],["rick","Rick Stick"],["sally","Sally Stick"],["sick","Sick Stick"]];
+  function cycleSkin(dir){
+    const i = SKIN_LIST.findIndex(s => s[0] === (game.playerSkin || "classic"));
+    setAndStoreSkin(SKIN_LIST[(i + dir + SKIN_LIST.length) % SKIN_LIST.length][0]);
+    try { beep(dir > 0 ? 660 : 520, 0.05, "triangle", 0.05); } catch(_){}
+  }
+  // Live preview on the name screen: points the game's ctx at the picker canvas and calls the real
+  // drawPlayer(), so every stick looks exactly like it does in play (new sticks show up automatically).
+  let skinPickRunning = false;
+  function skinPickFrame(){
+    const ov = document.getElementById("nameOverlay"), cv = document.getElementById("skinCanvas");
+    if (!ov || !cv || ov.style.display !== "flex"){ skinPickRunning = false; return; }
+    const pctx = cv.getContext("2d"), main = ctx, sx = game.playerX, sy = game.playerY;
+    pctx.setTransform(1, 0, 0, 1, 0, 0); pctx.clearRect(0, 0, cv.width, cv.height);
+    const gr = pctx.createRadialGradient(150, 120, 10, 150, 120, 130); gr.addColorStop(0, "rgba(58,167,255,0.18)"); gr.addColorStop(1, "rgba(58,167,255,0)");
+    pctx.fillStyle = gr; pctx.fillRect(0, 0, cv.width, cv.height);
+    const k = 5.2;
+    pctx.setTransform(k, 0, 0, k, 150 - k * TILE / 2, 100 - k * TILE / 2);
+    try { ctx = pctx; fxNoSmooth = true; game.playerX = 0; game.playerY = 0; drawPlayer(); }
+    catch(_){}
+    finally { ctx = main; fxNoSmooth = false; game.playerX = sx; game.playerY = sy; pctx.setTransform(1, 0, 0, 1, 0, 0); }
+    requestAnimationFrame(skinPickFrame);
+  }
+  function skinPickStart(){ if (skinPickRunning) return; skinPickRunning = true; requestAnimationFrame(skinPickFrame); }
 
   const game = {
     level: 1,
@@ -13591,7 +13635,7 @@ function sfxMonsterVictoryStreak(){
 
   function showNameModal(){
     game.inputLocked = true;
-    ui.nameOverlay.style.display = "flex";
+    ui.nameOverlay.style.display = "flex"; skinPickStart();
     ui.nameInput.value = "";
     ui.nameInput.placeholder = "ENTER NAME";
 
@@ -14663,7 +14707,7 @@ function sfxMonsterVictoryStreak(){
 
     ui.previewBar.style.display = "none";
     if (ui.previewGallery) ui.previewGallery.style.display = "none";
-    ui.nameOverlay.style.display = "flex";
+    ui.nameOverlay.style.display = "flex"; skinPickStart();
     // v2.50: leave full screen too
     document.body.classList.remove("previewFull");
     try {
@@ -15568,6 +15612,7 @@ Clear all sticks to advance — watch out for obstacles.`;
 
 
   function newGame(fresh=false){
+    setTimeout(() => { try { fxResync(); fx.vx = null; } catch(_){} }, 0);
     if (!fresh){
       showNameModal();
       return;
@@ -17012,6 +17057,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   }
 
   function loadGame(){
+    setTimeout(() => { try { fxResync(); fx.vx = null; } catch(_){} }, 0);
     if (!canSaveLoad()){
       sfxError();
       setHud("Can't load right now.");
@@ -17651,9 +17697,70 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.restore();
   }
 
+  // ===== v2.59 GAME FEEL: smooth walking, floating points, getting-hit punch =====
+  // Smooth walking: the game still moves one square at a time; only the DRAWING glides between
+  // squares (with a little hop), so gameplay is unchanged. Big jumps (tunnels, teleports, respawns) snap.
+  const fx = { vx: null, vy: null, lastT: 0, pops: [], lastScore: null, lastLives: null, shake: 0, flash: 0 };
+  let fxNoSmooth = false;   // set by the stick picker so its preview never animates the real position
+  function fxPlayerPos(){
+    const tx = game.playerX, ty = game.playerY;
+    if (fxNoSmooth) return { x: tx, y: ty, hop: 0 };
+    const now = performance.now(), dt = Math.min(0.05, fx.lastT ? (now - fx.lastT) / 1000 : 0.016);
+    fx.lastT = now;
+    if (fx.vx === null || Math.abs(tx - fx.vx) > 1.5 || Math.abs(ty - fx.vy) > 1.5){ fx.vx = tx; fx.vy = ty; }
+    else { const k = 1 - Math.exp(-dt * 16); fx.vx += (tx - fx.vx) * k; fx.vy += (ty - fx.vy) * k;
+           if (Math.abs(tx - fx.vx) < 0.01) fx.vx = tx; if (Math.abs(ty - fx.vy) < 0.01) fx.vy = ty; }
+    const m = Math.min(1, Math.hypot(tx - fx.vx, ty - fx.vy));
+    return { x: fx.vx, y: fx.vy, hop: -Math.sin(m * Math.PI) * 3 };
+  }
+  // where the player is drawn right now (for glows and lights that follow the figure)
+  function fxPlayerPx(){ const x = (fx.vx === null || fxNoSmooth) ? game.playerX : fx.vx, y = (fx.vy === null || fxNoSmooth) ? game.playerY : fx.vy;
+    return { x: x * TILE + TILE / 2, y: y * TILE + TILE / 2 }; }
+  // Floating points + hit detection: watch score and lives once per frame.
+  function fxResync(){ fx.lastScore = game.score; fx.lastLives = game.lives; fx.pops.length = 0; fx.shake = 0; fx.flash = 0; }
+  function fxPop(text, color, size){ const p = fxPlayerPx(); fx.pops.push({ x: p.x, y: p.y - TILE * 0.7, text, color, size, t: 0 }); }
+  function fxWatch(){
+    if (fx.lastScore === null){ fxResync(); return; }
+    if (game.score > fx.lastScore){ const d = game.score - fx.lastScore;
+      fxPop("+" + d, d >= 100 ? "#ffd54a" : "#9dffb0", d >= 500 ? 30 : d >= 100 ? 24 : 19); }
+    if (game.lives < fx.lastLives){ fx.shake = 1; fx.flash = 1; fxPop("OUCH!", "#ff5a6a", 22); }
+    fx.lastScore = game.score; fx.lastLives = game.lives;
+  }
+  function fxShakeOffset(){
+    if (fx.shake <= 0) return { x: 0, y: 0 };
+    const a = fx.shake * fx.shake * 9; fx.shake = Math.max(0, fx.shake - 0.035);
+    return { x: (Math.random() - 0.5) * 2 * a, y: (Math.random() - 0.5) * 2 * a };
+  }
+  function fxDrawOverlay(){
+    // floating points rise, swell a little, then fade
+    for (let i = fx.pops.length - 1; i >= 0; i--){
+      const p = fx.pops[i]; p.t += 1 / 60;
+      const life = 1.15, k = p.t / life;
+      if (k >= 1){ fx.pops.splice(i, 1); continue; }
+      const sc = k < 0.15 ? 0.6 + (k / 0.15) * 0.55 : 1.15 - Math.min(0.15, (k - 0.15) * 0.5);
+      ctx.save(); ctx.translate(p.x, p.y - k * 34); ctx.scale(sc, sc);
+      ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+      ctx.font = "900 " + p.size + "px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.strokeText(p.text, 0, 0);
+      ctx.shadowColor = p.color; ctx.shadowBlur = 12; ctx.fillStyle = p.color; ctx.fillText(p.text, 0, 0);
+      ctx.restore();
+    }
+    // red flash around the edges when you get hit
+    if (fx.flash > 0){
+      ctx.save(); ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
+      const g2 = ctx.createRadialGradient(CANVAS_W / 2, CANVAS_H / 2, Math.min(CANVAS_W, CANVAS_H) * 0.25, CANVAS_W / 2, CANVAS_H / 2, Math.max(CANVAS_W, CANVAS_H) * 0.75);
+      g2.addColorStop(0, "rgba(255,31,58,0)"); g2.addColorStop(1, "rgba(255,31,58," + (0.55 * fx.flash) + ")");
+      ctx.fillStyle = g2; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.fillStyle = "rgba(255,31,58," + (0.12 * fx.flash) + ")"; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.restore(); fx.flash = Math.max(0, fx.flash - 0.03);
+    }
+  }
+  // ===== END GAME FEEL =====
+
   function drawPlayer(){
-    const cx = game.playerX*TILE + TILE/2;
-    const cy = game.playerY*TILE + TILE/2;
+    const fpos = fxPlayerPos();
+    const cx = fpos.x*TILE + TILE/2;
+    const cy = fpos.y*TILE + TILE/2 + fpos.hop;
 
     ctx.save();
     ctx.translate(cx, cy);
@@ -17904,6 +18011,46 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.lineTo(6 - legShift * 0.3, 15);
       ctx.stroke();
 
+      drawCarryDots();
+    };
+
+    // v2.59 Sick Stick: a bandage for a body, stick arms and legs, a thermometer in its mouth,
+    // droopy eyes, a little shiver, and a sweat drop now and then
+    const drawSickBody = () => {
+      const time = Date.now() * 0.001;
+      const shiver = Math.sin(time * 22) * 0.35;
+      const droop = Math.sin(time * 1.6) * 1.2;
+      ctx.save(); ctx.translate(shiver, 0);
+      // head
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 2; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.arc(0, -7, 4.6, 0, Math.PI * 2); ctx.stroke();
+      // droopy, half-closed eyes
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(-2.8, -8); ctx.lineTo(-0.9, -7.6); ctx.moveTo(0.9, -7.6); ctx.lineTo(2.8, -8); ctx.stroke();
+      // thermometer sticking out of the mouth
+      ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.moveTo(0.8, -5.2); ctx.lineTo(7.2, -7.4); ctx.stroke();
+      ctx.fillStyle = "#ff3b3b"; ctx.beginPath(); ctx.arc(7.5, -7.5, 1.2, 0, Math.PI * 2); ctx.fill();
+      // bandage body
+      const bx = -3.6, by = -1.8, bw = 7.2, bh = 12.4, r = 3.4;
+      ctx.beginPath(); ctx.moveTo(bx + r, by); ctx.lineTo(bx + bw - r, by); ctx.arc(bx + bw - r, by + r, r, -Math.PI / 2, 0);
+      ctx.lineTo(bx + bw, by + bh - r); ctx.arc(bx + bw - r, by + bh - r, r, 0, Math.PI / 2);
+      ctx.lineTo(bx + r, by + bh); ctx.arc(bx + r, by + bh - r, r, Math.PI / 2, Math.PI);
+      ctx.lineTo(bx, by + r); ctx.arc(bx + r, by + r, r, Math.PI, Math.PI * 1.5); ctx.closePath();
+      ctx.fillStyle = "#e8b07c"; ctx.fill(); ctx.strokeStyle = "#b9824f"; ctx.lineWidth = 0.9; ctx.stroke();
+      ctx.fillStyle = "#f7d7b0"; ctx.fillRect(-2.5, 2.4, 5, 4);                       // the gauze pad
+      ctx.strokeStyle = "rgba(185,130,79,0.6)"; ctx.lineWidth = 0.5; ctx.strokeRect(-2.5, 2.4, 5, 4);
+      ctx.fillStyle = "#b9824f";                                                         // the little air holes
+      [[-1.8, 0.3], [0, 0.3], [1.8, 0.3], [-1.8, 8.6], [0, 8.6], [1.8, 8.6]].forEach(h => { ctx.beginPath(); ctx.arc(h[0], h[1], 0.35, 0, Math.PI * 2); ctx.fill(); });
+      // droopy stick arms and legs
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-3.6, 2.5); ctx.lineTo(-8.5, 6.5 + droop); ctx.moveTo(3.6, 2.5); ctx.lineTo(8.5, 6.5 - droop);
+      ctx.moveTo(-1.8, 10.6); ctx.lineTo(-5.5, 15.5); ctx.moveTo(1.8, 10.6); ctx.lineTo(5.5, 15.5); ctx.stroke();
+      // a sweat drop slides down every couple of seconds
+      const dp = (time % 2.4) / 2.4;
+      if (dp < 0.6){ const dy = -11 + dp * 10; ctx.globalAlpha = 1 - dp / 0.6; ctx.fillStyle = "#7cc8ff";
+        ctx.beginPath(); ctx.moveTo(-6.5, dy - 2); ctx.quadraticCurveTo(-5, dy, -6.5, dy + 1.2); ctx.quadraticCurveTo(-8, dy, -6.5, dy - 2); ctx.fill(); ctx.globalAlpha = 1; }
+      ctx.restore();
       drawCarryDots();
     };
 
@@ -18902,6 +19049,9 @@ ctx.restore();
       
       drawCarryDots();
     }
+    else if (skin === "sick"){
+      drawSickBody();
+    }
     else {
       drawClassicBody();
     }
@@ -18996,8 +19146,7 @@ ctx.restore();
   }
   function drawGlowDarkness(){
     try {
-      const px = game.playerX * TILE + TILE/2;
-      const py = game.playerY * TILE + TILE/2;
+      const fpp = fxPlayerPx(), px = fpp.x, py = fpp.y;
       const carry = (game.carry && game.carry.length) ? game.carry.length : 0;
       let fx = playerFaceX, fy = playerFaceY;
       const flen = Math.hypot(fx, fy) || 1; fx /= flen; fy /= flen;
@@ -19334,6 +19483,7 @@ ctx.restore();
     ctx.setTransform(renderScale, 0, 0, renderScale, 0, 0);
     try { ctx.imageSmoothingEnabled = false; } catch(e) {}
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    fxWatch(); const fsh = fxShakeOffset(); ctx.translate(fsh.x, fsh.y);   // v2.59: getting-hit shake
 
     const theme = currentLevelTheme();
     drawGrid(theme);
@@ -19506,6 +19656,8 @@ ctx.restore();
     
     if (theme.name === "Glow Stick") drawGlowDarkness();
 
+    fxDrawOverlay();   // v2.59: floating points and the hit flash
+
     drawHudText();
     
     // Draw level intro logo (on top of everything)
@@ -19672,7 +19824,9 @@ ctx.restore();
   ui.btnLeft.addEventListener("click", () => move(-1,0));
   ui.btnRight.addEventListener("click", () => move(1,0));
 
-  ui.skin.addEventListener("change", (e) => setAndStoreSkin(e.target.value));
+  if (ui.skin) ui.skin.addEventListener("change", (e) => setAndStoreSkin(e.target.value));
+  document.getElementById("skinPrev").addEventListener("click", () => { cycleSkin(-1); try { ui.nameInput.focus(); } catch(_){} });
+  document.getElementById("skinNext").addEventListener("click", () => { cycleSkin(1); try { ui.nameInput.focus(); } catch(_){} });
 
   ui.btnGameOverClose.addEventListener("click", () => {
     tryHardClose();
@@ -19770,6 +19924,7 @@ ui.nameInput.addEventListener("keydown", (e) => {
       return;
     }
     if (ui.nameOverlay.style.display === "flex"){
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight"){ e.preventDefault(); cycleSkin(e.key === "ArrowRight" ? 1 : -1); return; }
       if (e.key === "Escape"){
         e.preventDefault();
         setAndStoreName("PLAYER1");
@@ -20087,9 +20242,14 @@ ui.nameInput.addEventListener("keydown", (e) => {
     const tutUp = padShown(ui.tutorialOverlay);
     if (tutUp && !padState.tutFocus) padTutorialFocus(ui.tutorialNext);   // highlight Next when the tutorial appears
     if (!tutUp && padState.tutFocus) padTutorialFocus(null);
-    const blocked = padOverlayOpen(ui.nameOverlay) || padShown(ui.quickHowtoOverlay);
+    const nameUp = padOverlayOpen(ui.nameOverlay) && !infoUp;
+    const blocked = (padOverlayOpen(ui.nameOverlay) && !nameUp) || padShown(ui.quickHowtoOverlay);
     const dir = (blocked && !infoUp) ? null : padDirection(pad);
     const fire = function(d){
+      if (nameUp){   // v2.59: name screen: left/right picks your stick figure
+        if (d === "ArrowLeft") cycleSkin(-1); else if (d === "ArrowRight") cycleSkin(1);
+        return;
+      }
       if (tutUp){
         if (d === "ArrowLeft") padTutorialMove(-1);
         else if (d === "ArrowRight") padTutorialMove(1);
