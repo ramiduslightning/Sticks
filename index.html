@@ -685,6 +685,26 @@
       z-index: 9999;
       pointer-events: auto;
     }
+    /* v2.50: Preview fills the screen: black backdrop, the art as large as the screen allows */
+    body.previewFull #previewGallery{
+      left:0; top:0; right:0; bottom:0; transform:none;
+      background:#000;
+      align-items:center; justify-content:center;
+      padding-top:76px;
+    }
+    body.previewFull #previewGallery[style*="block"]{ display:flex !important; }
+    body.previewFull #previewGallery .pgCard{
+      width: min(calc(100vh - 150px), calc(100vw - 24px));
+      background: transparent; border:none; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none;
+      padding: 0;
+    }
+    body.previewFull #previewGallery .pgImgWrap{ border:none; border-radius:10px; }
+    body.previewFull #previewGallery .pgTop{ position:fixed; left:16px; right:16px; bottom:14px; margin:0; z-index:2; pointer-events:none; }
+    body.previewFull #previewGallery .pgTop .pgNav{ pointer-events:auto; }
+    body.previewFull #previewGallery .pgTitle{ opacity:0.5; }
+    body.previewFull #previewGallery .pgDots{ position:fixed; left:0; right:0; bottom:26px; margin:0; }
+    body.previewFull #previewBar .previewEsc{ display:inline; }
+    #previewBar .previewEsc{ display:none; color:#7f8fa3; font-size:11px; margin-left:8px; text-transform:none; letter-spacing:0; font-weight:700; }
     #previewGallery .pgCard{
       width: min(520px, calc(100vw - 28px));
       border-radius: 18px;
@@ -730,7 +750,7 @@
       transform-origin:50% 45%;
     }
     /* v2.44: each picture fades in and slowly zooms (Ken Burns) */
-    #previewGallery #pgImg.pgKB{ animation: pgKB 6.2s ease-out both; }
+    #previewGallery #pgImg.pgKB{ animation: pgKB 7.7s ease-out both; }
     @keyframes pgKB{ 0%{ opacity:0; transform:scale(1.0); } 12%{ opacity:1; } 100%{ opacity:1; transform:scale(1.07); } }
     #previewGallery .pgDots{
       display:flex;
@@ -977,7 +997,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.49</span></div>
+          <div>STICKS <span class="badge">v2.50</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -1091,7 +1111,7 @@
   
   <div id="previewBar" aria-hidden="true">
     <div class="previewInner">
-      <div class="previewLabel">PREVIEW MODE <span id="previewNowPlaying" style="text-transform:none; color:#ff6bd6; margin-left:6px;">&#9834; Casey Plays Sticks</span></div>
+      <div class="previewLabel">PREVIEW MODE <span id="previewNowPlaying" style="text-transform:none; color:#ff6bd6; margin-left:6px;">&#9834; Casey Plays Sticks</span><span class="previewEsc">Esc to exit</span></div>
 
       <button id="previewMusicBtn" class="modalClose"
         style="background:linear-gradient(180deg,#2bd4a8,#0aa37f); color:#000; min-width:86px;">
@@ -13598,6 +13618,7 @@ function sfxMonsterVictoryStreak(){
   // everything moves: sticks fall, the hole swallows sticks, dice tumble, the UFO beams, figures dance.
   const PreviewArt = (function(){
     const W = 640, H = 640;
+    const SLIDE = 7.5;   // seconds per slide (22 slides x 7.5 s = about the length of "Casey Plays Sticks")
     const FONT = '"Consolas","Menlo","DejaVu Sans Mono",monospace';
     const COLORS = ['#ff4d6d','#ffd54a','#4dd0ff','#7cff6b','#c77dff','#ff9f43','#f8f8f8','#ff6bd6'];
     let X = null, canvas = null, scene = 0, t0 = 0, raf = 0, lastDraw = 0;
@@ -13783,7 +13804,7 @@ function sfxMonsterVictoryStreak(){
       // 5b. Bonus Stick: walk to a glowing stick, actions double, then a two-dice bonus roll lands on 12
       function(t){
         bg('#141100', '#050400', 'rgba(255,213,74,0.06)', 30, t);
-        const p = t % 6.5;
+        const p = t % SLIDE;
         const walk = Math.min(1, p / 1.6), px = 140 + walk * 170, step = p < 1.6 ? Math.sin(p * 12) : 0;
         const picked = p >= 1.7;
         if (!picked){ glow(345, 410, 70 + wave(t, 6, 10), '#ffd54a', 0.6); stick(345, 410, 46, 0.5, '#ffd54a', 5); }
@@ -13804,7 +13825,7 @@ function sfxMonsterVictoryStreak(){
       // 5c. Mystery Tree: it sprouts, the player feeds it a stick, a heart rises: +1 LIFE
       function(t){
         bg('#04140a', '#010603', 'rgba(74,222,128,0.05)', 40, t);
-        const p = t % 6.5, grow = Math.min(1, p / 1.0), blink = p > 5.6 ? (Math.sin(p * 30) > 0 ? 1 : 0.25) : 1;
+        const p = t % SLIDE, grow = Math.min(1, p / 1.0), blink = p > 5.6 ? (Math.sin(p * 30) > 0 ? 1 : 0.25) : 1;
         // tree (brown trunk, green glowing canopy, like the game's tree)
         X.save(); X.globalAlpha = blink; X.translate(420, 420); X.scale(grow, grow);
         glow(0, -120, 150, '#4ade80', 0.35 + wave(t, 3, 0.08));
@@ -13852,6 +13873,132 @@ function sfxMonsterVictoryStreak(){
         text('Rex catches a free ride', 320, 598, 22, '#cdd9e5', { weight:700, alpha:0.85 });
         frame('#6464ff');
       },
+      // ---- v2.50 level slides ----
+      // Sparkle Stick: walk through the rainbow and turn into a cupcake (every stick counts double)
+      function(t){
+        bg('#4a3466', '#1e1230', 'rgba(240,192,255,0.10)', 40, t);
+        const p = t % SLIDE;
+        const bands = ['#ff4d6d','#ff9f43','#ffd54a','#7cff6b','#4dd0ff','#c77dff'];
+        bands.forEach((c, i) => { X.save(); X.globalAlpha = 0.85; neon(() => { X.arc(320, 380, 230 - i * 16, Math.PI, 0); }, c, 7); X.restore(); });
+        seed = 600; for (let i = 0; i < 26; i++){ const sx = R(40, 600), sy = R(40, 470), tw = Math.max(0, Math.sin(t * R(2, 5) + i));
+          X.fillStyle = 'rgba(255,240,255,' + tw + ')'; X.save(); X.translate(sx, sy); X.rotate(t + i); X.fillRect(-1, -6, 2, 12); X.fillRect(-6, -1, 12, 2); X.restore(); }
+        const walk = Math.min(1, p / 3.2), px = 70 + walk * 250, st = walk < 1 ? Math.sin(p * 12) : 0;
+        if (p < 3.4){
+          figure(px, 230, 26, '#f0c0ff', { lLeg:[110 + st * 22, 100], rLeg:[70 - st * 22, 80], lArm:[-140 + st * 20, -170], rArm:[-40 - st * 20, -10] });
+        } else {
+          const k = Math.min(1, (p - 3.4) * 3), bob = wave(t, 5, 6);
+          if (p < 3.9) glow(320, 300, 160, '#ffffff', 0.7 * (1 - (p - 3.4) * 2));
+          X.save(); X.translate(320, 320 + bob); X.scale(k, k);
+          X.fillStyle = '#ff9fd0'; X.strokeStyle = '#ffffff'; X.lineWidth = 3; X.shadowColor = '#ff6bd6'; X.shadowBlur = 20;
+          X.beginPath(); X.moveTo(-55, 0); X.lineTo(55, 0); X.lineTo(40, 70); X.lineTo(-40, 70); X.closePath(); X.fill(); X.stroke();
+          X.fillStyle = '#fff4fb'; [[0, -20, 62, 30], [0, -48, 46, 24], [0, -72, 28, 18]].forEach(e => { X.beginPath(); X.ellipse(e[0], e[1], e[2], e[3], 0, 0, TAU); X.fill(); });
+          X.fillStyle = '#ff1f3a'; X.beginPath(); X.arc(0, -96, 12, 0, TAU); X.fill();
+          X.shadowBlur = 0; seed = 610; for (let i = 0; i < 12; i++){ X.fillStyle = COLORS[i % COLORS.length]; X.fillRect(R(-50, 45), R(-60, -10), 8, 3); }
+          X.restore();
+          text('x2 STICKS!', 320, 140, 42, '#ff6bd6', { spacing:3, alpha:k });
+        }
+        text('SPARKLE STICK', 320, 560, 40, '#f0c0ff', { spacing:4 });
+        text('walk the rainbow, become a cupcake', 320, 602, 20, '#ffe6ff', { weight:700, alpha:0.9 });
+        frame('#f0c0ff');
+      },
+      // Sun Stick: the sun blesses you with bonus sticks
+      function(t){
+        bg('#2a1505', '#0a0500', 'rgba(255,212,0,0.07)', 0, t);
+        const p = t % SLIDE;
+        X.save(); X.translate(460, 150); X.rotate(t * 0.3);
+        for (let i = 0; i < 16; i++){ X.rotate(TAU / 16); neon(() => { X.moveTo(80, 0); X.lineTo(120 + wave(t, 4, 12, i), 0); }, '#ffd400', 4); }
+        X.restore(); glow(460, 150, 150, '#ffd400', 0.55); X.fillStyle = '#ffe066'; X.shadowColor = '#ffd400'; X.shadowBlur = 40; X.beginPath(); X.arc(460, 150, 66, 0, TAU); X.fill(); X.shadowBlur = 0;
+        X.fillStyle = '#7a4a00'; X.beginPath(); X.arc(440, 140, 6, 0, TAU); X.arc(480, 140, 6, 0, TAU); X.fill();
+        neon(() => { X.arc(460, 158, 22, 0.2, Math.PI - 0.2); }, '#7a4a00', 3);
+        const pg = 0.6 + 0.4 * Math.sin(t * 6); glow(200, 330, 140, '#ffd400', 0.35 * pg);
+        figure(200, 230, 30, '#ffd400', { lArm:[-150, -120], rArm:[-30, -60], lLeg:[112, 100], rLeg:[68, 82] });
+        for (let k = 0; k < 4; k++){ const q = ((p * 0.55 + k / 4) % 1);
+          const sx = 460 - q * 240 + Math.sin(q * 9 + k) * 20, sy = 200 + q * 260;
+          stick(sx, sy, 32, q * 8 + k, COLORS[k + 1], 3); glow(sx, sy, 26, '#ffd400', 0.4); }
+        text('SUN STICK', 320, 560, 40, '#ffd400', { spacing:4 });
+        text('bask in the sun for bonus sticks', 320, 602, 20, '#ffe9a8', { weight:700, alpha:0.9 });
+        frame('#ffd400');
+      },
+      // Sky Stick: clouds drift, a gust shoves you, a bird snatches a stick, a plane gives a lift
+      function(t){
+        bg('#2c5f9e', '#14315a', 'rgba(255,255,255,0.05)', 0, t);
+        const p = t % SLIDE;
+        seed = 700; for (let i = 0; i < 6; i++){ const cy = R(70, 470), sp = R(12, 30), cx = ((R(0, 800) + t * sp) % 820) - 90;
+          X.fillStyle = 'rgba(255,255,255,0.75)'; [[0, 0, 36], [30, -12, 30], [58, 2, 28], [26, 10, 30]].forEach(c => { X.beginPath(); X.arc(cx + c[0], cy + c[1], c[2], 0, TAU); X.fill(); }); }
+        const gust = Math.max(0, Math.sin(p * 1.4)), px = 180 + gust * 90;
+        for (let i = 0; i < 5; i++){ const gy = 250 + i * 30, gx = ((t * 260 + i * 90) % 700) - 60;
+          X.save(); X.globalAlpha = gust * 0.8; neon(() => { X.moveTo(gx, gy); X.quadraticCurveTo(gx + 40, gy - 10, gx + 80, gy); }, '#e6f4ff', 2); X.restore(); }
+        figure(px, 230, 28, '#ffffff', { tilt:gust * 14, lArm:[-170, -190], rArm:[-200, -220], lLeg:[115, 100], rLeg:[75, 85] });
+        const bq = (p / SLIDE), bx = 640 - bq * 760, by = 130 + Math.sin(bq * 8) * 20, flap = Math.sin(t * 14) * 14;
+        neon(() => { X.moveTo(bx - 22, by - flap); X.quadraticCurveTo(bx - 10, by - 6, bx, by); X.quadraticCurveTo(bx + 10, by - 6, bx + 22, by - flap); }, '#1a1a2e', 4);
+        stick(bx, by + 18, 28, 0.3, '#ff9f43', 3);
+        const plx = ((t * 110) % 900) - 160;
+        X.save(); X.translate(plx, 420); neon(() => { X.moveTo(-50, 0); X.lineTo(50, 0); X.moveTo(-10, 0); X.lineTo(-25, -30); X.moveTo(-10, 0); X.lineTo(-25, 30); X.moveTo(-46, 0); X.lineTo(-56, -16); }, '#ffd54a', 4); X.restore();
+        text('SKY STICK', 320, 560, 40, '#3aa7ff', { spacing:4 });
+        text('gusts, sneaky birds and a plane ride', 320, 602, 20, '#e6f4ff', { weight:700, alpha:0.9 });
+        frame('#3aa7ff');
+      },
+      // Fire Stick: flame tiles flicker and a horned demon hunts you
+      function(t){
+        bg('#1a0509', '#080102', 'rgba(255,31,58,0.10)', 0, t);
+        seed = 800; for (let i = 0; i < 9; i++){ const fx = 60 + Math.floor(R(0, 13)) * 40, fy = 80 + Math.floor(R(0, 10)) * 40, f = 0.6 + 0.4 * Math.sin(t * 9 + i * 1.7);
+          glow(fx + 20, fy + 20, 40, '#ff5a1f', 0.5 * f);
+          X.fillStyle = 'rgba(255,' + Math.floor(120 + 80 * f) + ',40,0.9)'; X.beginPath(); X.moveTo(fx + 6, fy + 38); X.quadraticCurveTo(fx + 4, fy + 14, fx + 20, fy + 2 - f * 8); X.quadraticCurveTo(fx + 36, fy + 14, fx + 34, fy + 38); X.closePath(); X.fill(); }
+        const p = t % SLIDE, ang = p * 0.9;
+        const px = 320 + Math.cos(ang) * 150, py = 270 + Math.sin(ang) * 90, st = Math.sin(p * 14);
+        figure(px, py - 70, 24, '#ffe9e9', { lLeg:[100 + st * 30, 90], rLeg:[80 - st * 30, 90], lArm:[-150 + st * 30, -170], rArm:[-30 - st * 30, -10] });
+        const dx = 320 + Math.cos(ang - 0.9) * 150, dy = 270 + Math.sin(ang - 0.9) * 90 - 20 + wave(t, 6, 6);
+        glow(dx, dy, 70, '#ff0000', 0.45 + wave(t, 8, 0.15));
+        X.fillStyle = '#8b0000'; X.strokeStyle = '#ff1f3a'; X.lineWidth = 3; X.beginPath(); X.arc(dx, dy, 24, 0, TAU); X.fill(); X.stroke();
+        neon(() => { X.moveTo(dx - 16, dy - 16); X.lineTo(dx - 26, dy - 44); X.lineTo(dx - 8, dy - 22); X.moveTo(dx + 16, dy - 16); X.lineTo(dx + 26, dy - 44); X.lineTo(dx + 8, dy - 22); }, '#ff1f3a', 3);
+        X.fillStyle = '#ffdd00'; X.shadowColor = '#ff0000'; X.shadowBlur = 12; X.beginPath(); X.arc(dx - 9, dy - 3, 5, 0, TAU); X.arc(dx + 9, dy - 3, 5, 0, TAU); X.fill(); X.shadowBlur = 0;
+        neon(() => { X.moveTo(dx, dy + 24); X.lineTo(dx, dy + 70); X.moveTo(dx, dy + 34); X.lineTo(dx - 26, dy + 52); X.moveTo(dx, dy + 34); X.lineTo(dx + 26, dy + 52); X.moveTo(dx, dy + 70); X.lineTo(dx - 18, dy + 100); X.moveTo(dx, dy + 70); X.lineTo(dx + 18, dy + 100); }, '#ff1f3a', 4);
+        text('FIRE STICK', 320, 560, 40, '#ff5a6a', { spacing:4 });
+        text('a demon is hunting you', 320, 602, 20, '#ffd0d6', { weight:700, alpha:0.9 });
+        frame('#ff1f3a');
+      },
+      // Banana Stick: slip on a peel and slide, while a monkey grabs a stick
+      function(t){
+        bg('#1a2e0a', '#081203', 'rgba(255,235,59,0.07)', 0, t);
+        const p = t % SLIDE;
+        seed = 900; for (let i = 0; i < 6; i++){ const bx = R(60, 580), by = R(80, 470);
+          X.save(); X.translate(bx, by); X.rotate(R(0, TAU)); neon(() => { X.moveTo(-18, 0); X.quadraticCurveTo(0, 16, 18, 0); X.moveTo(-18, 0); X.lineTo(-24, -10); X.moveTo(18, 0); X.lineTo(24, -10); X.moveTo(0, 8); X.lineTo(0, 22); }, '#ffeb3b', 3); X.restore(); }
+        let px, rot = 0;
+        if (p < 1.6){ px = 80 + p * 70; } else if (p < 3.6){ const s2 = (p - 1.6) / 2; px = 192 + s2 * 220; rot = Math.min(1, s2 * 4) * -1.2; } else { px = 412; rot = -1.2 + Math.min(1.2, (p - 3.6) * 1.5); }
+        X.save(); X.translate(px, 330); X.rotate(rot); X.translate(-px, -330);
+        const st = p < 1.6 ? Math.sin(p * 12) : 0;
+        figure(px, 170, 28, '#ffeb3b', { lLeg:[110 + st * 22, 100], rLeg:[70 - st * 22, 80], lArm:[-140 + st * 20, -170], rArm:[-40 - st * 20, -10] });
+        X.restore();
+        if (p > 1.5 && p < 3.6){ const s2 = (p - 1.6) / 2; for (let i = 0; i < 4; i++){ X.save(); X.globalAlpha = 0.6 - i * 0.12; neon(() => { X.moveTo(px - 30 - i * 26, 340 + i * 4); X.lineTo(px - 60 - i * 26, 340 + i * 4); }, '#fff8c4', 2); X.restore(); } }
+        const mx = 520 + wave(t, 2, 10), my = 140 + Math.abs(wave(t, 5, 16));
+        neon(() => { X.arc(mx, my, 26, 0, TAU); X.moveTo(mx - 30, my); X.arc(mx - 34, my, 8, 0, TAU); X.moveTo(mx + 42, my); X.arc(mx + 34, my, 8, 0, TAU); }, '#c98a4b', 4);
+        neon(() => { X.moveTo(mx, my + 26); X.lineTo(mx, my + 80); X.moveTo(mx, my + 40); X.lineTo(mx - 30, my + 20); X.moveTo(mx, my + 40); X.lineTo(mx + 30, my + 60); X.moveTo(mx, my + 80); X.quadraticCurveTo(mx + 50, my + 110, mx + 40, my + 60); }, '#c98a4b', 4);
+        X.fillStyle = '#fff'; X.beginPath(); X.arc(mx - 8, my - 4, 4, 0, TAU); X.arc(mx + 8, my - 4, 4, 0, TAU); X.fill();
+        stick(mx - 40, my + 20, 30, 1.0, '#4dd0ff', 3);
+        text('BANANA STICK', 320, 560, 40, '#ffeb3b', { spacing:4 });
+        text('slippery peels, sneaky monkeys', 320, 602, 20, '#fff8c4', { weight:700, alpha:0.9 });
+        frame('#ffd700');
+      },
+      // Ice Stick: snow falls, wind pushes, and the snowman gives chase (Santa hat on the player, like the game)
+      function(t){
+        bg('#1a3a5c', '#0b1a2c', 'rgba(135,206,235,0.08)', 0, t);
+        seed = 1000; for (let i = 0; i < 60; i++){ const sx = (R(0, 680) + t * 30 + Math.sin(t + i) * 10) % 680 - 20, sy = (R(0, 680) + t * R(30, 70)) % 680 - 20;
+          X.fillStyle = 'rgba(255,255,255,0.8)'; X.beginPath(); X.arc(sx, sy, R(1.5, 3.5), 0, TAU); X.fill(); }
+        const p = t % SLIDE, px = 150 + (p / SLIDE) * 300, st = Math.sin(p * 10);
+        figure(px, 230, 26, '#e6f7ff', { lLeg:[105 + st * 22, 100], rLeg:[75 - st * 22, 80], lArm:[-150 + st * 20, -170], rArm:[-30 - st * 20, -10] });
+        X.fillStyle = '#dc2626'; X.beginPath(); X.moveTo(px - 26, 212); X.lineTo(px + 26, 212); X.quadraticCurveTo(px + 34, 190, px + 26, 178); X.lineTo(px - 8, 178); X.quadraticCurveTo(px - 18, 190, px - 26, 212); X.fill();
+        X.fillStyle = '#f5f5f5'; X.beginPath(); X.ellipse(px, 212, 27, 6, 0, 0, TAU); X.fill(); X.beginPath(); X.arc(px + 30, 178, 9, 0, TAU); X.fill();
+        const sx = px - 190 + wave(t, 1.5, 10), sy = 300;
+        X.fillStyle = '#f2f8ff'; X.shadowColor = '#87ceeb'; X.shadowBlur = 20;
+        [[0, 60, 46], [0, 0, 34], [0, -50, 24]].forEach(b => { X.beginPath(); X.arc(sx + b[0], sy + b[1], b[2], 0, TAU); X.fill(); }); X.shadowBlur = 0;
+        X.fillStyle = '#111'; X.beginPath(); X.arc(sx - 8, sy - 54, 3.5, 0, TAU); X.arc(sx + 8, sy - 54, 3.5, 0, TAU); X.fill();
+        X.fillStyle = '#ff8c1a'; X.beginPath(); X.moveTo(sx + 2, sy - 48); X.lineTo(sx + 26, sy - 44); X.lineTo(sx + 2, sy - 42); X.fill();
+        neon(() => { X.moveTo(sx + 30, sy); X.lineTo(sx + 70, sy - 20 + wave(t, 6, 8)); X.moveTo(sx - 30, sy); X.lineTo(sx - 70, sy - 20 - wave(t, 6, 8)); }, '#8b5a2b', 3);
+        X.fillStyle = '#1a1a1a'; X.fillRect(sx - 22, sy - 92, 44, 6); X.fillRect(sx - 14, sy - 120, 28, 30);
+        text('ICE STICK', 320, 560, 40, '#87ceeb', { spacing:4 });
+        text('a snowman gives chase', 320, 602, 20, '#e6f7ff', { weight:700, alpha:0.9 });
+        frame('#4da6ff');
+      },
       // 6b. Glow Stick: pitch dark, a flashlight sweeps the board, shadow monsters lurk just outside the light
       function(t){
         bg('#1a1206', '#0a0702', 'rgba(255,179,71,0.08)', 0, t);
@@ -13881,7 +14028,7 @@ function sfxMonsterVictoryStreak(){
       // 6c. Spell Stick: step into one portal, pop out of its twin across the board
       function(t){
         bg('#14041a', '#050108', 'rgba(255,79,216,0.05)', 50, t);
-        const p = t % 6.5, A = { x:190, y:330 }, B = { x:470, y:230 };
+        const p = t % SLIDE, A = { x:190, y:330 }, B = { x:470, y:230 };
         [A, B].forEach((o, i) => { const pulse = 0.5 + 0.5 * Math.sin(t * 4 + i);
           glow(o.x, o.y, 80 + pulse * 20, '#ff4fd8', 0.35 + pulse * 0.2);
           neon(() => { X.ellipse(o.x, o.y, 52, 20, 0, 0, TAU); }, '#ff4fd8', 4);
@@ -13909,7 +14056,7 @@ function sfxMonsterVictoryStreak(){
         X.strokeStyle = 'rgba(0,191,255,0.06)'; X.lineWidth = 1; X.beginPath(); for (let i = 0; i <= W; i += 40){ X.moveTo(i, 0); X.lineTo(i, H); X.moveTo(0, i); X.lineTo(W, i); } X.stroke();
         seed = 500; for (let i = 0; i < 22; i++){ const bx = R(20, 620), sp = R(20, 50), by = H - ((t * sp + R(0, H)) % H), r = R(2, 6);
           X.strokeStyle = 'rgba(200,230,255,0.35)'; X.lineWidth = 1.5; X.beginPath(); X.arc(bx + wave(t, 2, 4, i), by, r, 0, TAU); X.stroke(); }
-        const p = t % 6.5, run = Math.min(1, p / 4.2), px = 100 + run * 350, py = 300 - Math.sin(run * Math.PI) * 30;
+        const p = t % SLIDE, run = Math.min(1, p / 4.2), px = 100 + run * 350, py = 300 - Math.sin(run * Math.PI) * 30;
         hole(470, 400, 60, '#00bfff', p > 4.2 ? Math.max(0, 1 - (p - 4.2) * 2) : 0.2);
         // sharks: blue-grey bodies just under the water, fins cutting the surface
         [[320, 300, 150, 0.9, 0], [320, 300, 220, -0.6, 2], [200, 470, 90, 1.3, 4]].forEach(sh => {
@@ -13926,6 +14073,72 @@ function sfxMonsterVictoryStreak(){
         text('SEA STICK', 320, 560, 40, '#00bfff', { spacing:4 });
         text('dodge the sharks', 320, 602, 20, '#cdd9e5', { weight:700, alpha:0.85 });
         frame('#00bfff');
+      },
+      // Snake Stick: a rattler slithers, the cowboy-hat player escapes through a glowing edge tunnel
+      function(t){
+        bg('#2b2418', '#100d08', 'rgba(226,194,122,0.08)', 0, t);
+        const p = t % SLIDE;
+        [[22, 300], [618, 300]].forEach((e, i) => { const pulse = 0.5 + 0.5 * Math.sin(t * 5 + i * 2);
+          glow(e[0], e[1], 70, '#e2c27a', 0.4 + pulse * 0.3); neon(() => { X.moveTo(e[0], e[1] - 50); X.lineTo(e[0], e[1] + 50); }, '#ffe7a8', 6); });
+        const head = { x: 560 - (p / SLIDE) * 380, y: 420 };
+        neon(() => { for (let i = 0; i <= 40; i++){ const sx = head.x + i * 6, sy = head.y + Math.sin(i * 0.45 - t * 8) * 14; i ? X.lineTo(sx, sy) : X.moveTo(sx, sy); } }, '#7cff6b', 6);
+        X.fillStyle = '#7cff6b'; X.beginPath(); X.ellipse(head.x - 4, head.y + Math.sin(-t * 8) * 14, 14, 9, 0, 0, TAU); X.fill();
+        neon(() => { const tx = head.x + 246, ty = head.y + Math.sin(40 * 0.45 - t * 8) * 14; X.moveTo(tx, ty); X.lineTo(tx + 18 + wave(t, 40, 3), ty); }, '#e2c27a', 6);
+        let px = 0, vis = true, st = Math.sin(p * 14);
+        if (p < 2.4) px = 260 - (p / 2.4) * 230; else if (p < 2.8) vis = false; else px = Math.max(470, 610 - (p - 2.8) * 140);
+        if (p > 2.2 && p < 3.0){ glow(22, 300, 110, '#ffffff', 0.4); glow(618, 300, 110, '#ffffff', 0.4); }
+        if (vis){ figure(px, 190, 26, '#e2c27a', { lLeg:[100 + st * 30, 90], rLeg:[80 - st * 30, 90], lArm:[-150 + st * 30, -170], rArm:[-30 - st * 30, -10] });
+          X.fillStyle = '#8b5a2b'; X.strokeStyle = '#e2c27a'; X.lineWidth = 2; X.beginPath(); X.ellipse(px, 166, 40, 8, 0, 0, TAU); X.fill(); X.stroke();
+          X.beginPath(); X.moveTo(px - 20, 166); X.quadraticCurveTo(px - 22, 136, px, 140); X.quadraticCurveTo(px + 22, 136, px + 20, 166); X.fill(); X.stroke(); }
+        text('SNAKE STICK', 320, 560, 40, '#e2c27a', { spacing:4 });
+        text('rattlers bite, edge tunnels save you', 320, 602, 20, '#fff0cc', { weight:700, alpha:0.9 });
+        frame('#caa14a');
+      },
+      // Spider Stick: webs in the corners, momma spider drops down and steals a stick
+      function(t){
+        bg('#0d0a12', '#040306', 'rgba(139,92,246,0.06)', 30, t);
+        [[0, 0, 1, 1], [640, 0, -1, 1], [0, 640, 1, -1]].forEach(c => { for (let r = 40; r <= 200; r += 40)
+          neon(() => { X.moveTo(c[0] + c[2] * r, c[1]); X.quadraticCurveTo(c[0] + c[2] * r * 0.62, c[1] + c[3] * r * 0.62, c[0], c[1] + c[3] * r); }, 'rgba(220,220,255,0.5)', 1);
+          for (let a = 0; a <= 4; a++){ const an = a / 4 * Math.PI / 2; neon(() => { X.moveTo(c[0], c[1]); X.lineTo(c[0] + c[2] * Math.cos(an) * 210, c[1] + c[3] * Math.sin(an) * 210); }, 'rgba(220,220,255,0.5)', 1); } });
+        const p = t % SLIDE;
+        const drop = p < 2.2 ? p / 2.2 : (p < 3.2 ? 1 : Math.max(0, 1 - (p - 3.2) / 2)), sx = 380, sy = 40 + drop * 240;
+        neon(() => { X.moveTo(sx, 0); X.lineTo(sx, sy - 20); }, 'rgba(230,230,255,0.7)', 1.2);
+        X.fillStyle = '#2a1a3a'; X.strokeStyle = '#8b5cf6'; X.lineWidth = 3; X.shadowColor = '#8b5cf6'; X.shadowBlur = 16;
+        X.beginPath(); X.ellipse(sx, sy, 26, 30, 0, 0, TAU); X.fill(); X.stroke(); X.beginPath(); X.arc(sx, sy - 34, 15, 0, TAU); X.fill(); X.stroke(); X.shadowBlur = 0;
+        for (let i = 0; i < 4; i++){ const a = -0.9 + i * 0.6, kick = wave(t, 10, 0.15, i);
+          neon(() => { X.moveTo(sx - 20, sy - 6 + i * 6); X.lineTo(sx - 58, sy - 30 + i * 22 + kick * 40); X.lineTo(sx - 70, sy + 4 + i * 18);
+                       X.moveTo(sx + 20, sy - 6 + i * 6); X.lineTo(sx + 58, sy - 30 + i * 22 - kick * 40); X.lineTo(sx + 70, sy + 4 + i * 18); }, '#8b5cf6', 3); }
+        X.fillStyle = '#ff3b3b'; X.shadowColor = '#ff3b3b'; X.shadowBlur = 10; for (let i = 0; i < 4; i++){ X.beginPath(); X.arc(sx - 9 + (i % 2) * 18, sy - 38 + Math.floor(i / 2) * 8, 3, 0, TAU); X.fill(); } X.shadowBlur = 0;
+        const stolen = p >= 2.2;
+        figure(240, 230, 26, '#c7b6ff', { lArm:[-140, -170], rArm: stolen ? [-60, -100] : [-10, 20], lLeg:[112, 100], rLeg:[68, 82] });
+        if (!stolen) stick(320, 300 - drop * 6, 30, 0.6, '#ffd54a', 3); else stick(sx, sy + 40, 30, 0.6 + t, '#ffd54a', 3);
+        if (stolen && p < 4.5) text('HEY!', 200, 160, 34, '#ff6b8a', { spacing:2 });
+        text('SPIDER STICK', 320, 560, 40, '#8b5cf6', { spacing:4 });
+        text('momma spider raids your sticks', 320, 602, 20, '#e2d9ff', { weight:700, alpha:0.9 });
+        frame('#8b5cf6');
+      },
+      // Victory Stick: dodge the sweeping lasers, drop the last stick in the hole, fireworks
+      function(t){
+        bg('#0a1f0a', '#020802', 'rgba(39,174,96,0.10)', 40, t);
+        const p = t % SLIDE;
+        if (p < 4.2){
+          [[0.9, 0], [-0.7, 2]].forEach(l => { const a = Math.sin(t * l[0] + l[1]) * 0.9 + (l[0] > 0 ? 0.6 : 2.5), ox = l[0] > 0 ? 0 : 640;
+            X.save(); X.globalAlpha = 0.85; neon(() => { X.moveTo(ox, 60); X.lineTo(ox + Math.cos(a) * 900, 60 + Math.sin(a) * 900); }, '#ff1f3a', 3); X.restore(); });
+        }
+        hole(470, 420, 70, '#27ae60', p > 4.2 ? Math.max(0, 1 - (p - 4.2) * 2) : 0.2);
+        const walk = Math.min(1, p / 4), px = 120 + walk * 330, st = walk < 1 ? Math.sin(p * 12) : 0;
+        figure(px, 200 + Math.abs(Math.sin(p * 3)) * -12, 26, '#4dff88', { lLeg:[110 + st * 22, 100], rLeg:[70 - st * 22, 80], lArm: walk < 1 ? [-140 + st * 20, -170] : [-150, -120], rArm: walk < 1 ? [-20, 10] : [-30, -60] });
+        if (p < 4.2) stick(px + 50, 290, 30, 0.8, '#ffd54a', 3);
+        if (p >= 4.2){
+          const q = p - 4.2;
+          [[160, 150, '#ffd54a', 0], [470, 120, '#ff6bd6', 0.4], [320, 90, '#4dd0ff', 0.8], [560, 230, '#7cff6b', 1.2]].forEach(f => { const r = Math.max(0, q - f[3]) * 110;
+            if (r > 0 && r < 150){ for (let i = 0; i < 14; i++){ const a = i / 14 * TAU; X.save(); X.globalAlpha = 1 - r / 150;
+              neon(() => { X.moveTo(f[0] + Math.cos(a) * r * 0.6, f[1] + Math.sin(a) * r * 0.6); X.lineTo(f[0] + Math.cos(a) * r, f[1] + Math.sin(a) * r); }, f[2], 3); X.restore(); } } });
+          text('YOU WIN!', 320, 120, 64, '#4dff88', { spacing:6, alpha:Math.min(1, q * 2) });
+        }
+        text('VICTORY STICK', 320, 560, 40, '#27ae60', { spacing:4 });
+        text('dodge the lasers and finish it', 320, 602, 20, '#c8ffd9', { weight:700, alpha:0.9 });
+        frame('#27ae60');
       },
       // 7. Fifteen worlds: all 15 level themes in level order, hopping in a wave from Level 1 to 15
       function(t){
@@ -13967,18 +14180,27 @@ function sfxMonsterVictoryStreak(){
       }
     ];
 
+    let scale = 1;
+    function fitCanvas(){   // v2.50: draw at the size it's shown (sharp in full screen), scenes still use 640x640 units
+      if (!canvas) return;
+      const shown = canvas.clientWidth || W, dpr = Math.min(2, window.devicePixelRatio || 1);
+      const px = Math.max(W, Math.min(1600, Math.round(shown * dpr)));
+      if (canvas.width !== px){ canvas.width = px; canvas.height = px; }
+      scale = canvas.width / W;
+    }
     function draw(now){
       raf = requestAnimationFrame(draw);
       if (!X || now - lastDraw < 32) return;   // about 30 frames a second is plenty and easy on laptops
       lastDraw = now;
       const t = (now - t0) / 1000;
-      X.setTransform(1, 0, 0, 1, 0, 0); X.clearRect(0, 0, W, H);
+      fitCanvas();
+      X.setTransform(1, 0, 0, 1, 0, 0); X.clearRect(0, 0, canvas.width, canvas.height); X.setTransform(scale, 0, 0, scale, 0, 0);
       try { SCENES[scene](t); } catch(_){}
       vignette(); signature();
     }
     return {
       count: SCENES.length,
-      attach: function(cv){ canvas = cv; X = cv.getContext('2d'); cv.width = W; cv.height = H; },
+      attach: function(cv){ if (canvas === cv) return; canvas = cv; X = cv.getContext('2d'); cv.width = W; cv.height = H; },
       show: function(i){ scene = ((i % SCENES.length) + SCENES.length) % SCENES.length; t0 = performance.now(); },
       start: function(){ if (!raf){ t0 = performance.now(); lastDraw = 0; raf = requestAnimationFrame(draw); } },
       stop: function(){ if (raf){ cancelAnimationFrame(raf); raf = 0; } },
@@ -14021,7 +14243,7 @@ function sfxMonsterVictoryStreak(){
     previewTimer = setInterval(() => {
       if (!previewMode || !previewPlaying) return;
       showPreviewImage(previewIdx + 1);
-    }, 6000);   // v2.44: 6 seconds per picture (was 2.5) so the art has time to land
+    }, 7500);   // v2.50: 7.5 s per slide; 22 slides run about as long as the first song
   }
 
   function stopPreviewSlideshow(){
@@ -14048,6 +14270,15 @@ function sfxMonsterVictoryStreak(){
     ui.nameOverlay.style.display = "none";
     ui.previewBar.style.display = "block";
     if (ui.previewGallery) ui.previewGallery.style.display = "block";
+
+    // v2.50: go full screen. The browser's own full-screen mode needs a click, so from the Preview
+    // button it fills the whole monitor; otherwise (e.g. started from a controller) it fills the window.
+    document.body.classList.add("previewFull");
+    try {
+      const el = document.documentElement;
+      const req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req && !document.fullscreenElement) { const r = req.call(el); if (r && r.catch) r.catch(function(){}); }
+    } catch(_){}
 
     if (ui.previewGallery){
       initPreviewDots();
@@ -14080,6 +14311,15 @@ function sfxMonsterVictoryStreak(){
     startMusic(false);
   }
 
+  // v2.50: in the browser's full-screen mode, Esc is handled by the browser itself (the page never sees
+  // the key), so leaving full screen is treated as leaving Preview.
+  function onPreviewFullscreenChange(){
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!fsEl && previewMode) exitPreview();
+  }
+  document.addEventListener("fullscreenchange", onPreviewFullscreenChange);
+  document.addEventListener("webkitfullscreenchange", onPreviewFullscreenChange);
+
   function exitPreview(){
     if (!previewMode) return;
     previewMode = false;
@@ -14099,6 +14339,13 @@ function sfxMonsterVictoryStreak(){
     ui.previewBar.style.display = "none";
     if (ui.previewGallery) ui.previewGallery.style.display = "none";
     ui.nameOverlay.style.display = "flex";
+    // v2.50: leave full screen too
+    document.body.classList.remove("previewFull");
+    try {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (fsEl && exit) { const r = exit.call(document); if (r && r.catch) r.catch(function(){}); }
+    } catch(_){}
 
     // Restore music toggle state (audio remains stopped here;
     // game start will restart if Music was ON before preview)
