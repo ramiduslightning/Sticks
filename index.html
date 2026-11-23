@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.80</span></div>
+          <div>STICKS <span class="badge">v2.87</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -8400,8 +8400,90 @@ function updateSpiderWebs(){
   let bubbles = [];
   let scubaDiver = null; // Aesthetic swimming diver
   
+  // v2.82 ISLANDS (Sea Stick): you start on a small island, and two stepping-stone islands sit on shark
+  // rows. Islands are safe like the hole: sharks dive under them and can't bite you there.
+  let islands = [], islandsPending = false;
+  function onIsland(x, y){ return islands.some(t => t.tiles.some(q => q[0] === x && q[1] === y)); }
+  // each island: its safe squares, a center, a size, a wobbly shoreline, and what grows on it
+  function makeIsland(x, y, kind){
+    const T = TILE, wob = []; for (let i = 0; i < 12; i++) wob.push(0.82 + Math.random() * 0.3);
+    if (kind === "long") return { kind, tiles: [[x, y], [x + 1, y]], cx: (x + 1) * T, cy: y * T + T / 2, rx: T * 1.05, ry: T * 0.36, wob, rot: (Math.random() - 0.5) * 0.12, seed: Math.random() };
+    if (kind === "round") return { kind, tiles: [[x, y]], cx: x * T + T / 2, cy: y * T + T / 2, rx: T * 0.6, ry: T * 0.44, wob, rot: (Math.random() - 0.5) * 0.4, seed: Math.random() };
+    if (kind === "sandbar") return { kind, tiles: [[x, y]], cx: x * T + T / 2, cy: y * T + T / 2, rx: T * 0.5, ry: T * 0.3, wob, rot: (Math.random() - 0.5) * 0.3, seed: Math.random() };
+    return { kind: "start", tiles: [[x, y]], cx: x * T + T / 2, cy: y * T + T / 2, rx: T * 0.66, ry: T * 0.42, wob, rot: (Math.random() - 0.5) * 0.2, seed: Math.random() };
+  }
+  function ensureIslands(){
+    if (!islandsPending) return;
+    islandsPending = false; islands = [];
+    const taken = (x, y) => x < 0 || x >= GRID_W || (x === game.holeX && y === game.holeY) || game.sticks.some(s => s.x === x && s.y === y);
+    islands.push(makeIsland(game.playerX, game.playerY, "start"));
+    const lanes = [2, 6, 10, 14, 18, 22];
+    const extras = ["sandbar", "long", "round"].sort(() => Math.random() - 0.5).slice(0, randInt(1, 3));   // v2.84: 2-4 islands in all
+    for (const kind of extras){
+      for (let tries = 0; tries < 200; tries++){
+        const y = lanes[randInt(0, lanes.length - 1)], x = randInt(3, GRID_W - 5);
+        const tiles = kind === "long" ? [[x, y], [x + 1, y]] : [[x, y]];
+        if (tiles.some(q => taken(q[0], q[1]))) continue;
+        if (islands.some(t => t.tiles.some(q => tiles.some(r => Math.abs(q[0] - r[0]) + Math.abs(q[1] - r[1]) < 6)))) continue;
+        islands.push(makeIsland(x, y, kind)); break;
+      }
+    }
+  }
+  // a wobbly closed shape through 12 points around an ellipse
+  function islandPath(t, grow){
+    const n = t.wob.length, pts = [];
+    for (let i = 0; i < n; i++){ const a = (i / n) * Math.PI * 2, f = t.wob[i] * grow; pts.push([Math.cos(a) * t.rx * f, Math.sin(a) * t.ry * f]); }
+    ctx.beginPath();
+    const mid = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+    let m = mid(pts[n - 1], pts[0]); ctx.moveTo(m[0], m[1]);
+    for (let i = 0; i < n; i++){ const p = pts[i], q = pts[(i + 1) % n], mm = mid(p, q); ctx.quadraticCurveTo(p[0], p[1], mm[0], mm[1]); }
+    ctx.closePath();
+  }
+  function drawPalm(px, py, h, sway){
+    ctx.strokeStyle = "#7a5230"; ctx.lineWidth = 2; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.quadraticCurveTo(px + 2, py - h * 0.5, px + 1 + sway, py - h); ctx.stroke();
+    ctx.strokeStyle = "#2fbf5a"; ctx.lineWidth = 1.6;
+    const tx = px + 1 + sway, ty = py - h;
+    [[-7, 2], [7, 2], [-5, -3], [5, -3], [0, -5]].forEach(f => { ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo(tx + f[0] * 0.5, ty + f[1] - 3, tx + f[0], ty + f[1] + 2); ctx.stroke(); });
+  }
+  function drawIslands(){
+    ensureIslands();
+    const time = Date.now() * 0.001;
+    for (const t of islands){
+      ctx.save(); ctx.translate(t.cx, t.cy + 2); ctx.rotate(t.rot);
+      // surf ring that follows the shoreline
+      ctx.strokeStyle = "rgba(200,240,255," + (0.3 + 0.15 * Math.sin(time * 2 + t.seed * 6)) + ")"; ctx.lineWidth = 1.4;
+      islandPath(t, 1.22 + 0.04 * Math.sin(time * 2 + t.seed * 6)); ctx.stroke();
+      // shallow water rim, then sand
+      ctx.fillStyle = "rgba(120,200,220,0.35)"; islandPath(t, 1.1); ctx.fill();
+      const sg = ctx.createRadialGradient(-t.rx * 0.2, -t.ry * 0.3, 2, 0, 0, Math.max(t.rx, t.ry));
+      sg.addColorStop(0, "#f6e3a8"); sg.addColorStop(1, "#d3b064");
+      ctx.fillStyle = sg; islandPath(t, 1); ctx.fill();
+      ctx.strokeStyle = "#b8944c"; ctx.lineWidth = 0.8; ctx.stroke();
+      ctx.restore();
+      const sway = Math.sin(time * 1.2 + t.seed * 5) * 0.8;
+      ctx.save();
+      if (t.kind === "start"){
+        drawPalm(t.cx + 11, t.cy - 1, 15, sway);
+      } else if (t.kind === "round"){
+        drawPalm(t.cx - 2, t.cy, 13, sway);                                  // a palm in the middle, a rock by the shore
+        ctx.fillStyle = "#8a8f99"; ctx.beginPath(); ctx.ellipse(t.cx + 7, t.cy + 4, 2, 1.3, 0.2, 0, Math.PI * 2); ctx.fill();
+      } else if (t.kind === "long"){
+        drawPalm(t.cx + t.rx * 0.62, t.cy, 11, sway);                       // a palm at each end
+        drawPalm(t.cx - t.rx * 0.66, t.cy + 1, 13, -sway * 0.8);
+      } else {
+        // sandbar: a couple of rocks and a shell, no palm
+        ctx.fillStyle = "#8a8f99"; ctx.beginPath(); ctx.ellipse(t.cx + 5, t.cy + 2, 2.4, 1.6, 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#a3a9b3"; ctx.beginPath(); ctx.ellipse(t.cx + 7.5, t.cy + 3.2, 1.5, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#ffd1dc"; ctx.beginPath(); ctx.arc(t.cx - 6, t.cy + 3, 1.4, Math.PI, Math.PI * 2); ctx.fill();   // shell
+      }
+      ctx.restore();
+    }
+  }
+
   function initSharks(){
     sharks = [];
+    islands = []; islandsPending = true;   // v2.82: islands are placed on the level's first frame (start island under you)
     const numLanes = 5;
     const laneHeight = Math.floor(GRID_H / numLanes);
     
@@ -8462,7 +8544,8 @@ function updateSpiderWebs(){
       const dx = Math.abs(s.x - game.playerX);
       const dy = Math.abs(s.y - game.playerY);
       if (dx < 0.8 && dy < 0.8 &&
-          !(game.playerX === game.holeX && game.playerY === game.holeY)){
+          !(game.playerX === game.holeX && game.playerY === game.holeY) &&
+          !onIsland(game.playerX, game.playerY)){   // v2.82: islands are safe too
         if (activeShield > 0){
           logEvent("info", "Shield blocked shark!");
           setHud("SHIELD!");
@@ -8589,8 +8672,13 @@ function updateSpiderWebs(){
       const x = s.x * TILE + TILE / 2;
       const y = s.y * TILE + TILE / 2;
       const wiggle = Math.sin(s.wiggle) * 2;
+      // v2.82: dive under islands (fade out as they pass beneath)
+      let near = 9;
+      for (const t of islands) for (const q of t.tiles){ if (Math.abs(q[1] - s.y) < 0.5) near = Math.min(near, Math.abs(q[0] - s.x)); }
+      const under = near < 1.2 ? 0.12 : near < 2 ? 0.12 + (near - 1.2) / 0.8 * 0.88 : 1;
       
       ctx.save();
+      ctx.globalAlpha = under;
       ctx.translate(x, y + wiggle);
       if (s.direction < 0) ctx.scale(-1, 1);
       
@@ -12881,6 +12969,7 @@ function sfxMonsterVictoryStreak(){
   function introFreezesGame(){
     // Freeze during fade-in and while waiting; release as soon as it starts fading out.
     if (typeof talk !== "undefined" && talk.cut) return true;   // v2.65: zoom-in moment
+    if (typeof entrance !== "undefined" && entrance.active) return true;   // v2.81: level entrance
     return levelIntro.active && levelIntro.phase !== 'fadeout';
   }
   // v2.43: the world also stays frozen while the Quick tutorial or the how-to card is open. Before,
@@ -12891,6 +12980,7 @@ function sfxMonsterVictoryStreak(){
   }
   function dismissLevelIntro(){
     if (typeof talk !== "undefined" && talk.cut){ talkSkipCut(); return true; }   // v2.65: any input skips a zoom-in
+    if (typeof entrance !== "undefined" && entrance.active){ entranceEnd(); return true; }   // v2.81: skip the entrance
     if (!levelIntro.active || levelIntro.dismissed) return false;
     levelIntro.dismissed = true;
     if (levelIntro.phase === 'fadein'){ levelIntro.phase = 'hold'; levelIntro.timer = 0; }
@@ -12910,7 +13000,8 @@ function sfxMonsterVictoryStreak(){
     levelIntro.themeColor = theme.accent || '#3aa7ff';
     levelIntro.tip = LEVEL_TIPS[theme.name] || '';
     levelIntro.autoGo = false;
-    try { levelIntro.line = talkPick("start"); talkSound(); } catch(e) { levelIntro.line = ""; }   // v2.79: your stick's line, on the card
+    try { entranceArm(theme.name); } catch(e) {}   // v2.81: parachute (Sky) / boat (Sea) entrance after the card
+    levelIntro.line = "";   // v2.79/v2.86: chosen below, once we know if this level is new to you
     // Carry capacity grows every 3 levels; announce it on the ready screen
     try {
       const baseCap = lv => Math.min(6, 3 + Math.floor((lv - 1) / 3));
@@ -12934,6 +13025,14 @@ function sfxMonsterVictoryStreak(){
       }
       try { logEvent("info", "💡 " + theme.name.toUpperCase() + ": " + levelIntro.tip); } catch(e) {}
     }
+    // v2.86: your stick's line on the card. The first time you reach a level it always reacts to that level;
+    // after that it's a 50/50 mix of its level line and its general start lines.
+    try {
+      const lv = LEVEL_LINES[theme.name], skinKey = talkSkin();
+      const levelLine = lv && lv[skinKey];
+      levelIntro.line = (levelLine && (levelIntro.longHold || Math.random() < 0.5)) ? levelLine : talkPick("start");
+      talkSound();
+    } catch(e) { levelIntro.line = ""; }
   }
   
   function updateLevelIntro(){
@@ -12968,6 +13067,7 @@ function sfxMonsterVictoryStreak(){
         levelIntro.active = false;
         levelIntro.opacity = 0;
         try { talkLevelStarted(); } catch(e) {}   // v2.65
+        try { entranceStart(); } catch(e) {}      // v2.81
         // After the intro logo clears on Level 1, show the quick one-box how-to (if needed).
         if (quickHowtoPending && game.level === 1 && !tutorialIsDue() && !tutorial.active){
           quickHowtoPending = false;
@@ -13236,8 +13336,10 @@ function sfxMonsterVictoryStreak(){
         ctx.translate(sx, sy); ctx.scale(s, s); ctx.translate(-pw.x, -pw.y);
         talkZooming = true; drawPlayer(); talkZooming = false;
         ctx.restore();
-        ctx.save(); ctx.font = "900 14px ui-monospace, Menlo, Consolas, monospace";
-        const bw = Math.min(210, ctx.measureText(levelIntro.line).width) + 22; ctx.restore();
+        ctx.save(); const lp = levelIntro.line.split("|");
+        ctx.font = "900 14px ui-monospace, Menlo, Consolas, monospace"; let mw = ctx.measureText(lp[0]).width;
+        if (lp[1]){ ctx.font = "italic 700 11px ui-monospace, Menlo, Consolas, monospace"; mw = Math.max(mw, ctx.measureText(lp[1]).width); }
+        const bw = Math.min(210, mw) + 22; ctx.restore();
         talkBubble(sx + 34 + bw / 2, sy - 22, levelIntro.line, 14, a, 210);   // to the right of its head, tail pointing at it
       } catch(e) { talkZooming = false; }
     }
@@ -14144,19 +14246,30 @@ function sfxMonsterVictoryStreak(){
         text('FEED THE HOLE', 320, 600, 26, '#ffd54a', { weight:800, spacing:4 });
         frame('#ff9f43');
       },
-      // 4. Dice: tumble, then land on new faces
+      // 4. Dice, matching the real rules: a normal roll is ONE die, 0-5 moves. Every third roll here is a
+      //    BONUS roll: two dice added together, 2-12 moves. The total shown always adds up.
       function(t){
-        bg('#08121f', '#020509', 'rgba(124,255,107,0.05)', 50, t); glow(320, 300, 260, '#7cff6b', 0.25);
-        const loop = 2.4, p = t % loop, rolling = p < 1.1, n = Math.floor(t / loop), q = rolling ? Math.floor(t * 12) : 0;
-        const face = (base) => rolling ? (q + base) % 6 : (n * 7 + base * 3) % 6;
+        const loop = 2.6, n = Math.floor(t / loop), p = t % loop, rolling = p < 1.1, q = Math.floor(t * 12);
+        const bonus = n % 3 === 2, col = bonus ? '#ffd54a' : '#7cff6b';
+        bg('#08121f', '#020509', bonus ? 'rgba(255,213,74,0.05)' : 'rgba(124,255,107,0.05)', 50, t); glow(320, 280, 260, col, 0.25);
         const spin = (k) => rolling ? Math.sin(t * 13 + k) * 0.6 : 0;
         const bounce = (k) => rolling ? -Math.abs(Math.sin(t * 9 + k)) * 30 : 0;
-        die(200, 250 + bounce(0), 140, face(1), '#7cff6b', -0.25 + spin(0));
-        die(420, 300 + bounce(1), 140, face(4), '#4dd0ff', 0.2 + spin(1));
-        die(310, 140 + bounce(2), 90, face(0), '#ff4d6d', 0.1 + spin(2));
-        text('ROLL 0–5', 320, 470, 62, '#7cff6b', { spacing:4 });
-        text('every action counts', 320, 530, 24, '#cdd9e5', { weight:700, alpha:0.85 });
-        frame('#7cff6b');
+        const landA = rolling ? 0 : Math.min(1, (p - 1.1) / 0.35);
+        if (!bonus){
+          const face = rolling ? q % 6 : (n * 7 + 3) % 6;                     // 0-5
+          die(320, 240 + bounce(0), 170, face, col, -0.15 + spin(0));
+          if (!rolling) text('= ' + face + (face === 1 ? ' MOVE' : ' MOVES'), 320, 385, 40, face === 0 ? '#ff4d6d' : '#ffffff', { spacing:2, alpha:landA });
+          text('ROLL 0\u20135', 320, 470, 62, col, { spacing:4 });
+          text('one die  \u00b7  every action counts', 320, 530, 24, '#cdd9e5', { weight:700, alpha:0.85 });
+        } else {
+          const a1 = rolling ? 1 + q % 6 : 1 + (n * 5) % 6, b1 = rolling ? 1 + (q + 3) % 6 : 1 + (n * 3 + 2) % 6;   // each 1-6
+          die(220, 240 + bounce(0), 140, a1, col, -0.2 + spin(0));
+          die(420, 240 + bounce(1), 140, b1, col, 0.18 + spin(1));
+          if (!rolling) text(a1 + ' + ' + b1 + ' = ' + (a1 + b1) + ' MOVES', 320, 385, 38, '#ffffff', { spacing:2, alpha:landA });
+          text('BONUS ROLL 2\u201312', 320, 470, 54, col, { spacing:3 });
+          text('two dice  \u00b7  roll a 12 for another bonus', 320, 530, 22, '#cdd9e5', { weight:700, alpha:0.85 });
+        }
+        frame(col);
       },
       // 5. Stick Monster, drawn like the in-game monster: a red X of sticks with spikes, glowing eyes and a
       //    jagged mouth, shaking with anger (scaled up from drawStickMonster)
@@ -16909,7 +17022,11 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     let mode = "NORMAL";
     if (game.bonusActive) mode = game.bonusExtraRollReady ? "BONUS+" : "BONUS";
     else if (game.bonusPendingRoll) mode = "BONUS (PENDING)";
+    // v2.85: show when you're standing somewhere safe
+    const onIsl = (typeof onIsland === "function") && currentLevelTheme().name === "Sea Stick" && onIsland(game.playerX, game.playerY);
+    if (onIsl) mode = (mode === "NORMAL") ? "\u{1F3DD} SAFE \u00b7 ISLAND" : mode + " \u00b7 SAFE";
     ui.mode.textContent = mode;
+    ui.mode.style.color = onIsl ? "#5ee6a0" : "";
 
     ui.die.textContent = game.bonusActive ? "2–12" : "0–5";
 
@@ -17859,7 +17976,9 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       }
     }
     if (game.lives < fx.lastLives){ fx.shake = 1; fx.flash = 1; talk.lastHurt = performance.now(); talk.bubble = null;
-      fxPop(talkPick("hurt"), "#ff5a6a", 18); talkSound(); }
+      const hl = talkPick("hurt").split("|"); fxPop(hl[0], "#ff5a6a", 18);
+      if (hl[1]){ const hp = fx.pops[fx.pops.length - 1]; hp.sub = hl[1]; }
+      talkSound(); }
     fx.lastScore = game.score; fx.lastLives = game.lives;
   }
   function fxShakeOffset(){
@@ -17947,14 +18066,14 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       pickup: ["STICK ACQUIRED.", "NOT USABLE AS SPARE PARTS."],
       idle:   ["IDLE MODE...", "STILL WAITING. BEEP."]
     },
-    rex: {
-      beat:   ["GRRR-WOOF!", "*victory zoomies*", "Bad monster! BAD!", "Who's a good boy? ME!"],
-      start:  ["WOOF!", "Woof woof!", "*sniff sniff* Sticks!", "Arf! Let's play!"],
-      win:    ["AROOOOO!", "Good boy! Me!", "*happy tail wag*", "Woof! Treat time?"],
-      hurt:   ["Yelp!", "Grrrr...", "*whimper*"],
-      feed:   ["Fetch complete!", "Arf!", "*drops stick*"],
-      pickup: ["FETCH!", "*chomp*"],
-      idle:   ["*scratches ear*", "Walk? WALK?"]
+    rex: {   // v2.87: Rex only barks; a small translation underneath says what he means
+      beat:   ["GRRR-WOOF!|(translation: and STAY away.)", "*victory zoomies*|(translation: I won! I won! I won!)", "Bark!|(translation: bad monster. BAD.)", "WOOF!|(translation: I got the red dot. finally.)"],
+      start:  ["WOOF! WOOF WOOF!|(translation: a WHOLE field of sticks?!)", "Arf!|(translation: I was born for this.)", "*sniff sniff* WOOF!|(translation: sticks. I smell sticks.)", "Woof woof!|(translation: is it fetch time? it's fetch time.)"],
+      win:    ["AROOOOO!|(translation: best. level. ever.)", "Woof!|(translation: who's a good boy? me. I am.)", "*happy tail wag*|(translation: treat now, please.)", "ARF ARF!|(translation: again! again!)"],
+      hurt:   ["Yelp!|(translation: that was rude.)", "*whimper*|(translation: I need a belly rub.)", "Grrr...|(translation: I'm telling.)"],
+      feed:   ["Arf.|(translation: I will be burying these.)", "Woof!|(translation: good hole. great hole.)", "*drops stick*|(translation: fetch complete.)"],
+      pickup: ["FETCH!|(translation: mine mine mine.)", "*chomp*|(translation: this one is my favorite.)"],
+      idle:   ["...woof?|(translation: are we going for a walk?)", "*scratches ear*|(translation: hurry up, human.)"]
     },
     rick: {
       beat:   ["Was that supposed to be hard?", "Too easy.", "Next.", "Rick never loses."],
@@ -18028,6 +18147,234 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       pickup: ["Evidence collected.", "You have the right to be picked."],
       idle:   ["I'm watching you.", "Move along."]
     }
+  };
+  // v2.86: each stick's opening line for each level, reacting to that level in its own voice
+  const LEVEL_LINES = {
+   "Night Stick": {
+    "classic": "A UFO? I'll stick with it.",
+    "angel": "Such a lovely night sky.",
+    "alien": "Hey, that's my cousin's ride!",
+    "robot": "UFO DETECTED. REQUESTING LIFT.",
+    "rex": "Woof! Woof!|(translation: the moon has a ride. I want a ride.)",
+    "rick": "UFOs don't scare me. I'm the scary one.",
+    "sally": "Let's not get abducted, okay?",
+    "sick": "Is that a UFO or a fever dream?",
+    "super": "Night patrol, engage!",
+    "dip": "Is that the moon? It's moving!",
+    "law": "That UFO better have a license.",
+    "jogger": "Night jog under the stars!",
+    "mystic": "The stars told me you'd come."
+   },
+   "Sparkle Stick": {
+    "classic": "Sparkly! Still sticking with it.",
+    "angel": "A rainbow! A promise kept.",
+    "alien": "Earth rainbows make cupcakes?",
+    "robot": "GLITTER IN MY GEARS.",
+    "rex": "ARF?!|(translation: did someone say CUPCAKE?)",
+    "rick": "Even the sparkles want to be me.",
+    "sally": "Rainbow first, then sticks. Smart.",
+    "sick": "Sugar might help... *cough*",
+    "super": "A hero in sprinkles!",
+    "dip": "I wanna be a cupcake!",
+    "law": "Too much sparkle. Suspicious.",
+    "jogger": "Cupcake fuel! Let's run!",
+    "mystic": "I foresee frosting."
+   },
+   "Sun Stick": {
+    "classic": "Sunny with a chance of sticks!",
+    "angel": "Heavenly sunshine!",
+    "alien": "Your star is so... yellow.",
+    "robot": "SOLAR CHARGING: 100%.",
+    "rex": "*flops in a sunbeam*|(translation: five more minutes.)",
+    "rick": "The sun's trying to match my glow.",
+    "sally": "Sunscreen first, then sticks.",
+    "sick": "Sunshine... feeling better already.",
+    "super": "Powered by the sun!",
+    "dip": "Don't look at the sun. Ow. I looked.",
+    "law": "Nice day for an arrest.",
+    "jogger": "Perfect day for a run!",
+    "mystic": "The sun's blessing was foretold."
+   },
+   "Sky Stick": {
+    "classic": "Up here? I'll stick the landing.",
+    "angel": "Ah, home sweet sky.",
+    "alien": "Your planes are adorable.",
+    "robot": "ALTITUDE: HIGH. ANXIETY: HIGHER.",
+    "rex": "WOOF WOOF WOOF!|(translation: BIRDS. I must chase ALL the birds.)",
+    "rick": "Birds? I've been higher.",
+    "sally": "Watch out for those wind gusts.",
+    "sick": "Heights make me queasy...",
+    "super": "Finally, my kind of level!",
+    "dip": "Which way is down?",
+    "law": "Birds, drop those sticks!",
+    "jogger": "Running on clouds!",
+    "mystic": "I sensed a breeze coming."
+   },
+   "Fire Stick": {
+    "classic": "Things are heating up!",
+    "angel": "Ugh. Not this place again.",
+    "alien": "Is Earth supposed to be on fire?",
+    "robot": "WARNING: CIRCUITS MAY MELT.",
+    "rex": "Yip! Yip!|(translation: hot paws! hot paws!)",
+    "rick": "A demon? He should fear me.",
+    "sally": "Don't linger. Plan every step.",
+    "sick": "Great. Now I have a REAL fever.",
+    "super": "Fireproof cape. Don't worry!",
+    "dip": "Fire is hot? Since when?",
+    "law": "Arson! Somebody call me!",
+    "jogger": "Hot run! Keep those feet moving!",
+    "mystic": "The flames revealed this to me."
+   },
+   "Mountain Stick": {
+    "classic": "Time to climb. I'll stick with it.",
+    "angel": "Closer to heaven up here.",
+    "alien": "Your rocks are so... pointy.",
+    "robot": "CLIMB MODE ENGAGED.",
+    "rex": "Woof?|(translation: do those rams play fetch?)",
+    "rick": "I've climbed bigger mountains.",
+    "sally": "Watch for lightning up top.",
+    "sick": "Altitude sickness. On top of all this.",
+    "super": "I could just fly over this.",
+    "dip": "Is the mountain moving, or me?",
+    "law": "Rams, keep it legal up there.",
+    "jogger": "Hill training! Feel the burn!",
+    "mystic": "The peak holds great value."
+   },
+   "Cursed Stick": {
+    "classic": "Cursed? That's a sticky situation.",
+    "angel": "Leave the spirit to me.",
+    "alien": "Earth ghosts? Fascinating.",
+    "robot": "GHOST.EXE NOT RECOGNIZED.",
+    "rex": "*growls at nothing*|(translation: I see something you don't.)",
+    "rick": "A ghost wants my sticks? Cute.",
+    "sally": "Keep moving. Don't get caught.",
+    "sick": "I already feel possessed.",
+    "super": "No spirit takes my sticks!",
+    "dip": "Mr. Ghost? Can we be friends?",
+    "law": "Spirit, you have the right to remain silent.",
+    "jogger": "Can't possess what won't stop!",
+    "mystic": "I sense... another spirit."
+   },
+   "Banana Stick": {
+    "classic": "Slippery! A sticky situation.",
+    "angel": "Bless these monkeys. They mean well.",
+    "alien": "Why is your fruit so slippery?",
+    "robot": "POTASSIUM LEVELS: EXTREME.",
+    "rex": "ARF ARF!|(translation: a monkey took my stick. this means war.)",
+    "rick": "Peels? I never slip.",
+    "sally": "Watch your step. Literally.",
+    "sick": "Bananas are good when you're sick.",
+    "super": "Peels can't stop a hero!",
+    "dip": "Wheee! Wait, I'm sliding!",
+    "law": "Littering peels? That's a fine.",
+    "jogger": "Banana fuel for the run!",
+    "mystic": "I foresee... a slip."
+   },
+   "Ice Stick": {
+    "classic": "Brr! Chill, I've got this.",
+    "angel": "A winter blessing!",
+    "alien": "Your water is solid here?!",
+    "robot": "LOW TEMPS. OIL THICKENING.",
+    "rex": "*zoomies in the snow*|(translation: SNOW! the best floor!)",
+    "rick": "Ice cold. Just like me.",
+    "sally": "Careful, it's slippery.",
+    "sick": "Cold weather? With MY cold?",
+    "super": "This wind is ruining my cape.",
+    "dip": "Can I lick the ice? I licked it.",
+    "law": "Snowman, freeze! Oh. You did.",
+    "jogger": "Winter run! Pick up the pace!",
+    "mystic": "Ice cannot hide the future."
+   },
+   "Glow Stick": {
+    "classic": "Who turned off the lights?",
+    "angel": "Don't worry. I'll be your light.",
+    "alien": "My eyes see fine in the dark.",
+    "robot": "NIGHT VISION: OFFLINE. UH OH.",
+    "rex": "*whimper*|(translation: who turned off the lights.)",
+    "rick": "Afraid of the dark? Not me.",
+    "sally": "Stay in the light. Always.",
+    "sick": "A dark room. Perfect for a nap.",
+    "super": "Never fear, the light is here!",
+    "dip": "I can't see! Oh. Eyes open.",
+    "law": "Shadows, step into the light!",
+    "jogger": "Night run, flashlight on!",
+    "mystic": "My eyes see all. Even here."
+   },
+   "Spell Stick": {
+    "classic": "Magic? I'll stick with it.",
+    "angel": "Hmm. A little too much magic here.",
+    "alien": "Portals! Just like home.",
+    "robot": "PORTAL MATH DOES NOT COMPUTE.",
+    "rex": "...woof?|(translation: why is the hole moving.)",
+    "rick": "Portals? Rick's been everywhere.",
+    "sally": "Follow the matching portals.",
+    "sick": "Portals make me dizzy...",
+    "super": "Teleporting hero, coming through!",
+    "dip": "The hole moved! Or did I?",
+    "law": "That hole is resisting arrest!",
+    "jogger": "Shortcut through the portal!",
+    "mystic": "Finally. A level of magic."
+   },
+   "Sea Stick": {
+    "classic": "Sharks? Just keep sticking.",
+    "angel": "Peace be with you, sharks.",
+    "alien": "No sharks on Zorb. Lucky us.",
+    "robot": "WARNING: NOT WATERPROOF.",
+    "rex": "*whimper*|(translation: the water is wet and I hate it.)",
+    "rick": "I watched Jaws 3D. Not afraid.",
+    "sally": "This looks unsafe. Stay near the islands.",
+    "sick": "Salt water. Good for the sinuses.",
+    "super": "Sharks fear the cape!",
+    "dip": "Are sharks friendly? Asking for me.",
+    "law": "Sharks, stay behind the line!",
+    "jogger": "Swim leg of the triathlon!",
+    "mystic": "I foresaw fins."
+   },
+   "Snake Stick": {
+    "classic": "Snakes? A sticky situation.",
+    "angel": "Get thee behind me, snakes.",
+    "alien": "Your noodles hiss.",
+    "robot": "SNAKE DETECTED. SSSSYSTEM ALERT.",
+    "rex": "Grrrr...|(translation: that's a bad noodle.)",
+    "rick": "Snakes? I bite back.",
+    "sally": "Find the edge tunnels first.",
+    "sick": "A snake bite would top off my week.",
+    "super": "Snakes can't outrun a hero!",
+    "dip": "Hello, Mr. Noodle!",
+    "law": "This town ain't big enough, snakes.",
+    "jogger": "Outrun the rattlers!",
+    "mystic": "I hear the hiss of fate."
+   },
+   "Spider Stick": {
+    "classic": "Webs everywhere. Sticky situation!",
+    "angel": "Even spiders deserve love. Ew, though.",
+    "alien": "Eight legs? We have nine on Zorb.",
+    "robot": "WEB: NOT THE INTERNET KIND.",
+    "rex": "*sneeze*|(translation: the web went up my nose.)",
+    "rick": "Spiders? I eat webs for breakfast.",
+    "sally": "Uh oh. Spiders. Gross.",
+    "sick": "I'm too weak for spiders...",
+    "super": "Webs can't hold a hero!",
+    "dip": "Is the web sticky? It's sticky.",
+    "law": "Momma spider, you're under arrest.",
+    "jogger": "Hurdle the webs!",
+    "mystic": "The web of fate is literal here."
+   },
+   "Victory Stick": {
+    "classic": "Final level. I'll stick with it!",
+    "angel": "The heavenly finish line!",
+    "alien": "Last Earth level. Then home.",
+    "robot": "FINAL LEVEL PROTOCOL ENGAGED.",
+    "rex": "AROOOO!|(translation: victory is better than a trip to the vet.)",
+    "rick": "Lasers? Finally, a challenge.",
+    "sally": "Careful now. We're almost there.",
+    "sick": "One more level... then bed.",
+    "super": "The final battle!",
+    "dip": "Is this the end? Of what?",
+    "law": "Lasers? Unlicensed weapons.",
+    "jogger": "Final sprint! Let's go!",
+    "mystic": "This was always the ending."
+   }
   };
   const TALK_EASY_MAX_LEVEL = 4;           // levels 1-4 chat during play; 5+ use zoom-ins
   const TALK_GAP_MS = 60000;               // at least a minute between in-play bubbles
@@ -18114,6 +18461,12 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   // Once per frame: watch for pickups, feeds and idling; run the start bubble.
   function talkWatch(){
     if (talk.level !== game.level){ talk.level = game.level; talk.count = 0; }
+    // v2.85: stepping onto a Sea Stick island flashes a quick "safe" message (and updates the side panel)
+    try {
+      const isl = currentLevelTheme().name === "Sea Stick" && onIsland(game.playerX, game.playerY);
+      if (isl && !talk.onIsl && !levelIntro.active) setHud("\u{1F3DD} SAFE ON ISLAND");
+      if (isl !== talk.onIsl){ talk.onIsl = isl; updateUI(); }
+    } catch(_){}
     const carry = game.carry ? game.carry.length : 0;
     if (talk.lastScore === null){ talk.lastScore = game.score; talk.lastCarry = carry; return; }
     if (talk.pendingStart && performance.now() >= talk.pendingStart){
@@ -18131,12 +18484,15 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   // it sits below instead with the tail pointing up to (x, flipY).
   function talkBubble(x, tipY, text, size, alpha, maxW, flipY){
     ctx.save(); ctx.globalAlpha = alpha;
-    ctx.font = "900 " + size + "px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    const words = text.split(" "), lines = []; let cur = "";      // wrap into lines that fit maxW
-    words.forEach(w => { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW && cur){ lines.push(cur); cur = w; } else cur = t; });
-    if (cur) lines.push(cur);
-    const lh = size * 1.25, padX = size * 0.8, padY = size * 0.55, gap = size * 0.7, tw = size * 0.45;
-    const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + padX * 2, h = lines.length * lh + padY * 2;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const parts = String(text).split("|"), mainText = parts[0], subText = parts[1] || "";   // v2.87: optional translation line
+    const FM = "900 " + size + "px ui-monospace, Menlo, Consolas, monospace", ss = Math.round(size * 0.8), FS = "italic 700 " + ss + "px ui-monospace, Menlo, Consolas, monospace";
+    const wrap = (str, font) => { ctx.font = font; const words = str.split(" "), out = []; let cur = "";
+      words.forEach(w => { const t = cur ? cur + " " + w : w; if (ctx.measureText(t).width > maxW && cur){ out.push(cur); cur = w; } else cur = t; });
+      if (cur) out.push(cur); return out.map(s => ({ s, font, w: ctx.measureText(s).width })); };
+    const lines = wrap(mainText, FM), subs = subText ? wrap(subText, FS) : [];
+    const lh = size * 1.25, slh = ss * 1.25, padX = size * 0.8, padY = size * 0.55, gap = size * 0.7, tw = size * 0.45;
+    const w = Math.max(...lines.concat(subs).map(l => l.w)) + padX * 2, h = lines.length * lh + subs.length * slh + (subs.length ? 3 : 0) + padY * 2;
     const bx = Math.max(6, Math.min(CANVAS_W - w - 6, x - w / 2));
     const below = flipY !== undefined && (tipY - h - gap) < 4;
     const by = below ? flipY + gap : tipY - h - gap;
@@ -18151,8 +18507,10 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     ctx.lineTo(bx, by + r); ctx.quadraticCurveTo(bx, by, bx + r, by); ctx.closePath();
     ctx.fillStyle = "rgba(255,255,255,0.96)"; ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 10; ctx.fill(); ctx.shadowBlur = 0;
     ctx.lineWidth = 2; ctx.strokeStyle = "#111827"; ctx.stroke();
-    ctx.fillStyle = "#111827";
-    lines.forEach((l, i) => ctx.fillText(l, bx + w / 2, by + padY + lh * (i + 0.5)));
+    ctx.fillStyle = "#111827"; ctx.font = FM;
+    lines.forEach((l, i) => ctx.fillText(l.s, bx + w / 2, by + padY + lh * (i + 0.5)));
+    ctx.fillStyle = "#6b7280"; ctx.font = FS;
+    subs.forEach((l, i) => ctx.fillText(l.s, bx + w / 2, by + padY + lines.length * lh + 3 + slh * (i + 0.5)));
     ctx.restore();
   }
   // draws the in-play bubble, and the zoom-in moment on top of everything
@@ -18281,9 +18639,136 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   }
   // ===== END PHONE CAMERA =====
 
+  // ===== v2.81 LEVEL ENTRANCES =====
+  // Sky Stick: your stick floats down under a striped parachute and lands on its start square.
+  // Sea Stick: a little boat motors in, your stick hops off into the water with a splash, the boat leaves.
+  // The game waits while it plays (about 2-3 s); any key or tap skips it. The stick stays hidden behind
+  // the level card first, so it doesn't pop in early.
+  const entrance = { kind: null, active: false, pending: false, t0: 0 };
+  let entranceDrawing = false;
+  function entranceKindFor(themeName){ return themeName === "Sky Stick" ? "sky" : null; }   // v2.82: Sea starts on an island now
+  function entranceArm(themeName){ entrance.kind = entranceKindFor(themeName); entrance.pending = !!entrance.kind; entrance.active = false; }
+  function entranceStart(){ if (!entrance.pending) return; entrance.pending = false; entrance.active = true; entrance.t0 = performance.now(); entranceSound(0); entrance.snd = 0; }
+  function entranceEnd(){ entrance.active = false; entrance.pending = false; entrance.kind = null; }
+  function entranceHidesPlayer(){ return (entrance.pending || entrance.active) && !entranceDrawing; }
+  function entranceDur(){ return entrance.kind === "sea" ? 3.0 : 3.9; }
+  function entranceSound(step){
+    try {
+      if (entrance.kind === "sky"){
+        if (step === 0){ beep(880, 0.25, "sine", 0.025); setTimeout(() => beep(660, 0.35, "sine", 0.02), 200); }
+        if (step === 1){ beep(196, 0.08, "triangle", 0.05); }                                     // soft landing thump
+      } else {
+        if (step === 0){ beep(110, 0.5, "sawtooth", 0.015); }                                     // little motor
+        if (step === 1){ beep(1400, 0.05, "triangle", 0.03); setTimeout(() => beep(300, 0.18, "triangle", 0.05), 40);
+                         setTimeout(() => beep(900, 0.06, "sine", 0.03), 140); }                 // splash
+      }
+    } catch(_){}
+  }
+  // draw the player shifted by (dx, dy) from its square
+  function entrancePlayerAt(dx, dy){
+    ctx.save(); ctx.translate(dx, dy); entranceDrawing = true;
+    try { drawPlayer(); } catch(_){}
+    entranceDrawing = false; ctx.restore();
+  }
+  function drawEntrance(){
+    if (!entrance.active) return;
+    const t = (performance.now() - entrance.t0) / 1000, D = entranceDur();
+    if (t >= D){ entranceEnd(); return; }
+    fx.vx = game.playerX; fx.vy = game.playerY;   // no gliding during the entrance: the stick's real square
+    const p = { x: game.playerX * TILE + TILE / 2, y: game.playerY * TILE + TILE / 2 }, ease = (k) => 1 - Math.pow(1 - k, 3);
+    if (entrance.kind === "sky"){
+      const FALL = 3.2;   // a slow, floaty descent
+      const k = Math.min(1, t / FALL), e = ease(k);
+      const startY = -(p.y + 70), dy = startY * (1 - e), sway = Math.sin(t * 2.4) * 8 * (1 - e);
+      const land = t > FALL ? Math.sin(Math.min(1, (t - FALL) / 0.25) * Math.PI) * -2 : 0;   // tiny bounce
+      if (t > FALL && entrance.snd < 1){ entrance.snd = 1; entranceSound(1); }
+      // parachute: canopy above, lines down to the shoulders; after landing it crumples and drifts off
+      const cK = t <= FALL ? 0 : Math.min(1, (t - FALL) / (D - FALL));
+      const cx = p.x + sway + cK * 18, cy = p.y + dy - 46 + cK * 30, cw = 26 * (1 - cK * 0.4), ch = 14 * (1 - cK * 0.75);
+      ctx.save(); ctx.globalAlpha = 1 - cK; ctx.lineCap = "round";
+      ctx.strokeStyle = "rgba(230,235,245,0.8)"; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(cx - cw, cy); ctx.lineTo(p.x + sway - 3, p.y + dy - 6); ctx.moveTo(cx + cw, cy); ctx.lineTo(p.x + sway + 3, p.y + dy - 6);
+      ctx.moveTo(cx - cw * 0.35, cy + 1); ctx.lineTo(p.x + sway - 1, p.y + dy - 6); ctx.moveTo(cx + cw * 0.35, cy + 1); ctx.lineTo(p.x + sway + 1, p.y + dy - 6); ctx.stroke();
+      const cols = ["#ff4d5e", "#ffffff", "#ff4d5e", "#ffffff", "#ff4d5e", "#ffffff"];
+      for (let i = 0; i < 6; i++){                                             // striped canopy
+        const a0 = Math.PI + (i / 6) * Math.PI, a1 = Math.PI + ((i + 1) / 6) * Math.PI;
+        ctx.fillStyle = cols[i]; ctx.beginPath(); ctx.moveTo(cx, cy);
+        ctx.ellipse(cx, cy, cw, ch, 0, a0, a1); ctx.closePath(); ctx.fill();
+      }
+      ctx.strokeStyle = "#9b1d2a"; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(cx, cy, cw, ch, 0, Math.PI, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); for (let i = 0; i <= 6; i++){ const x = cx - cw + (i / 6) * cw * 2; ctx.lineTo(x, cy + (i % 2 ? 2.5 : 0)); } ctx.stroke();
+      ctx.restore();
+      if (t > FALL && t < FALL + 0.45){                                        // dust puff on landing
+        const d = (t - FALL) / 0.45; ctx.save(); ctx.globalAlpha = 0.45 * (1 - d); ctx.fillStyle = "#d8dee9";
+        [[-8, 0], [8, 0], [-3, 2], [4, 2]].forEach(q => { ctx.beginPath(); ctx.arc(p.x + q[0] * (1 + d), p.y + 17 + q[1], 2.5 + d * 4, 0, Math.PI * 2); ctx.fill(); }); ctx.restore();
+      }
+      entrancePlayerAt(sway, dy + land);
+    } else {
+      // SEA: boat in (0-1.3s), hop off (1.3-1.8s), splash and bob (1.8-3.0s), boat leaves
+      const IN = 1.3, HOP = 0.5, wy = p.y + 14;
+      const fromLeft = p.x > CANVAS_W / 2;                                    // come in from the side with more room
+      const dir = fromLeft ? 1 : -1, stopX = p.x - dir * 22;
+      const enterX = fromLeft ? -40 : CANVAS_W + 40;
+      let bx;
+      if (t < IN) bx = enterX + (stopX - enterX) * ease(t / IN);
+      else if (t < IN + HOP + 0.3) bx = stopX;
+      else bx = stopX + (enterX - stopX) * Math.pow((t - IN - HOP - 0.3) / (D - IN - HOP - 0.3), 2);
+      const bob = Math.sin(t * 5) * 1.2;
+      // little wake behind the boat
+      ctx.save(); ctx.globalAlpha = 0.5; ctx.strokeStyle = "#e0f7ff"; ctx.lineWidth = 1;
+      for (let i = 1; i <= 3; i++){ ctx.beginPath(); ctx.moveTo(bx - dir * (14 + i * 6), wy + 2 + i); ctx.lineTo(bx - dir * (20 + i * 6), wy + 2 + i); ctx.stroke(); }
+      ctx.restore();
+      const drawBoat = () => {
+        ctx.save(); ctx.translate(bx, wy + bob);
+        ctx.scale(dir, 1);
+        ctx.fillStyle = "#8b5a2b"; ctx.strokeStyle = "#4a2f12"; ctx.lineWidth = 1;          // hull
+        ctx.beginPath(); ctx.moveTo(-16, -4); ctx.lineTo(16, -4); ctx.lineTo(11, 4); ctx.lineTo(-12, 4); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#ffffff"; ctx.fillRect(-16, -5.5, 32, 1.8);                         // white trim
+        ctx.strokeStyle = "#d9d9d9"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(-10, -20); ctx.stroke();   // flag pole
+        ctx.fillStyle = "#ff4d5e"; ctx.beginPath(); ctx.moveTo(-10, -20); ctx.lineTo(-3, -17.5 + Math.sin(t * 9) * 0.8); ctx.lineTo(-10, -15); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#555"; ctx.fillRect(-20, -4, 4, 6); ctx.fillStyle = "#333"; ctx.fillRect(-19, 2, 2, 4);   // little motor at the back
+        ctx.restore();
+      };
+      if (t < IN){ drawBoat(); entrancePlayerAt(bx - p.x + dir * 3, (wy - 15 + bob) - p.y); }   // riding in
+      else if (t < IN + HOP){                                                                // hop off in an arc
+        drawBoat();
+        const k = (t - IN) / HOP, sx = stopX + dir * 3, x = sx + (p.x - sx) * k, y = (wy - 15) + (p.y + 4 - (wy - 15)) * k - Math.sin(k * Math.PI) * 18;
+        entrancePlayerAt(x - p.x, y - p.y);
+      } else {
+        drawBoat();
+        const s = t - IN - HOP;
+        if (entrance.snd < 1){ entrance.snd = 1; entranceSound(1); }
+        // splash: rings and droplets
+        if (s < 1.0){
+          const k = s / 1.0;
+          ctx.save(); ctx.strokeStyle = "rgba(200,240,255," + (0.8 * (1 - k)) + ")"; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.ellipse(p.x, p.y + 12, 6 + k * 18, 2 + k * 5, 0, 0, Math.PI * 2); ctx.stroke();
+          if (k > 0.2){ const k2 = (k - 0.2) / 0.8; ctx.beginPath(); ctx.ellipse(p.x, p.y + 12, 4 + k2 * 11, 1.5 + k2 * 3, 0, 0, Math.PI * 2); ctx.stroke(); }
+          ctx.fillStyle = "rgba(225,248,255," + (1 - k) + ")";
+          for (let i = 0; i < 9; i++){
+            const a = -Math.PI / 2 + (i - 4) * 0.33, sp = 26 + (i % 3) * 8;
+            const x = p.x + Math.cos(a) * sp * k, y = p.y + 8 + Math.sin(a) * sp * k + 60 * k * k;
+            ctx.beginPath(); ctx.arc(x, y, 1.4, 0, Math.PI * 2); ctx.fill();
+          }
+          ctx.restore();
+        }
+        const sink = s < 0.25 ? s / 0.25 * 5 : Math.max(0, 5 * (1 - (s - 0.25) / 0.5)) + Math.sin(s * 8) * 0.8 * Math.max(0, 1 - s);
+        entrancePlayerAt(0, sink);
+      }
+    }
+  }
+  // ===== END LEVEL ENTRANCES =====
+
+
 
 
   function drawPlayer(){
+    if (levelIntro.active && !fxNoSmooth && !talkZooming && !entranceDrawing){   // v2.84: your stick is on the level card; don't show a second one on the board
+      fx.vx = game.playerX; fx.vy = game.playerY; return;
+    }
+    if (typeof entranceHidesPlayer === "function" && entranceHidesPlayer() && !fxNoSmooth && !talkZooming){
+      fx.vx = game.playerX; fx.vy = game.playerY; return;   // v2.81 entrance: hidden, but keep the smoothing on its square
+    }
     const fpos = fxPlayerPos();
     const cx = fpos.x*TILE + TILE/2;
     const cy = fpos.y*TILE + TILE/2 + fpos.hop;
@@ -18298,6 +18783,15 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       const it = Date.now() * 0.001;
       const lean = Math.sin(it * 1.7) * 0.045 + Math.sin(it * 0.9) * 0.02;
       ctx.translate(0, 15); ctx.rotate(lean); ctx.translate(0, -15 + Math.sin(it * 2.4) * 0.5);
+    }
+    // v2.82 WADING: on Sea Stick, out in the water (not on an island or the hole) your stick is shown
+    // waist-deep: everything below the waterline is hidden, with a ripple ring and a gentle bob.
+    const wading = !fxNoSmooth && !talkZooming && currentLevelTheme().name === "Sea Stick" &&
+                   !(game.playerX === game.holeX && game.playerY === game.holeY) && !(typeof onIsland === "function" && onIsland(game.playerX, game.playerY));
+    const WL = 6.5;   // waterline, just below the waist
+    if (wading){
+      ctx.translate(0, 2.5 + Math.sin(Date.now() * 0.003) * 0.6);   // sit a little lower and bob
+      ctx.save(); ctx.beginPath(); ctx.rect(-40, -60, 80, 60 + WL); ctx.clip();
     }
     
     // Sun glow effect - VIBRANT!
@@ -19972,6 +20466,17 @@ ctx.restore();
 
       drawCowboyHat(hy, 0);
     }
+    if (wading){
+      ctx.restore();   // end the waterline clip
+      const tt = Date.now() * 0.001;
+      ctx.save(); ctx.lineCap = "round";
+      ctx.strokeStyle = "rgba(200,240,255,0.75)"; ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.ellipse(0, WL, 7.5 + Math.sin(tt * 3) * 0.6, 2.2, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = "rgba(200,240,255,0.35)";
+      ctx.beginPath(); ctx.ellipse(0, WL + 0.6, 10.5 + Math.sin(tt * 3 + 1) * 0.8, 3, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+      ctx.save(); ctx.translate(0, WL - 15); drawCarryDots(); ctx.restore();   // carry dots float at the waterline
+    }
 ctx.restore();
   }
 
@@ -20352,6 +20857,7 @@ ctx.restore();
 
     const theme = currentLevelTheme();
     drawGrid(theme);
+    if (theme.name === "Sea Stick"){ try { drawIslands(); } catch(e) {} }   // v2.82: islands sit under sticks and your stick
     drawLifeHint(theme);
     drawTunnels(theme);
     drawTree(theme);
@@ -20466,7 +20972,7 @@ ctx.restore();
       drawCursedStick();
     }
     
-    // Draw sharks for Sea Stick
+    // Draw sharks for Sea Stick (they fade out where they pass under an island)
     if (theme.name === "Sea Stick" && sharks.length > 0){
       drawSharks();
     }
@@ -20521,6 +21027,7 @@ ctx.restore();
     
     if (theme.name === "Glow Stick") drawGlowDarkness();
 
+    drawEntrance();    // v2.81: parachute / boat entrance
     fxDrawOverlay();   // floating points and the hit flash
     talkDraw();        // v2.65: speech bubbles and the zoom-in moments
 
@@ -20908,6 +21415,10 @@ ui.nameInput.addEventListener("keydown", (e) => {
 
     if (talk.cut){   // v2.65: any key skips the zoom-in
       if (!e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); talkSkipCut(); }
+      return;
+    }
+    if (entrance.active){   // v2.81: any key skips the level entrance
+      if (!e.ctrlKey && !e.metaKey && !e.altKey){ e.preventDefault(); entranceEnd(); }
       return;
     }
     if (introIsWaiting() || (levelIntro.active && levelIntro.phase === 'fadein')){
