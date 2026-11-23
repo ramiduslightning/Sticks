@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.78</span></div>
+          <div>STICKS <span class="badge">v2.79</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -12847,6 +12847,7 @@ function sfxMonsterVictoryStreak(){
   const INTRO_FADEIN_TIME = 30;   // ~0.5 seconds
   const INTRO_HOLD_TIME = 165;    // ~2.7 seconds (time to read the level tip)
   const INTRO_FADEOUT_TIME = 45;  // ~0.75 seconds
+  const INTRO_AUTO_GO = 120;      // v2.79: ~2 seconds on a level card you've seen before
   const INTRO_VICTORY_PAUSE_TIME = 180; // ~3 seconds pause before rotation (Victory Stick only)
   let pendingFormBanner = null;
   
@@ -12908,6 +12909,8 @@ function sfxMonsterVictoryStreak(){
     levelIntro.themeName = theme.name;
     levelIntro.themeColor = theme.accent || '#3aa7ff';
     levelIntro.tip = LEVEL_TIPS[theme.name] || '';
+    levelIntro.autoGo = false;
+    try { levelIntro.line = talkPick("start"); talkSound(); } catch(e) { levelIntro.line = ""; }   // v2.79: your stick's line, on the card
     // Carry capacity grows every 3 levels; announce it on the ready screen
     try {
       const baseCap = lv => Math.min(6, 3 + Math.floor((lv - 1) / 3));
@@ -12950,6 +12953,10 @@ function sfxMonsterVictoryStreak(){
       const tutOpen = (ui.tutorialOverlay && ui.tutorialOverlay.classList.contains('show')) ||
                       (ui.quickHowtoOverlay && ui.quickHowtoOverlay.classList.contains('show'));
       // Normally wait for the player. If a tutorial box is open, fall back to the old timed hold.
+      // v2.79: a level you've already seen continues by itself after ~2s (any key still skips);
+      // the first time you reach a level it waits for you so you can read the tip.
+      levelIntro.autoGo = !levelIntro.longHold && !tutOpen;
+      if (levelIntro.autoGo && levelIntro.timer >= INTRO_AUTO_GO) levelIntro.dismissed = true;
       const canLeave = levelIntro.dismissed;   // v2.43: never times out behind the tutorial any more
       if(canLeave){
         levelIntro.phase = 'fadeout';
@@ -13200,7 +13207,14 @@ function sfxMonsterVictoryStreak(){
       if (line) lines.push(line);
       let ty = figY + (isVictoryLevel ? 148 : 128) * figScale;
       for (const ln of lines){ ctx.fillText(ln, cx, ty); ty += 20; }
-      if (introIsWaiting()){
+      if (introIsWaiting() && levelIntro.autoGo){
+        // seen before: a short bar fills up, then the level starts on its own
+        const k = Math.min(1, levelIntro.timer / INTRO_AUTO_GO), bw = 180;
+        ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(cx - bw / 2, ty + 4, bw, 3);
+        ctx.fillStyle = color; ctx.fillRect(cx - bw / 2, ty + 4, bw * k, 3);
+        ctx.font = '12px ui-monospace, monospace'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.fillText('starting... (any key to skip)', cx, ty + 11);
+      } else if (introIsWaiting()){
         const blink = 0.55 + 0.45 * ((Math.sin(time * 4) + 1) / 2);
         ctx.font = 'bold 14px ui-monospace, monospace';
         ctx.fillStyle = `rgba(255,255,255,${blink})`;
@@ -13210,6 +13224,23 @@ function sfxMonsterVictoryStreak(){
     
     ctx.shadowBlur = 0;
     ctx.restore();
+
+    // v2.79: your stick stands on the card and says its start line (hidden while a tutorial box is up)
+    if (levelIntro.line && !_tutOpen){
+      try {
+        const a = levelIntro.opacity, sx = cx - 168, sy = 118, s = 2.3, pw = fxPlayerPx();
+        ctx.save(); ctx.globalAlpha = a;
+        const halo = ctx.createRadialGradient(sx, sy, 4, sx, sy, 62);
+        halo.addColorStop(0, "rgba(255,255,255,0.10)"); halo.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(sx, sy, 62, 0, Math.PI * 2); ctx.fill();
+        ctx.translate(sx, sy); ctx.scale(s, s); ctx.translate(-pw.x, -pw.y);
+        talkZooming = true; drawPlayer(); talkZooming = false;
+        ctx.restore();
+        ctx.save(); ctx.font = "900 14px ui-monospace, Menlo, Consolas, monospace";
+        const bw = Math.min(210, ctx.measureText(levelIntro.line).width) + 22; ctx.restore();
+        talkBubble(sx + 34 + bw / 2, sy - 22, levelIntro.line, 14, a, 210);   // to the right of its head, tail pointing at it
+      } catch(e) { talkZooming = false; }
+    }
   }
 
   // Brighten a hole rim color while keeping its hue (dark slate -> brighter slate blue, etc.)
@@ -18023,8 +18054,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   }
   // Called when the level intro screen finishes.
   function talkLevelStarted(){
-    if (talkIsEasy()){ talk.pendingStart = performance.now() + 700; talk.pendingLevel = game.level; }   // small bubble shortly after
-    else if (!talkOverlayOpen()) talkStartCut("start");
+    // v2.79: the start line is now said on the level card itself, so nothing extra happens here
+    talk.lastAt = performance.now();   // and it counts toward the 1-minute gap before the next in-play line
   }
   // Once per frame: watch for pickups, feeds and idling; run the start bubble.
   function talkWatch(){
