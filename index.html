@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.87</span></div>
+          <div>STICKS <span class="badge">v2.95</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -8406,26 +8406,32 @@ function updateSpiderWebs(){
   function onIsland(x, y){ return islands.some(t => t.tiles.some(q => q[0] === x && q[1] === y)); }
   // each island: its safe squares, a center, a size, a wobbly shoreline, and what grows on it
   function makeIsland(x, y, kind){
-    const T = TILE, wob = []; for (let i = 0; i < 12; i++) wob.push(0.82 + Math.random() * 0.3);
-    if (kind === "long") return { kind, tiles: [[x, y], [x + 1, y]], cx: (x + 1) * T, cy: y * T + T / 2, rx: T * 1.05, ry: T * 0.36, wob, rot: (Math.random() - 0.5) * 0.12, seed: Math.random() };
-    if (kind === "round") return { kind, tiles: [[x, y]], cx: x * T + T / 2, cy: y * T + T / 2, rx: T * 0.6, ry: T * 0.44, wob, rot: (Math.random() - 0.5) * 0.4, seed: Math.random() };
-    if (kind === "sandbar") return { kind, tiles: [[x, y]], cx: x * T + T / 2, cy: y * T + T / 2, rx: T * 0.5, ry: T * 0.3, wob, rot: (Math.random() - 0.5) * 0.3, seed: Math.random() };
-    return { kind: "start", tiles: [[x, y]], cx: x * T + T / 2, cy: y * T + T / 2, rx: T * 0.66, ry: T * 0.42, wob, rot: (Math.random() - 0.5) * 0.2, seed: Math.random() };
+    // v2.91: islands are bigger and cover more squares, so it's easy to see when you're standing on one
+    const T = TILE, wob = []; for (let i = 0; i < 12; i++) wob.push(0.84 + Math.random() * 0.26);
+    const inGrid = (q) => q[0] >= 0 && q[0] < GRID_W && q[1] >= 0 && q[1] < GRID_H;
+    let t;
+    if (kind === "long") t = { kind, tiles: [[x, y], [x + 1, y], [x + 2, y]], cx: (x + 1.5) * T, cy: y * T + T / 2, rx: T * 1.75, ry: T * 0.6 };
+    else if (kind === "round") t = { kind, tiles: [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]], cx: (x + 1) * T, cy: (y + 1) * T, rx: T * 1.2, ry: T * 1.05 };
+    else if (kind === "sandbar") t = { kind, tiles: [[x, y], [x + 1, y]], cx: (x + 1) * T, cy: y * T + T / 2, rx: T * 1.2, ry: T * 0.52 };
+    else t = { kind: "start", tiles: [[x - 1, y], [x, y], [x + 1, y], [x, y - 1], [x, y + 1]], cx: x * T + T / 2, cy: y * T + T / 2, rx: T * 1.7, ry: T * 1.15 };
+    t.tiles = t.tiles.filter(inGrid);
+    t.wob = wob; t.rot = (Math.random() - 0.5) * (kind === "long" ? 0.08 : 0.2); t.seed = Math.random();
+    return t;
   }
   function ensureIslands(){
     if (!islandsPending) return;
     islandsPending = false; islands = [];
     const taken = (x, y) => x < 0 || x >= GRID_W || (x === game.holeX && y === game.holeY) || game.sticks.some(s => s.x === x && s.y === y);
     islands.push(makeIsland(game.playerX, game.playerY, "start"));
-    const lanes = [2, 6, 10, 14, 18, 22];
+    const lanes = [2, 6, 10, 14, 18, 21];   // v2.91: last lane moved up a row so a 2-row island fits
     const extras = ["sandbar", "long", "round"].sort(() => Math.random() - 0.5).slice(0, randInt(1, 3));   // v2.84: 2-4 islands in all
     for (const kind of extras){
       for (let tries = 0; tries < 200; tries++){
         const y = lanes[randInt(0, lanes.length - 1)], x = randInt(3, GRID_W - 5);
-        const tiles = kind === "long" ? [[x, y], [x + 1, y]] : [[x, y]];
-        if (tiles.some(q => taken(q[0], q[1]))) continue;
+        const cand = makeIsland(x, y, kind), tiles = cand.tiles;
+        if (tiles.length < 2 || tiles.some(q => taken(q[0], q[1]))) continue;
         if (islands.some(t => t.tiles.some(q => tiles.some(r => Math.abs(q[0] - r[0]) + Math.abs(q[1] - r[1]) < 6)))) continue;
-        islands.push(makeIsland(x, y, kind)); break;
+        islands.push(cand); break;
       }
     }
   }
@@ -8463,24 +8469,38 @@ function updateSpiderWebs(){
       ctx.restore();
       const sway = Math.sin(time * 1.2 + t.seed * 5) * 0.8;
       ctx.save();
+      // v2.91: palms and rocks sit near the shore (off the middle), so your stick stands clear of them
       if (t.kind === "start"){
-        drawPalm(t.cx + 11, t.cy - 1, 15, sway);
+        drawPalm(t.cx + t.rx * 0.62, t.cy - 2, 19, sway);
+        ctx.fillStyle = "#8a8f99"; ctx.beginPath(); ctx.ellipse(t.cx - t.rx * 0.6, t.cy + 6, 2.4, 1.5, 0.2, 0, Math.PI * 2); ctx.fill();
       } else if (t.kind === "round"){
-        drawPalm(t.cx - 2, t.cy, 13, sway);                                  // a palm in the middle, a rock by the shore
-        ctx.fillStyle = "#8a8f99"; ctx.beginPath(); ctx.ellipse(t.cx + 7, t.cy + 4, 2, 1.3, 0.2, 0, Math.PI * 2); ctx.fill();
+        drawPalm(t.cx - t.rx * 0.5, t.cy - 2, 18, sway);                     // a palm off to one side, a rock by the shore
+        ctx.fillStyle = "#8a8f99"; ctx.beginPath(); ctx.ellipse(t.cx + t.rx * 0.55, t.cy + 8, 2.6, 1.6, 0.2, 0, Math.PI * 2); ctx.fill();
       } else if (t.kind === "long"){
-        drawPalm(t.cx + t.rx * 0.62, t.cy, 11, sway);                       // a palm at each end
-        drawPalm(t.cx - t.rx * 0.66, t.cy + 1, 13, -sway * 0.8);
+        drawPalm(t.cx + t.rx * 0.72, t.cy, 15, sway);                       // a palm at each end
+        drawPalm(t.cx - t.rx * 0.74, t.cy + 1, 17, -sway * 0.8);
       } else {
         // sandbar: a couple of rocks and a shell, no palm
-        ctx.fillStyle = "#8a8f99"; ctx.beginPath(); ctx.ellipse(t.cx + 5, t.cy + 2, 2.4, 1.6, 0.3, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#a3a9b3"; ctx.beginPath(); ctx.ellipse(t.cx + 7.5, t.cy + 3.2, 1.5, 1.1, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#ffd1dc"; ctx.beginPath(); ctx.arc(t.cx - 6, t.cy + 3, 1.4, Math.PI, Math.PI * 2); ctx.fill();   // shell
+        ctx.fillStyle = "#8a8f99"; ctx.beginPath(); ctx.ellipse(t.cx + t.rx * 0.6, t.cy + 3, 2.8, 1.8, 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#a3a9b3"; ctx.beginPath(); ctx.ellipse(t.cx + t.rx * 0.6 + 3, t.cy + 4.5, 1.7, 1.2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#ffd1dc"; ctx.beginPath(); ctx.arc(t.cx - t.rx * 0.6, t.cy + 3, 1.6, Math.PI, Math.PI * 2); ctx.fill();   // shell
       }
       ctx.restore();
     }
   }
 
+  // v2.95: how visible a shark is (1 = at the surface, 0 = deep under an island). Sharks dive as they near
+  // an island and come back up on the other side; while mostly under, they can't bite.
+  function sharkSurface(s){
+    const x = s.x * TILE + TILE / 2, y = s.y * TILE + TILE / 2;
+    let under = 1;
+    for (const t of islands){
+      const ex = (x - t.cx) / (t.rx * 1.25 + TILE * 0.7), ey = (y - (t.cy + 2)) / (t.ry * 1.25 + TILE * 0.45);
+      const d = Math.sqrt(ex * ex + ey * ey);
+      under = Math.min(under, Math.max(0, Math.min(1, (d - 1) / 0.45)));
+    }
+    return under;
+  }
   function initSharks(){
     sharks = [];
     islands = []; islandsPending = true;   // v2.82: islands are placed on the level's first frame (start island under you)
@@ -8545,7 +8565,8 @@ function updateSpiderWebs(){
       const dy = Math.abs(s.y - game.playerY);
       if (dx < 0.8 && dy < 0.8 &&
           !(game.playerX === game.holeX && game.playerY === game.holeY) &&
-          !onIsland(game.playerX, game.playerY)){   // v2.82: islands are safe too
+          !onIsland(game.playerX, game.playerY) &&   // v2.82: islands are safe too
+          sharkSurface(s) > 0.5){                    // v2.95: a shark diving under an island can't bite
         if (activeShield > 0){
           logEvent("info", "Shield blocked shark!");
           setHud("SHIELD!");
@@ -8672,10 +8693,10 @@ function updateSpiderWebs(){
       const x = s.x * TILE + TILE / 2;
       const y = s.y * TILE + TILE / 2;
       const wiggle = Math.sin(s.wiggle) * 2;
-      // v2.82: dive under islands (fade out as they pass beneath)
-      let near = 9;
-      for (const t of islands) for (const q of t.tiles){ if (Math.abs(q[1] - s.y) < 0.5) near = Math.min(near, Math.abs(q[0] - s.x)); }
-      const under = near < 1.2 ? 0.12 : near < 2 ? 0.12 + (near - 1.2) / 0.8 * 0.88 : 1;
+      // v2.95: sharks dive deep as they near an island: they fade out before reaching the shore, are
+      // fully hidden while passing beneath, and fade back in on the other side
+      const under = sharkSurface(s);
+      if (under <= 0.01) continue;   // completely hidden under the island
       
       ctx.save();
       ctx.globalAlpha = under;
@@ -8731,6 +8752,7 @@ function updateSpiderWebs(){
       
       ctx.save();
       ctx.translate(dx, dy + swimBob);
+      ctx.scale(1.5, 1.5);   // v2.91: the diver was small next to the bigger sticks
       if(scubaDiver.flipX) ctx.scale(-1, 1);
       
       // Body (wetsuit - dark blue/black)
@@ -12764,7 +12786,7 @@ function sfxMonsterVictoryStreak(){
     if (raw === "rex") return "rex";
     if (raw === "angel") return "angel";
     if (raw === "sick") return "sick";
-    if (raw === "super" || raw === "dip" || raw === "law" || raw === "jogger" || raw === "mystic") return raw;
+    if (raw === "super" || raw === "dip" || raw === "law" || raw === "jogger" || raw === "mystic" || raw === "rock") return raw;
     return "classic";
   }
   function setAndStoreSkin(s){
@@ -12787,7 +12809,7 @@ function sfxMonsterVictoryStreak(){
   const SKIN_LIST = [["classic","Classic"],["angel","Angel Stick"],["alien","Alien Stick"],["robot","Robo Stick"],
                      ["rex","Rex Stick"],["rick","Rick Stick"],["sally","Sally Stick"],["sick","Sick Stick"],
                      ["super","Super Stick"],["dip","Dip Stick"],["law","Law Stick"],
-                     ["jogger","Jogger Stick"],["mystic","Mystic Stick"]];
+                     ["jogger","Jogger Stick"],["mystic","Mystic Stick"],["rock","Rock Stick"]];
   function cycleSkin(dir){
     const i = SKIN_LIST.findIndex(s => s[0] === (game.playerSkin || "classic"));
     setAndStoreSkin(SKIN_LIST[(i + dir + SKIN_LIST.length) % SKIN_LIST.length][0]);
@@ -12840,6 +12862,8 @@ function sfxMonsterVictoryStreak(){
     let k = Math.min(250 / w, 176 / h, 4.4);   // fill about 80% of the box, capped so short sticks don't balloon
     // Mystic's pointed hood rises above a normal head; give it a little extra so its body matches the others
     if (skin === "mystic") k = Math.min(k * 1.12, 204 / h);
+    // Rock's guitar and pompadour widen his box; bump him so his body matches the others
+    if (skin === "rock") k = Math.min(k * 1.12, 204 / h);
     prev.fit = { k, cx: (ul + ur) / 2, cy: (ut + ub) / 2 };
     skinFitCache[key] = prev;
     return prev.fit;
@@ -18129,6 +18153,15 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       pickup: ["This stick was destined.", "Come to me."],
       idle:   ["I sense... a roll coming.", "Patience. The dice will speak."]
     },
+    rock: {
+      beat:   ["Rock beats monster. Every time.", "Encore? Nah, you're done.", "Monster just got booed off stage.", "That's what I call a breakdown."],
+      start:  ["Oh, this ole song and dance.", "This looks like a new tune.", "One, two, three, four!", "Let's rock this joint.", "Hit it!"],
+      win:    ["Thank you, goodnight!", "That's a hit record!", "Another chart-topper.", "Rock and roll, baby!"],
+      hurt:   ["Ouch! Sour note!", "Broke a string!", "Who threw that?!"],
+      feed:   ["That's a gold record, baby.", "Into the mosh pit!", "Drop the beat!"],
+      pickup: ["Got a new pick!", "This one's got rhythm."],
+      idle:   ["*tunes a string*", "Hold on, this one's a little flat.", "\u266A doo-wop \u266A"]
+    },
     jogger: {
       beat:   ["Outran AND outfought you!", "Feel the burn, monster!", "Personal best!", "Jogging is fun!"],
       start:  ["Jogging is fun!", "Let's go for a run!", "Stretch... and GO!", "Warm-up done!"],
@@ -18163,7 +18196,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Is that the moon? It's moving!",
     "law": "That UFO better have a license.",
     "jogger": "Night jog under the stars!",
-    "mystic": "The stars told me you'd come."
+    "mystic": "The stars told me you'd come.",
+    "rock": "Midnight show. My favorite kind."
    },
    "Sparkle Stick": {
     "classic": "Sparkly! Still sticking with it.",
@@ -18178,7 +18212,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "I wanna be a cupcake!",
     "law": "Too much sparkle. Suspicious.",
     "jogger": "Cupcake fuel! Let's run!",
-    "mystic": "I foresee frosting."
+    "mystic": "I foresee frosting.",
+    "rock": "Sugar, sprinkles and rock 'n' roll."
    },
    "Sun Stick": {
     "classic": "Sunny with a chance of sticks!",
@@ -18193,7 +18228,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Don't look at the sun. Ow. I looked.",
     "law": "Nice day for an arrest.",
     "jogger": "Perfect day for a run!",
-    "mystic": "The sun's blessing was foretold."
+    "mystic": "The sun's blessing was foretold.",
+    "rock": "Sunshine set? Let's get loud."
    },
    "Sky Stick": {
     "classic": "Up here? I'll stick the landing.",
@@ -18208,7 +18244,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Which way is down?",
     "law": "Birds, drop those sticks!",
     "jogger": "Running on clouds!",
-    "mystic": "I sensed a breeze coming."
+    "mystic": "I sensed a breeze coming.",
+    "rock": "Finally, a stage dive with a parachute."
    },
    "Fire Stick": {
     "classic": "Things are heating up!",
@@ -18223,7 +18260,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Fire is hot? Since when?",
     "law": "Arson! Somebody call me!",
     "jogger": "Hot run! Keep those feet moving!",
-    "mystic": "The flames revealed this to me."
+    "mystic": "The flames revealed this to me.",
+    "rock": "This crowd is on FIRE tonight!"
    },
    "Mountain Stick": {
     "classic": "Time to climb. I'll stick with it.",
@@ -18238,7 +18276,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Is the mountain moving, or me?",
     "law": "Rams, keep it legal up there.",
     "jogger": "Hill training! Feel the burn!",
-    "mystic": "The peak holds great value."
+    "mystic": "The peak holds great value.",
+    "rock": "Climbing the charts, baby."
    },
    "Cursed Stick": {
     "classic": "Cursed? That's a sticky situation.",
@@ -18253,7 +18292,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Mr. Ghost? Can we be friends?",
     "law": "Spirit, you have the right to remain silent.",
     "jogger": "Can't possess what won't stop!",
-    "mystic": "I sense... another spirit."
+    "mystic": "I sense... another spirit.",
+    "rock": "Ghosts? Tough crowd. Dead quiet."
    },
    "Banana Stick": {
     "classic": "Slippery! A sticky situation.",
@@ -18268,7 +18308,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Wheee! Wait, I'm sliding!",
     "law": "Littering peels? That's a fine.",
     "jogger": "Banana fuel for the run!",
-    "mystic": "I foresee... a slip."
+    "mystic": "I foresee... a slip.",
+    "rock": "Monkeys love a good drum solo."
    },
    "Ice Stick": {
     "classic": "Brr! Chill, I've got this.",
@@ -18283,7 +18324,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Can I lick the ice? I licked it.",
     "law": "Snowman, freeze! Oh. You did.",
     "jogger": "Winter run! Pick up the pace!",
-    "mystic": "Ice cannot hide the future."
+    "mystic": "Ice cannot hide the future.",
+    "rock": "Cool crowd tonight."
    },
    "Glow Stick": {
     "classic": "Who turned off the lights?",
@@ -18298,7 +18340,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "I can't see! Oh. Eyes open.",
     "law": "Shadows, step into the light!",
     "jogger": "Night run, flashlight on!",
-    "mystic": "My eyes see all. Even here."
+    "mystic": "My eyes see all. Even here.",
+    "rock": "Lights down, glow sticks up!"
    },
    "Spell Stick": {
     "classic": "Magic? I'll stick with it.",
@@ -18313,7 +18356,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "The hole moved! Or did I?",
     "law": "That hole is resisting arrest!",
     "jogger": "Shortcut through the portal!",
-    "mystic": "Finally. A level of magic."
+    "mystic": "Finally. A level of magic.",
+    "rock": "Magic? I just play by ear."
    },
    "Sea Stick": {
     "classic": "Sharks? Just keep sticking.",
@@ -18328,7 +18372,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Are sharks friendly? Asking for me.",
     "law": "Sharks, stay behind the line!",
     "jogger": "Swim leg of the triathlon!",
-    "mystic": "I foresaw fins."
+    "mystic": "I foresaw fins.",
+    "rock": "Gonna need a bigger amp."
    },
    "Snake Stick": {
     "classic": "Snakes? A sticky situation.",
@@ -18343,7 +18388,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Hello, Mr. Noodle!",
     "law": "This town ain't big enough, snakes.",
     "jogger": "Outrun the rattlers!",
-    "mystic": "I hear the hiss of fate."
+    "mystic": "I hear the hiss of fate.",
+    "rock": "Rattlesnakes? Now that's a rhythm section."
    },
    "Spider Stick": {
     "classic": "Webs everywhere. Sticky situation!",
@@ -18358,7 +18404,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Is the web sticky? It's sticky.",
     "law": "Momma spider, you're under arrest.",
     "jogger": "Hurdle the webs!",
-    "mystic": "The web of fate is literal here."
+    "mystic": "The web of fate is literal here.",
+    "rock": "Eight legs and no rhythm."
    },
    "Victory Stick": {
     "classic": "Final level. I'll stick with it!",
@@ -18373,7 +18420,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "dip": "Is this the end? Of what?",
     "law": "Lasers? Unlicensed weapons.",
     "jogger": "Final sprint! Let's go!",
-    "mystic": "This was always the ending."
+    "mystic": "This was always the ending.",
+    "rock": "Thank you, goodnight!"
    }
   };
   const TALK_EASY_MAX_LEVEL = 4;           // levels 1-4 chat during play; 5+ use zoom-ins
@@ -18464,7 +18512,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     // v2.85: stepping onto a Sea Stick island flashes a quick "safe" message (and updates the side panel)
     try {
       const isl = currentLevelTheme().name === "Sea Stick" && onIsland(game.playerX, game.playerY);
-      if (isl && !talk.onIsl && !levelIntro.active) setHud("\u{1F3DD} SAFE ON ISLAND");
+      if (isl && !talk.onIsl && !levelIntro.active){ setHud("\u{1F3DD} SAFE ON ISLAND"); try { logEvent("info", "\u{1F3DD} Safe on the island. Sharks can't reach you here."); } catch(_){} }
       if (isl !== talk.onIsl){ talk.onIsl = isl; updateUI(); }
     } catch(_){}
     const carry = game.carry ? game.carry.length : 0;
@@ -19381,6 +19429,153 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       drawCarryDots();
     };
 
+    // v2.92 Rock Stick: the lean 50s rock 'n' roll king. Glossy black pompadour with one curl hanging down,
+    // long sideburns, heavy-lidded eyes and a lip-curl sneer, a stand-up collar, and a red electric guitar.
+    // He leans back and does the famous rubber-leg shake (faster when he strums), with music notes
+    // floating up. On hat levels the pompadour tucks under the hat with just the front curl peeking out.
+    // Wading on Sea Stick, he holds the guitar up over his head to keep it dry.
+    const drawRockBody = () => {
+      const time = Date.now() * 0.001;
+      const measuring = (typeof skinMeasuring !== "undefined" && skinMeasuring);
+      const HAIR = "#15121a", RED = "#e63946", RED_D = "#8f1d28", NECK = "#8d5a2b";
+      const hatLvl = levelHatOn();
+      const GS = 1.18, LW = 1.6;   // v2.89: guitar a bit bigger; leaner arms, legs and body
+      const overhead = wading;
+      // strum moment: every 5 seconds, about 1.8 seconds of fast strumming with notes
+      const sp = (time % 5) / 5, strum = (sp < 0.36 && !measuring) ? Math.sin((sp / 0.36) * Math.PI) : 0;
+      const beat = Math.sin(time * 4.2);                          // the knee shake
+      ctx.save(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.shadowBlur = 0;
+      // legs: one planted wide, the other up on its toes with the knee snapping in and out (the rubber leg)
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = LW;
+      const shake = measuring ? 0 : Math.sin(time * (strum > 0 ? 11 : 6.5));
+      const kx = 2.2 + shake * 1.9, ky = 12.1 - Math.abs(shake) * 0.4;
+      ctx.beginPath(); ctx.moveTo(0, 9); ctx.lineTo(-6.0, 15); ctx.moveTo(0, 9); ctx.lineTo(kx, ky); ctx.lineTo(4.4, 14.6); ctx.stroke();
+      // lean back from the hips, swiveling a little with the beat
+      ctx.translate(0, 9); ctx.rotate(-0.08 + (measuring ? 0 : beat * 0.03)); ctx.translate(0, -9);
+      ctx.beginPath(); ctx.moveTo(0, -1.5); ctx.lineTo(0, 9); ctx.stroke();
+      // stand-up collar flaring beside the chin
+      ctx.lineWidth = 0.7; ctx.fillStyle = "rgba(255,255,255,0.18)";
+      ctx.beginPath(); ctx.moveTo(-0.7, -0.6); ctx.lineTo(-3.1, -2.7); ctx.lineTo(-2.8, 0.5); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0.7, -0.6); ctx.lineTo(3.1, -2.7); ctx.lineTo(2.8, 0.5); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.lineWidth = LW;
+      // the guitar: drawn in its own little frame (x runs from the body toward the headstock)
+      const guitar = () => {
+        // body: a lower and an upper bout
+        ctx.fillStyle = RED; ctx.strokeStyle = RED_D; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.ellipse(0, 0, 3.3, 2.9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(-2.9, 0, 2.4, 2.2, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.ellipse(0, 0, 3.0, 2.6, 0, 0, Math.PI * 2); ctx.fill();   // hide the seam
+        // white pickguard and pickups
+        ctx.fillStyle = "#fbf7ef";
+        ctx.beginPath(); ctx.ellipse(0.7, 1.0, 1.6, 1.0, 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#2b2b2b"; ctx.fillRect(-1.9, -0.75, 0.7, 1.5); ctx.fillRect(-0.2, -0.75, 0.7, 1.5);
+        // neck, frets, headstock
+        ctx.strokeStyle = NECK; ctx.lineWidth = 1.3; ctx.lineCap = "butt";
+        ctx.beginPath(); ctx.moveTo(-4.6, 0); ctx.lineTo(-12.2, 0); ctx.stroke();
+        ctx.strokeStyle = "rgba(255,230,180,0.75)"; ctx.lineWidth = 0.25;
+        for (let f = 0; f < 4; f++){ const x = -6.2 - f * 1.5; ctx.beginPath(); ctx.moveTo(x, -0.6); ctx.lineTo(x, 0.6); ctx.stroke(); }
+        ctx.fillStyle = "#2b2b2b"; ctx.beginPath(); ctx.moveTo(-12, -0.9); ctx.lineTo(-14.4, -1.2); ctx.lineTo(-14.4, 1.2); ctx.lineTo(-12, 0.9); ctx.closePath(); ctx.fill();
+        ctx.lineCap = "round";
+        // strings (catch the light)
+        ctx.strokeStyle = "rgba(235,235,235,0.8)"; ctx.lineWidth = 0.2;
+        ctx.beginPath(); ctx.moveTo(1.8, -0.35); ctx.lineTo(-12.2, -0.35); ctx.moveTo(1.8, 0.35); ctx.lineTo(-12.2, 0.35); ctx.stroke();
+      };
+      let strumHand = null, fretHand = null;
+      if (overhead){
+        // wading: guitar held flat over his head, both arms up
+        ctx.save(); ctx.translate(5.5, -20.5); ctx.scale(GS, GS); guitar(); ctx.restore();
+        fretHand = { x: -5.4, y: -20.2 }; strumHand = { x: 4.4, y: -19.8 };
+      } else {
+        // strap over the shoulder
+        ctx.strokeStyle = "#3b2a1a"; ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.moveTo(3.4, 6.3); ctx.quadraticCurveTo(2.6, -0.4, -1.6, -1.2); ctx.stroke();
+        // guitar slung across the hips, neck angled up to his right (our left)
+        ctx.save(); ctx.translate(2.4, 6.0); ctx.rotate(0.42); ctx.scale(GS, GS); guitar(); ctx.restore();
+        const r = 0.42, nx = Math.cos(r), ny = Math.sin(r);
+        fretHand = { x: 2.4 - nx * 9.0 * GS, y: 6.0 - ny * 9.0 * GS };
+        const st = strum > 0 ? Math.sin(time * 26) * 1.5 * strum : Math.sin(time * 2) * 0.3;
+        strumHand = { x: 2.2 + st * 0.3, y: 5.2 + st };
+      }
+      // arms
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = LW;
+      ctx.beginPath();
+      if (overhead){
+        ctx.moveTo(0, 2); ctx.lineTo(-6.2, -6); ctx.lineTo(fretHand.x, fretHand.y);
+        ctx.moveTo(0, 2); ctx.lineTo(6.2, -6); ctx.lineTo(strumHand.x, strumHand.y);
+      } else {
+        ctx.moveTo(0, 2); ctx.lineTo(-4.8, 1.2); ctx.lineTo(fretHand.x, fretHand.y);
+        ctx.moveTo(0, 2); ctx.lineTo(4.4, 2.6); ctx.lineTo(strumHand.x, strumHand.y);
+      }
+      ctx.stroke();
+      // head
+      const hx = 0, hy = -6.5;
+      ctx.lineWidth = 1.25;   // v2.89: thinner head line, for a leaner, more chiseled look
+      ctx.beginPath(); ctx.arc(hx, hy, 5, 0, Math.PI * 2); ctx.stroke();
+      // sideburns
+      ctx.strokeStyle = HAIR; ctx.lineWidth = 0.9; ctx.lineCap = "butt";
+      ctx.beginPath(); ctx.moveTo(-3.6, -8.6); ctx.lineTo(-3.35, -4.9); ctx.moveTo(3.6, -8.6); ctx.lineTo(3.35, -4.9); ctx.stroke();   // long sideburns
+      ctx.lineCap = "round";
+      // face: heavy-lidded eyes and the lip-curl sneer (the curl twitches up now and then)
+      ctx.strokeStyle = strokeBase; ctx.lineWidth = 0.75;
+      ctx.beginPath(); ctx.moveTo(-2.4, -6.9); ctx.lineTo(-0.9, -7.0); ctx.moveTo(0.9, -7.0); ctx.lineTo(2.4, -6.9); ctx.stroke();
+      ctx.fillStyle = strokeBase;
+      ctx.beginPath(); ctx.arc(-1.6, -6.55, 0.5, 0, Math.PI); ctx.arc(1.6, -6.55, 0.5, 0, Math.PI); ctx.fill();
+      const curl = measuring ? 0.6 : 0.6 + Math.max(0, Math.sin(time * 1.6)) ** 6 * 0.6;
+      ctx.beginPath(); ctx.moveTo(-1.7, -4.1); ctx.quadraticCurveTo(-0.4, -3.75, 0.7, -3.95); ctx.quadraticCurveTo(1.7, -4.1, 2.1, -4.3 - curl); ctx.stroke();
+      ctx.lineWidth = 0.45; ctx.beginPath(); ctx.moveTo(0.9, -4.45); ctx.quadraticCurveTo(1.5, -4.6, 1.8, -4.9 - curl * 0.6); ctx.stroke();
+      // v2.94 floppy hair: the front of the pompadour bounces a beat behind his moves (more when he strums),
+      // and the curl and a loose strand swing side to side
+      const fl = measuring ? 0 : Math.sin(time * 4.2 - 0.9) * (0.8 + strum * 0.7) + Math.sin(time * 1.3) * 0.15;
+      const sw = measuring ? 0 : Math.sin(time * 3.1 - 0.5) * (0.9 + strum * 0.5);
+      if (!hatLvl){
+        // the pompadour: tall glossy quiff swept up and forward, rolling over at the front
+        ctx.fillStyle = HAIR;
+        ctx.beginPath();
+        ctx.moveTo(-4.9, -7.6);
+        ctx.quadraticCurveTo(-6.4, -12.6, -2.2 + fl * 0.1, -14.6 + fl * 0.25);
+        ctx.quadraticCurveTo(3.4 + fl * 0.2, -17.0 + fl * 0.55, 7.0 + fl * 0.35, -13.4 + fl);
+        ctx.quadraticCurveTo(8.2 + fl * 0.3, -11.4 + fl * 1.15, 6.1, -10.3 + fl * 1.2);
+        ctx.quadraticCurveTo(4.6, -11.6 + fl * 0.8, 3.0, -10.3 + fl * 0.45);
+        ctx.quadraticCurveTo(0, -9.4, -2.6, -10.0);
+        ctx.quadraticCurveTo(-4.2, -9.6, -4.9, -7.6);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = strokeBase; ctx.globalAlpha = 0.85; ctx.lineWidth = 0.55; ctx.stroke(); ctx.globalAlpha = 1;   // light rim so it reads on dark levels
+        // shine
+        ctx.strokeStyle = "rgba(255,255,255,0.55)"; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(-3.2, -13.0 + fl * 0.2); ctx.quadraticCurveTo(1.0, -15.6 + fl * 0.5, 5.0 + fl * 0.3, -13.6 + fl * 0.85); ctx.stroke();
+        ctx.strokeStyle = "rgba(160,190,255,0.35)"; ctx.lineWidth = 0.4;
+        ctx.beginPath(); ctx.moveTo(-3.8, -11.6 + fl * 0.15); ctx.quadraticCurveTo(0.4, -13.6 + fl * 0.4, 4.6, -12.0 + fl * 0.75); ctx.stroke();
+        // v2.94 a loose strand that flops down over the forehead and swings with the beat
+        ctx.strokeStyle = HAIR; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(5.0, -10.9 + fl); ctx.quadraticCurveTo(5.9 + sw * 0.8, -9.4 + fl * 0.5, 4.9 + sw * 1.5, -8.0); ctx.stroke();
+        ctx.strokeStyle = strokeBase; ctx.globalAlpha = 0.5; ctx.lineWidth = 0.25; ctx.stroke(); ctx.globalAlpha = 1;
+      }
+      // the curl hanging down the forehead (peeks out under a level hat too)
+      ctx.strokeStyle = HAIR; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(hatLvl ? 2.6 : 3.4, hatLvl ? -11.2 : -10.4 + fl * 0.45);
+      ctx.quadraticCurveTo(3.9 + sw * 0.6, -9.0, 2.7 + sw, -8.6); ctx.quadraticCurveTo(1.9 + sw, -8.6, 2.4 + sw * 0.7, -9.4); ctx.stroke();
+      if (hatLvl){
+        ctx.fillStyle = HAIR; ctx.beginPath(); ctx.moveTo(1.2, -11.6); ctx.quadraticCurveTo(4.8, -12.6, 6.2, -10.6);
+        ctx.quadraticCurveTo(4.2, -10.9, 2.6, -10.2); ctx.closePath(); ctx.fill();
+      }
+      // music notes floating up while he strums
+      if (strum > 0){
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        const notes = ["♪", "♫", "♪"], cols = ["#ffd54a", "#ff7ac6", "#5ce1ff"];
+        for (let i = 0; i < 3; i++){
+          const ph = (time * 0.9 + i / 3) % 1, a = strum * Math.sin(ph * Math.PI);
+          if (a < 0.05) continue;
+          const nx0 = overhead ? 6 : 4, ny0 = overhead ? -18 : 4;
+          ctx.globalAlpha = a; ctx.fillStyle = cols[i];
+          ctx.font = "bold " + (4.6 + i * 0.6) + "px Arial";
+          ctx.fillText(notes[i], nx0 + 3 + i * 2.2 + Math.sin(time * 3 + i) * 1.5, ny0 - ph * 13);
+        }
+        ctx.globalAlpha = 1;
+      }
+      ctx.restore();
+      drawCarryDots();
+    };
+
     const drawAngelBody = () => {
       const time = Date.now() * 0.001;
       const floatOffset = Math.sin(time * 2.2) * 1.6;
@@ -20143,6 +20338,11 @@ ctx.restore();
         } else if (skin === "jogger"){  // the sweatband
           ctx.strokeStyle = "rgba(150,50,200,0.9)"; ctx.lineWidth = 1.6;
           ctx.beginPath(); ctx.moveTo(-4.8, -8.6); ctx.lineTo(4.8, -9.2); ctx.stroke();
+        } else if (skin === "rock"){    // the pompadour and the guitar
+          ctx.beginPath(); ctx.moveTo(-4.9, -7.6); ctx.quadraticCurveTo(-6.4, -12.6, -2.2, -14.6); ctx.quadraticCurveTo(3.4, -17.0, 7.0, -13.4);
+          ctx.quadraticCurveTo(8.2, -11.4, 6.1, -10.3); ctx.quadraticCurveTo(0, -9.4, -4.9, -7.6); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.save(); ctx.translate(2.4, 6.0); ctx.rotate(0.42); ctx.beginPath(); ctx.ellipse(0, 0, 3.3, 2.9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+          ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(-3.3, 0); ctx.lineTo(-13, 0); ctx.stroke(); ctx.restore();
         } else if (skin === "sick"){    // the bandage body
           ctx.beginPath(); ctx.rect(-3.6, -1.8, 7.2, 12.4); ctx.fill(); ctx.stroke();
         }
@@ -20405,6 +20605,7 @@ ctx.restore();
     else if (skin === "law"){ drawLawBody(); }
     else if (skin === "jogger"){ drawJoggerBody(); }
     else if (skin === "mystic"){ drawMysticBody(); }
+    else if (skin === "rock"){ drawRockBody(); }
     else {
       drawClassicBody();
     }
@@ -20463,6 +20664,7 @@ ctx.restore();
       else if (skin === "sick") hy = -7;
       else if (skin === "jogger") hy = -6.8;
       else if (skin === "mystic") hy = -6.5;
+      else if (skin === "rock") hy = -6.5;
 
       drawCowboyHat(hy, 0);
     }
