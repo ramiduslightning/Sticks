@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.79</span></div>
+          <div>STICKS <span class="badge">v2.80</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -15859,6 +15859,7 @@ Clear all sticks to advance — watch out for obstacles.`;
 
           sfxMonsterVictory();   // Stronger victory fanfare
           battleMusicWin();      // Ramp music back up
+          try { talkMonsterBeaten(streak); } catch(_){}   // v2.80: your stick reacts
 
           if (streak === 3){
             if (game.lives < MAX_LIVES){
@@ -16517,6 +16518,13 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         logEvent("moon", `🌙 The Goddess's blessing deposited! +${moonBonus} bonus points!`);
       }
 
+      // v2.80: the floating "+points" takes the color of the last stick you picked up
+      try {
+        const last = game.carry[game.carry.length - 1];
+        const cols = game.carry.map(s => s.color);
+        fx.nextDeposit = { color: last ? last.color : "#9dffb0", full: n >= carryCap(), moon: moonBonus > 0,
+                           set: n >= 2 && cols.every(c => c === cols[0]) };
+      } catch(_){}
       game.score += pts + moonBonus;
       game.carry = [];
 
@@ -17834,8 +17842,22 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   function fxPop(text, color, size){ const p = fxPlayerPx(); fx.pops.push({ x: p.x, y: p.y - TILE * 0.7, text, color, size, t: 0 }); }
   function fxWatch(){
     if (fx.lastScore === null){ fxResync(); return; }
-    if (game.score > fx.lastScore){ const d = game.score - fx.lastScore;
-      fxPop("+" + d, d >= 100 ? "#ffd54a" : "#9dffb0", d >= 500 ? 30 : d >= 100 ? 24 : 19); }
+    if (game.score > fx.lastScore){
+      const d = game.score - fx.lastScore, dep = fx.nextDeposit; fx.nextDeposit = null;
+      if (dep && dep.moon) fxPop("+" + d, "#ffd54a", 26);                                   // moon blessing: gold
+      else if (dep){
+        const c = holeLitColor(dep.color).hex;                                              // the last stick's color, kept bright
+        fxPop("+" + d, c, dep.full ? 25 : 20);
+        if (dep.set){ const pp = fx.pops[fx.pops.length - 1]; pp.shimmer = true; pp.sub = "NICE SET!"; }
+      }
+      else fxPop("+" + d, d >= 20 ? "#ffd54a" : "#9dffb0", d >= 20 ? 24 : 19);              // other bonuses
+      // crossing a hundred in your total: a gold milestone, a beat later, with a sparkle burst
+      const hundreds = Math.floor(game.score / 100), before = Math.floor(fx.lastScore / 100);
+      if (hundreds > before){
+        fxPop("\u2605 " + (hundreds * 100) + "!", "#ffd54a", 30);
+        const mp = fx.pops[fx.pops.length - 1]; mp.t = -0.4; mp.y -= TILE * 2; mp.milestone = true;
+      }
+    }
     if (game.lives < fx.lastLives){ fx.shake = 1; fx.flash = 1; talk.lastHurt = performance.now(); talk.bubble = null;
       fxPop(talkPick("hurt"), "#ff5a6a", 18); talkSound(); }
     fx.lastScore = game.score; fx.lastLives = game.lives;
@@ -17849,7 +17871,11 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     // floating points rise, swell a little, then fade
     for (let i = fx.pops.length - 1; i >= 0; i--){
       const p = fx.pops[i]; p.t += 1 / 60;
-      const life = 1.15, k = p.t / life;
+      if (p.t < 0) continue;                                       // waiting its turn (milestones come a beat later)
+      if (p.milestone && !p.burst){ p.burst = true;               // gold sparkle burst for crossing a hundred
+        try { spawnSparks(game.playerX, game.playerY, 22); for (let j = game.sparks.length - 22; j < game.sparks.length; j++) if (j >= 0) game.sparks[j].color = (j % 3 === 0) ? "#ffffff" : "#ffd54a"; } catch(_){}
+        try { beep(1046, 0.08, "triangle", 0.05); setTimeout(() => beep(1568, 0.12, "triangle", 0.05), 90); } catch(_){} }
+      const life = p.milestone ? 1.6 : 1.15, k = p.t / life;
       if (k >= 1){ fx.pops.splice(i, 1); continue; }
       const sc = k < 0.15 ? 0.6 + (k / 0.15) * 0.55 : 1.15 - Math.min(0.15, (k - 0.15) * 0.5);
       ctx.save(); camScreen();   // screen space (phone zoom doesn't double the text)
@@ -17860,7 +17886,11 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
       ctx.font = "900 " + p.size + "px ui-monospace, Menlo, Consolas, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.85)"; ctx.strokeText(p.text, 0, 0);
-      ctx.shadowColor = p.color; ctx.shadowBlur = 12; ctx.fillStyle = p.color; ctx.fillText(p.text, 0, 0);
+      let fc = p.color;
+      if (p.shimmer){ const w = 0.5 + 0.5 * Math.sin(p.t * 22); fc = w > 0.6 ? "#ffffff" : p.color; }   // same-color set: shimmer
+      ctx.shadowColor = p.color; ctx.shadowBlur = p.milestone ? 20 : 12; ctx.fillStyle = fc; ctx.fillText(p.text, 0, 0);
+      if (p.sub){ ctx.font = "900 11px ui-monospace, Menlo, Consolas, monospace"; ctx.lineWidth = 3;
+        ctx.strokeText(p.sub, 0, p.size * 0.85); ctx.fillStyle = p.color; ctx.fillText(p.sub, 0, p.size * 0.85); }
       ctx.restore();
     }
     // red flash around the edges when you get hit
@@ -17882,6 +17912,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   // click or button skips it). Getting hit swaps the "OUCH!" pop for the stick's own line on every level.
   const TALK_LINES = {
     classic: {
+      beat:   ["Monster down! I'll stick with it.", "Nobody messes with my sticks!", "And stay down!", "Another one bites the stick!"],
       start:  ["I'll stick with it.", "Another day, another stick.", "Sticks won't pick themselves up!", "Ready, steady, stick!", "Let's do this. Team me!"],
       win:    ["One level down, a bunch to go!", "Stuck the landing!", "That's how you stick it!", "All in a day's work.", "Easy peasy, stick squeezy!"],
       hurt:   ["Ow! Still sticking with it!", "Just a scratch!", "That stung!", "I'm okay!"],
@@ -17890,6 +17921,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["Gonna roll or what?", "I'll just... stand here.", "Nice day for sticks."]
     },
     angel: {
+      beat:   ["Be at peace, monster.", "Light always wins.", "Forgiven... and defeated.", "Heaven had my back!"],
       start:  ["Bless this level.", "Heaven sent, ready to go.", "Let there be sticks!", "Have faith, friend."],
       win:    ["A blessing in disguise!", "Hallelujah!", "Heaven smiles on us.", "Divine work, if I say so."],
       hurt:   ["I forgive you.", "Oh, heavens!", "Ouch... still blessed."],
@@ -17898,6 +17930,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["Patience is a virtue.", "Taking a halo break."]
     },
     alien: {
+      beat:   ["Earth monster: neutralized.", "We have bigger ones on Zorb.", "Probe successful!", "Take that, Earthling!"],
       start:  ["Greetings, Earth sticks.", "Take me to your hole.", "Earth level... fascinating.", "Beam me in."],
       win:    ["Mission report: crushed it.", "Earthlings, be amazed!", "Phoning home: we won!", "On Zorb this is easy."],
       hurt:   ["Earth hurts!", "Bleep! Ow!", "Is that a welcome?"],
@@ -17906,6 +17939,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["Earth is... slow.", "Phoning home..."]
     },
     robot: {
+      beat:   ["THREAT ELIMINATED.", "MONSTER.EXE HAS STOPPED.", "WIN RATE: 100%.", "BEEP BOOP. YOU LOSE."],
       start:  ["SYSTEMS ONLINE.", "STICK PROTOCOL ENGAGED.", "LOADING... DONE.", "BEEP. LET'S GO."],
       win:    ["MISSION COMPLETE.", "EFFICIENCY: 100%.", "VICTORY.EXE RUNNING.", "ERROR: TOO GOOD."],
       hurt:   ["DAMAGE: MINOR.", "PRIDE: DENTED.", "RECALCULATING..."],
@@ -17914,6 +17948,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["IDLE MODE...", "STILL WAITING. BEEP."]
     },
     rex: {
+      beat:   ["GRRR-WOOF!", "*victory zoomies*", "Bad monster! BAD!", "Who's a good boy? ME!"],
       start:  ["WOOF!", "Woof woof!", "*sniff sniff* Sticks!", "Arf! Let's play!"],
       win:    ["AROOOOO!", "Good boy! Me!", "*happy tail wag*", "Woof! Treat time?"],
       hurt:   ["Yelp!", "Grrrr...", "*whimper*"],
@@ -17922,6 +17957,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["*scratches ear*", "Walk? WALK?"]
     },
     rick: {
+      beat:   ["Was that supposed to be hard?", "Too easy.", "Next.", "Rick never loses."],
       start:  ["Watch and learn.", "Too easy already.", "Rick's in the house.", "Try to keep up."],
       win:    ["Too easy.", "Was that it?", "Rick never misses.", "Hold your applause."],
       hurt:   ["Didn't hurt.", "Lucky shot.", "Meant to do that."],
@@ -17930,6 +17966,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["Waiting on you, boss.", "Too good to wait."]
     },
     sally: {
+      beat:   ["Careful planning pays off.", "Phew. Stayed calm, won.", "Smart over scary.", "Well, that was risky."],
       start:  ["Let's think this through.", "Slow and steady.", "Okay, plan first.", "Eyes open, everyone."],
       win:    ["That went to plan.", "See? Careful pays.", "Nicely done, team.", "Smart moves win."],
       hurt:   ["Careful next time.", "Lesson learned.", "That was risky."],
@@ -17938,6 +17975,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["Let's not rush.", "Thinking it over..."]
     },
     sick: {
+      beat:   ["I beat it... *cough* barely.", "ACHOO! You lose!", "Need a nap after that.", "Too sick to lose!"],
       start:  ["*cough* Ready...", "I should be in bed.", "Ugh... let's go.", "ACHOO! Okay, go."],
       win:    ["Did we win? *sniff*", "Feeling better already!", "ACHOO! Victory!", "Time for a nap."],
       hurt:   ["ACHOO!", "*cough cough*", "Ugh, so dizzy."],
@@ -17946,6 +17984,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["I need a nap.", "*sniffle*"]
     },
     super: {
+      beat:   ["Evil never wins!", "All in a hero's day!", "Up, up, and victory!", "Citizens, you're safe!"],
       start:  ["Up, up, and stick!", "Have no fear!", "A hero is here!", "Cape on. Let's go!"],
       win:    ["Another day saved!", "The day is saved!", "Faster than a falling stick!", "Heroes never quit!"],
       hurt:   ["Merely a flesh wound!", "Heroes don't cry!", "My cape!"],
@@ -17954,6 +17993,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["Ready to fly...", "Cape check: good."]
     },
     dip: {
+      beat:   ["Wait, I won? I WON!", "I meant to do that!", "Did I hit it? I hit it!", "Monster go bye-bye!"],
       start:  ["Wait, which way is up?", "I'm ready! For what?", "Is this the bathroom?", "Hi! I'm Dip!"],
       win:    ["We won? I won!", "I meant to do that!", "Duh-winning!", "Did I do the thing?"],
       hurt:   ["Ow! Why'd I do that?", "Who put that there?", "Duh..."],
@@ -17962,6 +18002,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["Is the hole supposed to be empty?", "I forgot what I'm doing.", "My stick is in my hand... right?"]
     },
     mystic: {
+      beat:   ["I foresaw your defeat.", "My eyes saw this coming.", "The prophecy is fulfilled.", "Magic revealed the way."],
       start:  ["I predicted this.", "Magic will reveal the way.", "The stars told me you'd come.", "I have foreseen this level."],
       win:    ["As I foresaw.", "My eyes see all.", "The prophecy is fulfilled.", "I knew it all along."],
       hurt:   ["I didn't see that one coming.", "A minor vision error.", "The spirits lied!"],
@@ -17970,6 +18011,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["I sense... a roll coming.", "Patience. The dice will speak."]
     },
     jogger: {
+      beat:   ["Outran AND outfought you!", "Feel the burn, monster!", "Personal best!", "Jogging is fun!"],
       start:  ["Jogging is fun!", "Let's go for a run!", "Stretch... and GO!", "Warm-up done!"],
       win:    ["Personal best!", "Jogging is fun!", "Finish line!", "Runner's high!"],
       hurt:   ["Pulled a hammy!", "Side stitch!", "Tripped on my laces!"],
@@ -17978,6 +18020,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       idle:   ["Can't stop, won't stop!", "Still jogging..."]
     },
     law: {
+      beat:   ["You're under arrest.", "Case closed.", "Crime doesn't pay, monster.", "Book 'em!"],
       start:  ["Nobody move.", "Sticks, you're under arrest.", "Stick 'em up!", "This level's on lockdown."],
       win:    ["Case closed.", "Justice is served.", "Book 'em.", "Crime doesn't pay."],
       hurt:   ["That's assault!", "You're going down!", "That's a criminal offense!"],
@@ -18033,6 +18076,17 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     if (!talkIsEasy() || talk.count >= TALK_MAX_PER_LEVEL || !talkCalm()) return;
     if (chance !== undefined && Math.random() > chance) return;
     talkSay(kind); talk.count++; talk.lastAt = performance.now();
+  }
+  // v2.80: beating the Stick Monster. The first win on a level gets a zoom-in; later wins a quick bubble.
+  function talkMonsterBeaten(streak){
+    setTimeout(() => {
+      if (talkOverlayOpen() || talk.cut || levelIntro.active) return;
+      if (talk.beatLevel !== game.level){
+        talk.beatLevel = game.level;
+        talkStartCut("beat");
+        talk.cut.label = streak >= 2 ? "MONSTER BEATEN!  \u00b7  " + streak + "\u00d7 STREAK" : "MONSTER BEATEN!";
+      } else { talkSay("beat", { dur: 2200 }); talk.lastAt = performance.now(); }
+    }, 700);   // let the victory fanfare land first
   }
   // ---- zoom-in moments (harder levels) ----
   function talkCutActive(){ return !!talk.cut; }
