@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.76</span></div>
+          <div>STICKS <span class="badge">v2.78</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -12088,16 +12088,52 @@ async function playBgTrack(fromStart=false){
       o.connect(g); g.connect(audioCtx.destination);
       o.start();
       o.stop(audioCtx.currentTime + 0.01);
-      audioUnlocked = true;
+      audioUnlocked = (audioCtx.state === "running");   // v2.77: only count it if sound really started
     }catch(_){}
   }
+  // v2.77 PHONE SOUND: phones only allow sound to start during a real tap (the finger lifting), a click or
+  // a key press, not on the first touch-down. Before, the game tried once on touch-down, could fail
+  // quietly, and never tried again. Now it retries on every real tap/click/key until sound is running,
+  // re-checks after you come back to the page (a call, a text, switching apps), and asks iPhones to treat
+  // the game as media playback so the silent switch doesn't mute it (iOS 17+).
+  function setPlaybackSession(){ try { if (navigator.audioSession && navigator.audioSession.type !== "playback") navigator.audioSession.type = "playback"; } catch(_){} }
+  setPlaybackSession();
   const unlockOnce = async () => {
-    if (audioUnlocked) return;
+    setPlaybackSession();
+    if (audioUnlocked && audioCtx && audioCtx.state === "running") return;
     await unlockAudio();
-  ensureBgTrack();
+    ensureBgTrack();
+    const inGame = (typeof ui !== "undefined") && ui.nameOverlay && ui.nameOverlay.style.display !== "flex" && !paused;
+    if (audioUnlocked && musicOn && !musicTimer && !previewMode && inGame){
+      try { startMusic(); } catch(_){}   // music was meant to be on but couldn't start yet: start it now
+    }
   };
-  document.addEventListener("touchstart", unlockOnce, { passive:true });
-  document.addEventListener("pointerdown", unlockOnce, { passive:true });
+  ["touchend", "pointerup", "click", "keydown", "touchstart", "pointerdown"].forEach(ev =>
+    document.addEventListener(ev, unlockOnce, { passive:true, capture:true }));
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden){ audioUnlocked = false; try { if (audioCtx && audioCtx.state !== "running") audioCtx.resume(); } catch(_){} }
+  });
+  // v2.78: leaving the tab or app pauses the game and silences everything. (Phones slow background
+  // timers down to about once a second, so the music used to keep crawling along in slow motion.)
+  // Coming back: in a game you land on the Pause screen (tap Resume); Preview picks its song back up.
+  let hiddenSilenced = null;
+  document.addEventListener("visibilitychange", () => {
+    try {
+      if (document.hidden){
+        const shown = (el) => el && el.style.display === "flex";
+        const inGame = !shown(ui.nameOverlay) && !shown(ui.gameOverOverlay) && !shown(ui.winOverlay) && !previewMode;
+        if (inGame && !paused){ pauseGame(); hiddenSilenced = { paused: true }; }
+        else { hiddenSilenced = { preview: previewMode && previewPlaying }; stopMusic(); }
+        try { stopMonsterDoom(); } catch(_){}
+        try { if (bgAudio) bgAudio.pause(); } catch(_){}
+        try { if (audioCtx && audioCtx.state === "running") audioCtx.suspend(); } catch(_){}
+      } else if (hiddenSilenced){
+        const h = hiddenSilenced; hiddenSilenced = null;
+        try { if (audioCtx && audioCtx.state !== "running") audioCtx.resume(); } catch(_){}
+        if (h.preview && musicOn && previewMode){ startMusic(false); }
+      }
+    } catch(_){}
+  });
 
   function beep(freq=440, dur=0.08, type="sine", gain=0.08){
     try{
