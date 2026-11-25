@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v3.11</span></div>
+          <div>STICKS <span class="badge">v3.18</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -3940,6 +3940,11 @@
         dir = -dir;
       }
     }
+    // v3.18: never let the trail double back over a stone it already used (that trapped you going left/right forever)
+    for (let i = 0; i < trail.length; i++){
+      const j = trail.findIndex(t => t[0] === trail[i][0] && t[1] === trail[i][1]);
+      if (j < i){ trail.splice(j + 1, i - j); i = j; }
+    }
     if (trail[trail.length - 1][1] !== top || trail[trail.length - 1][0] !== peakCol) return null;
     for (let i = 1; i < trail.length - 1; i++){ if (!deep(trail[i][0], trail[i][1])) return null; }   // no stone right at the cliff edge
     const solid = [];
@@ -3999,11 +4004,11 @@
         const t = (Math.random() - 0.5) * 0.5, r = 0.12 + Math.random() * 0.08;
         puffs.push({ dx: t, dy: -0.17 - r * 0.7 - Math.random() * 0.05, r });
       }
-      // v3.08: prefer a row band with no mountain in it, so the cloud drifts freely instead of fading in and out
-      let cy = 0.5 + Math.random() * (GRID_H * 0.55);
-      for (let tries = 0; tries < 40; tries++){
-        const y = 0.5 + Math.random() * (GRID_H - 1.5);
-        if (!mountains.some(m => y + 0.9 > m.top - 1 && y - 0.9 < m.base + 1.2)){ cy = y; break; }
+      // v3.12: clouds hang around the mountain tops (behind the peaks), never down at the bases
+      let cy = 1 + Math.random() * 3;
+      if (mountains.length){
+        const m = mountains[i % mountains.length], h = m.base - m.top + 1;
+        cy = Math.max(0.7, m.top - 0.6 + Math.random() * (h * 0.32 + 0.6));
       }
       mountainClouds.push({ x: Math.random() * GRID_W, y: cy,
         w: 1.1 + Math.random() * 1.6, drift: (Math.random() < 0.5 ? -1 : 1) * (0.002 + Math.random() * 0.003),
@@ -6082,8 +6087,80 @@ function initWildHorse(){
     }
     ctx.restore();
   }
+  // v3.14: scenery on the open ground: little pine groves, mossy boulders, grass and wildflower patches,
+  // and faint patches of meadow. Purely decoration: nothing here blocks moves, rams or sticks.
+  let scenery = null;
+  function initScenery(){
+    scenery = { items: [], patches: [], art: null, seed: Math.floor(Math.random() * 1e9) };
+    const T = TILE, taken = [];
+    const blocked = (x, y, pad) => {   // x, y in tiles (centers)
+      if (x < 0.8 || y < 0.8 || x > GRID_W - 0.8 || y > GRID_H - 0.8) return true;
+      if (mountains.some(m => x > m.x0 - 0.8 - pad && x < m.x0 + m.w + 0.8 + pad && y > m.top - 1 - pad && y < m.base + 2.2 + pad)) return true;
+      if (Math.abs(x - (game.holeX + 0.5)) < 1.6 && Math.abs(y - (game.holeY + 0.5)) < 1.6) return true;
+      if (game.treeActive && Math.abs(x - (game.treeX + 0.5)) < 1.6 && Math.abs(y - (game.treeY + 0.5)) < 1.6) return true;
+      return taken.some(p => Math.hypot(p[0] - x, p[1] - y) < p[2] + pad);
+    };
+    const spot = (pad, tries) => { for (let k = 0; k < (tries || 60); k++){ const x = 1 + Math.random() * (GRID_W - 2), y = 1 + Math.random() * (GRID_H - 2); if (!blocked(x, y, pad)) return [x, y]; } return null; };
+    // v3.15: just pines (and tall firs), in very different sizes, scattered here and there
+    const pine = (x, y, h) => scenery.items.push({ kind: "tree", x: x * T, y: y * T,
+      t: { h, lean: (Math.random() - 0.5) * 0.06, type: Math.random() < 0.7 ? Math.random() * 0.6 : 0.63 + Math.random() * 0.15, hue: Math.random(), snow: false } });
+    const size = () => { const r = Math.random(); return r < 0.4 ? 8 + Math.random() * 6 : r < 0.8 ? 15 + Math.random() * 9 : 28 + Math.random() * 14; };
+    const singles = randInt(5, 8);
+    for (let i = 0; i < singles; i++){
+      const h = size(), pad = h > 26 ? 1.3 : 0.9, c = spot(pad); if (!c || c[1] < h / TILE + 0.5) continue;   // tall ones not cut off at the top
+      taken.push([c[0], c[1], pad]); pine(c[0], c[1], h);
+    }
+    const pairs = randInt(1, 3);   // a few small clumps: one bigger pine with a little one or two beside it
+    for (let i = 0; i < pairs; i++){
+      const c = spot(1.4); if (!c) continue; taken.push([c[0], c[1], 1.4]);
+      pine(c[0], c[1], 18 + Math.random() * 12);
+      for (let k = randInt(1, 2); k > 0; k--){ const a = Math.random() * Math.PI * 2; pine(c[0] + Math.cos(a) * 0.65, c[1] + Math.sin(a) * 0.4 + 0.2, 7 + Math.random() * 6); }
+    }
+    scenery.items.sort((a, b) => a.y - b.y);
+  }
+  function buildSceneryArt(){
+    const SC = mtnArtScale(), cv = document.createElement("canvas");
+    cv.width = Math.ceil(GRID_W * TILE * SC); cv.height = Math.ceil(GRID_H * TILE * SC);
+    const g = cv.getContext("2d"); g.scale(SC, SC);
+    for (const p of scenery.patches){
+      const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      gr.addColorStop(0, p.green ? "rgba(70,95,50,0.13)" : "rgba(120,95,60,0.1)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, p.r, 0, Math.PI * 2); g.fill();
+    }
+    const FL = ["#f3e37a", "#ffffff", "#c9a0ff", "#ff9fc0", "#ffb36b"];
+    for (const it of scenery.items){
+      const rng = mtnRng(it.seed || (it.x * 31 + it.y * 17 + 1));
+      if (it.kind === "tree"){
+        g.fillStyle = "rgba(0,0,0,0.28)"; g.beginPath(); g.ellipse(it.x + 1.5, it.y + 0.5, it.t.h * 0.42, it.t.h * 0.13, 0, 0, Math.PI * 2); g.fill();
+        mtnTree(g, it.x, it.y, it.t, rng);
+      } else if (it.kind === "rock"){
+        const r = it.r, pts = [];
+        for (let k = 0; k < 8; k++){ const a = Math.PI + k / 7 * Math.PI; pts.push([Math.cos(a) * r * (0.85 + rng() * 0.3), Math.sin(a) * r * (0.75 + rng() * 0.3)]); }
+        g.fillStyle = "rgba(0,0,0,0.3)"; g.beginPath(); g.ellipse(it.x + 1, it.y + 0.6, r * 1.05, r * 0.32, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = "#6d675e"; g.beginPath(); g.moveTo(it.x + pts[0][0], it.y); pts.forEach(p => g.lineTo(it.x + p[0], it.y + p[1])); g.closePath(); g.fill();
+        g.fillStyle = "#8c867b"; g.beginPath(); g.moveTo(it.x - r * 0.8, it.y - r * 0.15);
+        g.quadraticCurveTo(it.x - r * 0.5, it.y - r * 0.85, it.x + r * 0.1, it.y - r * 0.8); g.quadraticCurveTo(it.x - r * 0.2, it.y - r * 0.35, it.x - r * 0.8, it.y - r * 0.15); g.fill();
+        g.strokeStyle = "rgba(40,36,30,0.5)"; g.lineWidth = 0.5; g.beginPath(); g.moveTo(it.x + r * 0.2, it.y - r * 0.6); g.lineTo(it.x + r * 0.35, it.y - r * 0.15); g.stroke();
+        if (it.moss){ g.fillStyle = "rgba(90,130,60,0.75)"; g.beginPath(); g.ellipse(it.x + r * 0.25, it.y - r * 0.72, r * 0.38, r * 0.16, 0.2, 0, Math.PI * 2); g.fill(); }
+      } else {
+        for (let k = 0; k < it.n; k++){
+          const ox = (rng() - 0.5) * 13, oy = (rng() - 0.5) * 6;
+          g.strokeStyle = rng() < 0.5 ? "rgba(110,140,70,0.8)" : "rgba(140,150,80,0.75)"; g.lineWidth = 0.8; g.lineCap = "round";
+          for (let q = 0; q < 3; q++){ g.beginPath(); g.moveTo(it.x + ox + (q - 1) * 0.8, it.y + oy); g.quadraticCurveTo(it.x + ox + (q - 1) * 1.4, it.y + oy - 2.6, it.x + ox + (q - 1) * 2.6 + (rng() - 0.5), it.y + oy - 4 - rng() * 2); g.stroke(); }
+          if (it.flowers && rng() < 0.6){ g.fillStyle = FL[Math.floor(rng() * FL.length)]; g.beginPath(); g.arc(it.x + ox + (rng() - 0.5) * 3, it.y + oy - 4.5 - rng(), 1.15, 0, Math.PI * 2); g.fill(); }
+        }
+      }
+    }
+    scenery.art = { cv, SC };
+  }
+  function drawScenery(){
+    if (!scenery || currentLevelTheme().name !== "Mountain Stick") return;
+    if (!scenery.art || scenery.art.SC !== mtnArtScale()) buildSceneryArt();
+    ctx.drawImage(scenery.art.cv, 0, 0, GRID_W * TILE, GRID_H * TILE);
+  }
   function initCreek(){
     creek = null; streams = null;   // v3.10: no creeks; a waterfall instead
+    try { initScenery(); } catch(e) { scenery = null; }
     initWaterfall();
     return;   // v3.08: the old walk-through creek is switched off
     if (!mountains.length) return;
@@ -6576,8 +6653,9 @@ function initWildHorse(){
       const W = c.w * TILE, cx = c.x * TILE, cy = c.y * TILE + Math.sin(time * 0.6 + c.bob) * 2;
       const over = Math.abs(px - cx) < W * 0.6 && Math.abs(py - cy) < W * 0.35;
       // v3.08: a cloud never sits in front of / behind a mountain: it fades out while it drifts past one
+      // v3.12: only fade if it would show against the LOWER part of a mountain (up by the peaks is fine)
       const T = TILE, hitM = mountains.some(m => cx + W * 0.62 > m.x0 * T && cx - W * 0.62 < (m.x0 + m.w) * T &&
-                                              cy + W * 0.38 > (m.top - 1) * T && cy - W * 0.38 < (m.base + 1.2) * T);
+                                              cy > (m.top + (m.base - m.top + 1) * 0.42) * T && cy - W * 0.38 < (m.base + 1.2) * T);
       const want = hitM ? 0 : over ? 0.3 : 0.85;
       c.a = (c.a == null ? want : c.a) + (want - (c.a == null ? want : c.a)) * 0.06;
       if (c.a < 0.02) continue;
@@ -7047,13 +7125,13 @@ function initWildHorse(){
         
         if (game.carry.length > 0){
           // Scatter all sticks!
+          // v3.16: special sticks (eagle bundle, peak sticks) keep their value when a ram scatters them
           game.carry.forEach(stick => {
             const pos = randomEmptyTile();
-            stick.x = pos.x;
-            stick.y = pos.y;
-            stick.rotation = Math.random() * Math.PI * 2;
-            game.sticks.push(stick);
+            const keep = (stick.value > 1 || stick.feather || stick.bigfoot) ? Object.assign({}, stick) : null;
+            game.sticks.push({ x: pos.x, y: pos.y, color: stick.color, cursed: false, bonus: false, rotation: Math.random() * Math.PI * 2, keep });
           });
+          if (game.carry.some(st => st.feather)) logEvent("info", "🦅 The golden bundle went flying! Find it and pick it back up, it's still worth its full value.");
           const scattered = game.carry.length;
           game.carry = [];
           logEvent("ram", `🐏 Ram scattered ${scattered} stick(s)!`);
@@ -13842,6 +13920,13 @@ function sfxMonsterVictoryStreak(){
     if (typeof talk !== "undefined" && talk.cut){ talkSkipCut(); return true; }   // v2.65: any input skips a zoom-in
     if (typeof entrance !== "undefined" && entrance.active){ entranceEnd(); return true; }   // v2.81: skip the entrance
     if (!levelIntro.active || levelIntro.dismissed) return false;
+    // v3.12: first key while your stick is talking jumps to the level tip; the next one starts
+    if (levelIntro.tip && levelIntro.lineMs && introStage().el < levelIntro.lineMs){
+      if (levelIntro.phase === 'fadein'){ levelIntro.phase = 'hold'; levelIntro.timer = 0; }
+      levelIntro.holdStart = performance.now() - levelIntro.lineMs;
+      try { beep(660, 0.06, "triangle", 0.06); } catch(e) {}
+      return true;
+    }
     levelIntro.dismissed = true;
     if (levelIntro.phase === 'fadein'){ levelIntro.phase = 'hold'; levelIntro.timer = 0; }
     try { beep(660, 0.06, "triangle", 0.06); } catch(e) {}
@@ -13885,6 +13970,7 @@ function sfxMonsterVictoryStreak(){
       }
       try { logEvent("info", "💡 " + theme.name.toUpperCase() + ": " + levelIntro.tip); } catch(e) {}
     }
+    levelIntro.holdStart = 0;
     // v2.86: your stick's line on the card. The first time you reach a level it always reacts to that level;
     // after that it's a 50/50 mix of its level line and its general start lines.
     try {
@@ -13893,6 +13979,16 @@ function sfxMonsterVictoryStreak(){
       levelIntro.line = (levelLine && (levelIntro.longHold || Math.random() < 0.5)) ? levelLine : talkPick("start");
       talkSound();
     } catch(e) { levelIntro.line = ""; }
+    // v3.12: the stick's line shows first, then the level tip, each with time to read it
+    const ln = (levelIntro.line || "").replace("|", " ").length, tl = (levelIntro.tip || "").length;
+    levelIntro.lineMs = ln ? Math.min(3200, 1300 + ln * 35) : 0;
+    levelIntro.tipMs = tl ? Math.min(9000, 1800 + tl * 45) : 1500;
+  }
+  function introStage(){   // v3.12: how far along the card is: {lineA, tipA, el}
+    const el = levelIntro.phase === 'fadein' ? 0 : performance.now() - (levelIntro.holdStart || performance.now());
+    const L = levelIntro.lineMs || 0;
+    return { el, lineA: !L ? 0 : el < L ? 1 : Math.max(0, 1 - (el - L) / 300),
+             tipA: !L ? 1 : Math.max(0, Math.min(1, (el - L) / 350)) };
   }
   
   function updateLevelIntro(){
@@ -13905,6 +14001,7 @@ function sfxMonsterVictoryStreak(){
       if(levelIntro.timer >= INTRO_FADEIN_TIME){
         levelIntro.phase = 'hold';
         levelIntro.timer = 0;
+        if (!levelIntro.holdStart) levelIntro.holdStart = performance.now();
       }
     } else if(levelIntro.phase === 'hold'){
       levelIntro.opacity = 1;
@@ -13915,7 +14012,8 @@ function sfxMonsterVictoryStreak(){
       // v2.79: a level you've already seen continues by itself after ~2s (any key still skips);
       // the first time you reach a level it waits for you so you can read the tip.
       levelIntro.autoGo = !levelIntro.longHold && !tutOpen;
-      if (levelIntro.autoGo && levelIntro.timer >= INTRO_AUTO_GO) levelIntro.dismissed = true;
+      if (!levelIntro.holdStart) levelIntro.holdStart = performance.now();
+      if (levelIntro.autoGo && introStage().el >= (levelIntro.lineMs || 0) + levelIntro.tipMs) levelIntro.dismissed = true;
       const canLeave = levelIntro.dismissed;   // v2.43: never times out behind the tutorial any more
       if(canLeave){
         levelIntro.phase = 'fadeout';
@@ -14153,7 +14251,9 @@ function sfxMonsterVictoryStreak(){
     // Per-level tip: hidden while a tutorial/how-to box is up so info doesn't pile up
     const _tutOpen = (ui.tutorialOverlay && ui.tutorialOverlay.classList.contains('show')) ||
                      (ui.quickHowtoOverlay && ui.quickHowtoOverlay.classList.contains('show'));
-    if (levelIntro.tip && !_tutOpen){
+    const _st = introStage();
+    if (levelIntro.tip && !_tutOpen && _st.tipA > 0){
+      ctx.globalAlpha = levelIntro.opacity * _st.tipA;
       ctx.font = '15px ui-monospace, monospace';
       ctx.fillStyle = 'rgba(255,255,255,0.92)';
       const maxW = CANVAS_W * 0.82;
@@ -14169,7 +14269,7 @@ function sfxMonsterVictoryStreak(){
       for (const ln of lines){ ctx.fillText(ln, cx, ty); ty += 20; }
       if (introIsWaiting() && levelIntro.autoGo){
         // seen before: a short bar fills up, then the level starts on its own
-        const k = Math.min(1, levelIntro.timer / INTRO_AUTO_GO), bw = 180;
+        const k = Math.min(1, Math.max(0, _st.el - (levelIntro.lineMs || 0)) / levelIntro.tipMs), bw = 180;
         ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(cx - bw / 2, ty + 4, bw, 3);
         ctx.fillStyle = color; ctx.fillRect(cx - bw / 2, ty + 4, bw * k, 3);
         ctx.font = '12px ui-monospace, monospace'; ctx.fillStyle = 'rgba(255,255,255,0.7)';
@@ -14209,7 +14309,7 @@ function sfxMonsterVictoryStreak(){
         ctx.font = "900 14px ui-monospace, Menlo, Consolas, monospace"; let mw = ctx.measureText(lp[0]).width;
         if (lp[1]){ ctx.font = "italic 700 11px ui-monospace, Menlo, Consolas, monospace"; mw = Math.max(mw, ctx.measureText(lp[1]).width); }
         const bw = Math.min(210, mw) + 22; ctx.restore();
-        talkBubble(sx + 34 + bw / 2, sy - 22, levelIntro.line, 14, a, 210);   // to the right of its head, tail pointing at it
+        if (_st.lineA > 0) talkBubble(sx + 34 + bw / 2, sy - 22, levelIntro.line, 14, a * _st.lineA, 210);   // to the right of its head, tail pointing at it
       } catch(e) { talkZooming = false; }
     }
   }
@@ -17033,8 +17133,11 @@ Clear all sticks to advance — watch out for obstacles.`;
       dropped.forEach(st => {
         const p = scatterPositionAround(game.playerX, game.playerY, 3);
         const rotation = Math.random() * Math.PI * 2;
-        game.sticks.push({ x:p.x, y:p.y, color: st.color, cursed:false, bonus:false, rotation });
+        // v3.13: special sticks (eagle bundle, peak sticks, x-value sticks) keep their value when dropped
+        const keep = (st.value > 1 || st.feather || st.bigfoot) ? Object.assign({}, st) : null;
+        game.sticks.push({ x:p.x, y:p.y, color: st.color, cursed:false, bonus:false, rotation, keep });
       });
+      if (dropped.some(st => st.feather)) logEvent("info", "🦅 The golden bundle fell nearby. Pick it back up, it's still worth its full value!");
       logEvent("bad",`Zero! Dropped ${dropped.length} stick(s).`);
       setHud(`Zero! Dropped ${dropped.length}!`);
     } else {
@@ -17626,7 +17729,10 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
       // CUPCAKE MODE: 2x stick value!
       const stickValue = cupcakeMode > 0 ? 2 : 1;
-      game.carry.push({ color:s.color, value:stickValue });
+      if (s.keep){   // v3.13: a dropped special stick comes back with its value
+        game.carry.push(Object.assign({}, s.keep));
+        if (s.keep.feather) logEvent("bonus", `🦅 Got the golden bundle back (x${s.keep.value})!`);
+      } else game.carry.push({ color:s.color, value:stickValue });
 
       if(cupcakeMode > 0 && stickValue === 2){
         logEvent("sparkle", "🧁 Cupcake power! 2x stick value!");
@@ -18704,6 +18810,22 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   function drawStick(s){
     const x = s.x*TILE;
     const y = s.y*TILE;
+    if (s.keep){   // v3.13: dropped special stick: the bundle stays a bundle, and the value shows
+      const time = Date.now() * 0.001, cx = x + TILE / 2, cy = y + TILE / 2;
+      if (s.keep.feather){ drawGoldBundle(ctx, cx, cy, 22, (s.rotation || 0.6) + Math.sin(time * 1.5) * 0.05, 10 + Math.sin(time * 3) * 4); }
+      else {
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(s.rotation !== undefined ? s.rotation : Math.PI * 0.25);
+        ctx.lineCap = "round"; ctx.shadowColor = s.color; ctx.shadowBlur = 8;
+        ctx.strokeStyle = "rgba(0,0,0,0.5)"; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, 9); ctx.stroke();
+        ctx.strokeStyle = s.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, 9); ctx.stroke();
+        ctx.restore();
+      }
+      ctx.save(); ctx.font = "bold 10px monospace"; ctx.textAlign = "left"; ctx.lineWidth = 2.2;
+      ctx.strokeStyle = "#3d2f1f"; ctx.fillStyle = "#ffd700";
+      ctx.strokeText("x" + s.keep.value, cx + 9, cy - 8); ctx.fillText("x" + s.keep.value, cx + 9, cy - 8);
+      ctx.restore();
+      return;
+    }
     ctx.save();
     ctx.translate(x + TILE/2, y + TILE/2);
     
@@ -20170,6 +20292,37 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     // shadow; all you see are two glowing yellow eyes (they blink slowly). The cloak sways gently, and
     // every so often gold sparkles and a soft golden mist rise around it. On hat levels (Ice, Snake) the
     // hood comes off: a normal stick head with the same glowing eyes, wearing the level's hat.
+    // v3.15: Mystic's long blonde hair, spilling out of the hood (or down from the head when the hood is off)
+    const mysticHair = (hoodOff, sw, sw2) => {
+      ctx.save(); ctx.lineJoin = "round"; ctx.lineCap = "round"; ctx.shadowBlur = 0;
+      const HAIR = "#ecc65a", LIGHT = "#fff0a6", DARK = "#b3832c";
+      const lock = (sd, sway) => {
+        const t0 = hoodOff ? -10.6 : -10.2, x0 = hoodOff ? 3.2 : 2.5;
+        ctx.beginPath(); ctx.moveTo(sd * x0, t0);
+        ctx.quadraticCurveTo(sd * (hoodOff ? 6.4 : 4.7), -8, sd * (hoodOff ? 5.6 : 4.3), -3);
+        ctx.quadraticCurveTo(sd * 4.8, 1.4, sd * 5.7 + sway, 6.2);
+        ctx.quadraticCurveTo(sd * 4.4 + sway * 0.6, 5.4, sd * 3.5, 4.6);
+        ctx.quadraticCurveTo(sd * 3.1, 1.6, sd * (hoodOff ? 4.3 : 2.7), -1.6);
+        ctx.quadraticCurveTo(sd * (hoodOff ? 4.6 : 2.6), -6, sd * 1.2, t0 + 0.6);
+        ctx.closePath();
+        ctx.fillStyle = HAIR; ctx.strokeStyle = DARK; ctx.lineWidth = 0.45; ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = LIGHT; ctx.lineWidth = 0.5; ctx.globalAlpha = 0.85;
+        ctx.beginPath(); ctx.moveTo(sd * (x0 + 0.4), t0 + 1.4); ctx.quadraticCurveTo(sd * (hoodOff ? 5.4 : 3.9), -5, sd * 4.3 + sway * 0.5, 3.6); ctx.stroke();
+        ctx.strokeStyle = DARK; ctx.lineWidth = 0.35; ctx.globalAlpha = 0.6;
+        ctx.beginPath(); ctx.moveTo(sd * 3.3, -4); ctx.quadraticCurveTo(sd * 3.6, 0.5, sd * 4.6 + sway * 0.8, 5.2); ctx.stroke();
+        ctx.globalAlpha = 1;
+      };
+      if (hoodOff){
+        ctx.fillStyle = HAIR; ctx.strokeStyle = DARK; ctx.lineWidth = 0.45;
+        ctx.beginPath(); ctx.arc(0, -6.5, 5.5, Math.PI * 1.05, Math.PI * 1.95); ctx.quadraticCurveTo(1, -9.4, -5.2, -8); ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      lock(-1, sw * 0.35); lock(1, sw2 * 0.35);
+      ctx.fillStyle = HAIR; ctx.strokeStyle = DARK; ctx.lineWidth = 0.4;
+      ctx.beginPath(); ctx.moveTo(-3.1, -9.1); ctx.quadraticCurveTo(-0.6, -11.6, 3.1, -9.4); ctx.quadraticCurveTo(1.6, -9.5, 0.2, -8.3);
+      ctx.quadraticCurveTo(-1.6, -8.9, -3.1, -9.1); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = LIGHT; ctx.lineWidth = 0.45; ctx.beginPath(); ctx.moveTo(-1.8, -9.6); ctx.quadraticCurveTo(0.2, -10.6, 2.2, -9.6); ctx.stroke();
+      ctx.restore();
+    };
     const drawMysticBody = () => {
       const time = Date.now() * 0.001;
       const RED = "#8b0a14", EDGE = "#4a0208", GOLD = "#ffd36b", hatLvl = levelHatOn();
@@ -20205,13 +20358,31 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       if (hatLvl){
         // hood off for the level's hat: a normal head, same glowing yellow eyes
         ctx.beginPath(); ctx.arc(0, -6.5, 5, 0, Math.PI * 2); ctx.stroke();
+        mysticHair(true, sw, sw2);
       } else {
         // the hood: blood red, deep shadow inside
         ctx.fillStyle = RED; ctx.strokeStyle = EDGE; ctx.lineWidth = 0.8;
         ctx.beginPath(); ctx.moveTo(-6, -1.8); ctx.quadraticCurveTo(-7.2, -10, -2.4, -13);
         ctx.quadraticCurveTo(0.2, -15.2, 1.2, -14.3); ctx.quadraticCurveTo(7.4, -10.8, 6, -1.8);
         ctx.quadraticCurveTo(0, -0.4, -6, -1.8); ctx.closePath(); ctx.fill(); ctx.stroke();
+        // v3.17: two little maroon horns poking out through the hood, curling outward and up
+        for (const sd of [-1, 1]){
+          const bx = sd * 3.2 + 0.4, by = -11.2;
+          const hg = ctx.createLinearGradient(bx, by + 1, bx + sd * 2.6, by - 4.4);
+          hg.addColorStop(0, "#3a040c"); hg.addColorStop(0.6, "#5e0c1a"); hg.addColorStop(1, "#7d1e2e");
+          ctx.fillStyle = hg; ctx.strokeStyle = "#1e0105"; ctx.lineWidth = 0.4;
+          ctx.beginPath(); ctx.moveTo(bx - sd * 1.4, by + 0.9);
+          ctx.quadraticCurveTo(bx + sd * 3.3, by - 0.1, bx + sd * 2.7, by - 4.6);       // outer curve up to the point
+          ctx.quadraticCurveTo(bx + sd * 1.25, by - 1.1, bx + sd * 1.5, by + 1.5);       // inner curve back down
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.strokeStyle = "rgba(20,0,4,0.7)"; ctx.lineWidth = 0.3;                     // ridges
+          for (const k of [0.3, 0.55]){ const rx = bx + sd * (0.4 + k * 2.2), ry = by + 0.4 - k * 3.6;
+            ctx.beginPath(); ctx.moveTo(rx - sd * 0.55, ry + 0.25); ctx.lineTo(rx + sd * 0.55, ry - 0.2); ctx.stroke(); }
+          ctx.strokeStyle = "rgba(255,180,180,0.3)"; ctx.lineWidth = 0.3;
+          ctx.beginPath(); ctx.moveTo(bx + sd * 0.6, by - 0.2); ctx.quadraticCurveTo(bx + sd * 2.1, by - 1, bx + sd * 2.3, by - 3.8); ctx.stroke();
+        }
         ctx.fillStyle = "#050203"; ctx.beginPath(); ctx.ellipse(0, -6.3, 3.8, 4.2, 0, 0, Math.PI * 2); ctx.fill();
+        mysticHair(false, sw, sw2);
       }
       ctx.save();
       ctx.fillStyle = "#ffd21f"; ctx.shadowColor = "#ffb300"; ctx.shadowBlur = 7 + magic * 5;   // eyes glow a bit brighter during the magic
@@ -21139,9 +21310,11 @@ ctx.restore();
         } else if (skin === "law"){     // the police cap
           ctx.beginPath(); ctx.moveTo(-5.8, -9.4); ctx.lineTo(-6.6, -12.6); ctx.quadraticCurveTo(0, -15.2, 6.6, -12.6); ctx.lineTo(5.8, -9.4); ctx.closePath(); ctx.fill(); ctx.stroke();
           ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.arc(0, -11.8, 1, 0, Math.PI * 2); ctx.fill();
-        } else if (skin === "mystic"){  // the hood, with red eyes inside
+        } else if (skin === "mystic"){  // the hood (with its little horns), with red eyes inside
+          for (const sd of [-1, 1]){ ctx.beginPath(); ctx.moveTo(sd * 2.5, -11); ctx.quadraticCurveTo(sd * 3.6, -14.4, sd * 6, -16); ctx.quadraticCurveTo(sd * 4.9, -13.4, sd * 4.7, -10.4); ctx.closePath(); ctx.fill(); ctx.stroke(); }
           ctx.beginPath(); ctx.moveTo(-6.2, -2.2); ctx.quadraticCurveTo(-7.4, -10, -2.5, -13.2); ctx.quadraticCurveTo(0.3, -15.6, 1.2, -14.6);
           ctx.quadraticCurveTo(7.6, -11, 6.2, -2.2); ctx.quadraticCurveTo(0, -0.6, -6.2, -2.2); ctx.closePath(); ctx.fill(); ctx.stroke();
+          for (const sd of [-1, 1]){ ctx.beginPath(); ctx.moveTo(sd * 2.5, -10); ctx.quadraticCurveTo(sd * 4.7, -7, sd * 5.7, 6); ctx.lineTo(sd * 3.5, 4.6); ctx.quadraticCurveTo(sd * 2.7, -4, sd * 1.2, -9.6); ctx.closePath(); ctx.fill(); ctx.stroke(); }
           ctx.fillStyle = "#ff0000"; ctx.beginPath(); ctx.ellipse(-1.5, -6.6, 0.95, 0.55, 0, 0, Math.PI * 2); ctx.ellipse(1.5, -6.6, 0.95, 0.55, 0, 0, Math.PI * 2); ctx.fill();
         } else if (skin === "jogger"){  // the sweatband
           ctx.strokeStyle = "rgba(150,50,200,0.9)"; ctx.lineWidth = 1.6;
@@ -21903,7 +22076,7 @@ ctx.restore();
 
 
     // sticks
-    drawStreams(); drawCreek(); drawMountainClouds(); drawMountains(); drawWaterfall(); drawBigfootPrints(); drawPeakSticks(); drawMtnHint();   // v3.05: clouds drift behind the mountains so they never hide the trail   // v2.96: mountains, peak sticks and clouds sit under the sticks and player
+    drawScenery(); drawStreams(); drawCreek(); drawMountainClouds(); drawMountains(); drawWaterfall(); drawBigfootPrints(); drawPeakSticks(); drawMtnHint();   // v3.05: clouds drift behind the mountains so they never hide the trail   // v2.96: mountains, peak sticks and clouds sit under the sticks and player
     for (const s of game.sticks) drawStick(s);
 
     // hole + player glow (behind player)
