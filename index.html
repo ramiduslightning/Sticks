@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v3.18</span></div>
+          <div>STICKS <span class="badge">v3.19</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -12711,7 +12711,7 @@ let renderScale = 1;
 
 function applyCanvasBacking(cssSize){
   const dpr = window.devicePixelRatio || 1;
-  const px = Math.max(1, Math.round(cssSize * dpr));
+  const px = Math.max(1, Math.min(2304, Math.round(cssSize * dpr)));   // v3.19: cap for huge screens (4x the board, still razor sharp)
   if (canvas.width !== px || canvas.height !== px){
     canvas.width = px;
     canvas.height = px;
@@ -13159,10 +13159,10 @@ async function playBgTrack(fromStart=false){
     } catch(_){}
   });
 
-  function beep(freq=440, dur=0.08, type="sine", gain=0.08){
+  function beep(freq=440, dur=0.08, type="sine", gain=0.08, when){
     try{
       ensureAudio();
-      const t0 = audioCtx.currentTime;
+      const t0 = (when && when > audioCtx.currentTime) ? when : audioCtx.currentTime;   // v3.19: music schedules notes ahead
       const o = audioCtx.createOscillator();
       const g = audioCtx.createGain();
       o.type = type;
@@ -13304,9 +13304,10 @@ async function playBgTrack(fromStart=false){
     // Gameplay: run the procedural synth loop (original STICKS music)
     if (fromStart) musicStep = 0;
 
-    musicTimer = setInterval(() => {
-      if (!musicOn) return;
-
+    // v3.19: notes are queued a little ahead on the audio hardware's own clock, so the tempo
+    // stays steady even when the computer is busy drawing (big or high-refresh screens)
+    let nextNoteT = 0;
+    const playStep = (at) => {
       let stepObj;
       const now = Date.now();
 
@@ -13327,20 +13328,26 @@ async function playBgTrack(fromStart=false){
       // Chords (for rock/energy themes like Mountain Stick)
       if (stepObj.chord && Array.isArray(stepObj.chord)){
         stepObj.chord.forEach((f) => {
-          if (f && f > 0) beep(f, dur, "square", Math.max(0.02, g * 0.85));
+          if (f && f > 0) beep(f, dur, "square", Math.max(0.02, g * 0.85), at);
         });
       }
 
       // Lead voice
       if (stepObj.lead && stepObj.lead > 0){
-        beep(stepObj.lead, dur, "triangle", g);
+        beep(stepObj.lead, dur, "triangle", g, at);
       }
 
       // Bass voice (subtle)
       if (stepObj.bass && stepObj.bass > 0){
-        beep(stepObj.bass, Math.max(0.12, dur * 1.15), "sine", Math.max(0.02, g * 0.55));
+        beep(stepObj.bass, Math.max(0.12, dur * 1.15), "sine", Math.max(0.02, g * 0.55), at);
       }
-    }, MUSIC_STEP_MS);
+    };
+    musicTimer = setInterval(() => {
+      if (!musicOn || !audioCtx) return;
+      const now = audioCtx.currentTime, STEP = MUSIC_STEP_MS / 1000;
+      if (!nextNoteT || nextNoteT < now - 0.25) nextNoteT = now + 0.03;   // first note, or we fell far behind: pick up from now
+      while (nextNoteT < now + 0.3){ playStep(nextNoteT); nextNoteT += STEP; }
+    }, 40);
   }
 
   function stopMusic(){
@@ -21891,8 +21898,15 @@ ctx.restore();
   }
 
   /* ---- Main loop ---- */
+  let loopLastT = 0, loopAcc = 0;
   function loop(){
     rafId = requestAnimationFrame(loop);
+    // v3.19: 144/165/240 Hz screens call this 2-4x more often than 60 Hz ones. The game's timing
+    // counts frames, so run it at a steady 60 a second (and save the computer the extra drawing).
+    const _now = performance.now(), FRAME = 1000 / 60;
+    loopAcc += loopLastT ? Math.min(100, _now - loopLastT) : FRAME; loopLastT = _now;
+    if (loopAcc < FRAME - 2) return;
+    loopAcc = Math.min(FRAME, loopAcc - FRAME);
 
     // Stop updating game logic if game over or victory overlay is showing
     const isGameEnded = ui.gameOverOverlay.style.display === "flex" || 
