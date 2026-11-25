@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v2.95</span></div>
+          <div>STICKS <span class="badge">v3.11</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -3865,92 +3865,149 @@
     return puffs;
   }
 
+  // ===== v2.96 TRAIL MOUNTAINS =====
+  // Mountain Stick now has 1–3 big mountains. Each one is solid rock except for a single trail that
+  // zigzags up its face from a TRAIL sign to the summit. Every trail square is a normal move. The
+  // summit holds a peak stick worth more on longer climbs; after grabbing it you slide back down to the
+  // trailhead in one move. The art for each mountain is drawn once into its own canvas.
+  let mountainSolid = null;                       // GRID_W*GRID_H flags: 1 = solid rock
+  function mtnSolid(x, y){
+    return !!(mountainSolid && mountains.length && x >= 0 && y >= 0 && x < GRID_W && y < GRID_H && mountainSolid[y * GRID_W + x]);
+  }
+  function mtnTrailIndex(m, x, y){
+    for (let i = 0; i < m.trail.length; i++) if (m.trail[i][0] === x && m.trail[i][1] === y) return i;
+    return -1;
+  }
+  function mtnAt(x, y){ return mountains.find(m => mtnTrailIndex(m, x, y) >= 0) || null; }
+  function mtnRng(seed){ let s = Math.floor(seed) % 2147483647; if (s <= 0) s += 2147483646; return () => (s = s * 16807 % 2147483647) / 2147483647; }
+  const MTN_STYLES = [
+    { hi: "#a2805f", lo: "#4a3626", snow: 1.0 },   // warm brown
+    { hi: "#a3aab4", lo: "#454b55", snow: 1.1 },   // gray granite
+    { hi: "#c98154", lo: "#5e2e1a", snow: 0.7 },   // red sandstone
+    { hi: "#8e977f", lo: "#3a4236", snow: 0.9 }    // green slate
+  ];
+  function mtnInPoly(px, py, poly){
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++){
+      const xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1];
+      if (((yi > py) !== (yj > py)) && (px < (xj - xi) * (py - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+  // build one mountain covering columns x0..x0+w-1 and rows top..base (tile units)
+  function buildMountain(x0, w, base, h, seed, style){
+    const rng = mtnRng(seed), top = base - h + 1;
+    const peakCol = x0 + Math.floor(w * (0.38 + rng() * 0.24));
+    const tip = [peakCol + 0.5, top - 0.35];
+    const L = [x0 + 0.05, base + 0.95], R = [x0 + w - 0.05, base + 0.95];
+    const side = (a, b, n, bumpAt) => {                       // jagged ridge from a to b
+      const pts = [];
+      for (let i = 1; i < n; i++){
+        const t = i / n; let x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t;
+        x += (rng() - 0.5) * 0.55; y += (rng() - 0.5) * 0.45;
+        if (bumpAt !== null && Math.abs(t - bumpAt) < 0.001) y -= 1.1 + rng() * 0.6;   // a second summit
+        pts.push([x, y]);
+      }
+      return pts;
+    };
+    const twin = rng() < 0.4, twinRight = rng() < 0.5, n = 6;
+    const left = side(L, tip, n, twin && !twinRight ? 3 / n : null);
+    const right = side(tip, R, n, twin && twinRight ? 3 / n : null);
+    const sil = [L, ...left, tip, ...right, R];
+    const peaks = [{ x: tip[0], y: tip[1], s: 1.25 }];
+    if (twin){ const p = twinRight ? right[2] : left[2]; peaks.push({ x: p[0], y: p[1], s: 0.8 }); }
+    const inside = (c, r) => mtnInPoly(c + 0.5, r + 0.5, sil);
+    const deep = (c, r) => inside(c, r) && mtnInPoly(c + 0.08, r + 0.5, sil) && mtnInPoly(c + 0.92, r + 0.5, sil);   // v3.02: whole square inside the rock
+    // the trail: start near one side of the bottom row, climb a row at a time, cutting across every other row
+    const spanOf = (r) => { let a = 99, b = -99; for (let c = x0; c < x0 + w; c++) if (inside(c, r)){ a = Math.min(a, c); b = Math.max(b, c); } return [a, b]; };
+    const sp0 = spanOf(base); if (sp0[0] > sp0[1]) return null;
+    let dir = rng() < 0.5 ? 1 : -1;
+    let c = dir > 0 ? Math.min(sp0[1], sp0[0] + 1) : Math.max(sp0[0], sp0[1] - 1), r = base;
+    const trail = [[c, r]];
+    let guard = 0;
+    while (r > top && guard++ < 80){
+      if (r - 1 === top){                                   // line up under the summit, then step up to it
+        while (c !== peakCol && guard++ < 80){ c += Math.sign(peakCol - c); trail.push([c, r]); }
+        r -= 1; trail.push([c, r]); break;
+      }
+      while (!deep(c, r - 1) && guard++ < 80){ c += Math.sign(peakCol - c) || 1; trail.push([c, r]); }
+      r -= 1; trail.push([c, r]);
+      if ((base - r) % 2 === 1 && r - top >= 2){
+        const sp = spanOf(r);
+        let target = dir > 0 ? sp[1] - 1 : sp[0] + 1;
+        target = Math.max(c - 3, Math.min(c + 3, target));     // keep each switchback short
+        while (c !== target && guard++ < 80){ const nc = c + Math.sign(target - c); if (!deep(nc, r)) break; c = nc; trail.push([c, r]); }
+        dir = -dir;
+      }
+    }
+    if (trail[trail.length - 1][1] !== top || trail[trail.length - 1][0] !== peakCol) return null;
+    for (let i = 1; i < trail.length - 1; i++){ if (!deep(trail[i][0], trail[i][1])) return null; }   // no stone right at the cliff edge
+    const solid = [];
+    for (let rr = top; rr <= base; rr++) for (let cc = x0; cc < x0 + w; cc++){
+      if (inside(cc, rr) && !trail.some(t => t[0] === cc && t[1] === rr)) solid.push([cc, rr]);
+    }
+    const steps = trail.length - 1;
+    return { x0, w, top, base, sil, peaks, trail, solid, style, seed,
+             trailhead: { x: trail[0][0], y: trail[0][1] }, summit: { x: peakCol, y: top },
+             steps, mult: Math.max(4, Math.min(12, Math.round(steps * 0.75))),
+             peakColor: STICK_COLORS[randInt(0, STICK_COLORS.length - 1)], peakCollected: false, art: null, rot: Math.random() * 6 };
+  }
   function initMountains(){
     mountains = [];
     mountainImpactSmoke = [];
     peakSticks = [];
-    const count = randInt(6, 10);
-    console.log('🏔️ Spawning', count, 'mountains');
-    for(let i = 0; i < count; i++){
-      const pos = randomEmptyTile();
-      // Difficulty 2-5, which also determines visual size
-      const difficulty = randInt(2, 5);
-      // Each difficulty has its own visual scale - ALL are single-tile for collision
-      // but visually they look different sizes
-      mountains.push({ 
-        x: pos.x, 
-        y: pos.y, 
-        difficulty: difficulty,
-        currentClimb: 0
-      });
-    }
-    console.log('Mountains:', mountains);
-    
-    // Add peak sticks to some mountains (2-4 sticks on harder mountains)
-    const eligibleMountains = mountains.filter(m => m.difficulty >= 3);
-    const peakCount = Math.min(randInt(2, 4), eligibleMountains.length);
-    const shuffled = eligibleMountains.sort(() => Math.random() - 0.5);
-    for(let i = 0; i < peakCount; i++){
-      const m = shuffled[i];
-      peakSticks.push({
-        x: m.x,
-        y: m.y,
-        color: STICK_COLORS[randInt(0, STICK_COLORS.length - 1)],
-        mult: randInt(2, 10),
-        rotation: Math.random() * Math.PI * 2,
-        collected: false
-      });
-    }
-    console.log('⛰️ Peak sticks:', peakSticks.length);
-    
-    // Ensure no ground sticks are hidden under mountain tiles (can cause a "stuck" clear)
-    if (game && game.sticks && game.sticks.length){
-      const isMountainTile = (x, y) => mountains.some(m => m.x === x && m.y === y);
-
-      const randomEmptyTileNoMountain = () => {
-        for (let tries = 0; tries < 400; tries++){
-          const p = randomEmptyTile();
-          if (!isMountainTile(p.x, p.y)) return p;
-        }
-        // Fallback scan
-        for (let yy = 0; yy < GRID_H; yy++){
-          for (let xx = 0; xx < GRID_W; xx++){
-            if (isMountainTile(xx, yy)) continue;
-            if (xx === game.holeX && yy === game.holeY) continue;
-            if (xx === game.playerX && yy === game.playerY) continue;
-            if (game.sticks.some(s => s.x === xx && s.y === yy)) continue;
-            return {x: xx, y: yy};
-          }
-        }
-        return {x: 0, y: 0};
-      };
-
-      for (const s of game.sticks){
-        if (isMountainTile(s.x, s.y)){
-          const p = randomEmptyTileNoMountain();
-          s.x = p.x;
-          s.y = p.y;
-        }
+    mountainSolid = new Uint8Array(GRID_W * GRID_H);
+    bigfootReset(); mtnHint = null; mtnHintLogged = false;
+    const want = randInt(1, 3);
+    const styles = MTN_STYLES.map((s, i) => i).sort(() => Math.random() - 0.5);
+    const boxes = [];
+    for (let k = 0; k < want; k++){
+      for (let tries = 0; tries < 120; tries++){
+        const big = want === 1 ? 2 : want === 2 ? 1 : 0;
+        const w = randInt(5 + big, 7 + big), h = randInt(5 + big, 7 + big);
+        const x0 = randInt(1, GRID_W - 1 - w), base = randInt(h + 1, GRID_H - 2);
+        const top = base - h + 1;
+        const box = [x0 - 2, top - 2, x0 + w + 1, base + 2];
+        if (boxes.some(b => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) continue;
+        const near = (x, y) => x >= x0 - 1 && x <= x0 + w && y >= top - 1 && y <= base + 1;
+        if (near(game.playerX, game.playerY) || near(game.holeX, game.holeY)) continue;
+        const m = buildMountain(x0, w, base, h, Math.floor(Math.random() * 1e9), MTN_STYLES[styles[k % styles.length]]);
+        if (!m || m.steps < 6 || m.steps > 15) continue;
+        boxes.push(box); mountains.push(m); break;
       }
     }
-
-    
-    // Add floating clouds for Mountain Stick
-    // Mountain mist (2026-10-19): thin wisps that start beside the peaks and drift slowly past them
+    for (const m of mountains) for (const t of m.solid) mountainSolid[t[1] * GRID_W + t[0]] = 1;
+    console.log('⛰️ Trail mountains:', mountains.map(m => m.steps + ' steps x' + m.mult).join(', '));
+    // nothing may sit inside the rock: move any sticks (and the life tile) out onto open ground
+    if (game && game.sticks) for (const s of game.sticks){ if (mtnSolid(s.x, s.y) || mountains.some(m => m.summit.x === s.x && m.summit.y === s.y)){ const p = randomEmptyTile(); s.x = p.x; s.y = p.y; } }
+    if (!game.lifeTileUsed && mtnSolid(game.lifeTileX, game.lifeTileY)){ const p = randomEmptyTile(); game.lifeTileX = p.x; game.lifeTileY = p.y; }
+    initCreek(); eagleReset();
+    // puffy clouds, each its own shape, drifting slowly across
     mountainClouds = [];
-    const cloudCount = randInt(5, 7);
-    const peaks = mountains.slice().sort(() => Math.random() - 0.5);
-    for(let i = 0; i < cloudCount; i++){
-      const nearPeak = i < cloudCount - 2 && peaks[i];       // most hug a mountain, a couple stray
-      const dir = Math.random() < 0.5 ? -1 : 1;
-      mountainClouds.push({
-        x: nearPeak ? peaks[i].x - dir * (0.6 + Math.random() * 0.6) : Math.random() * GRID_W,
-        y: nearPeak ? peaks[i].y - (0.38 + Math.random() * 0.12) : randInt(0, GRID_H - 1),   // at snowcap height, above the number
-        drift: dir * (0.0025 + Math.random() * 0.003),
-        len: 1.1 + Math.random() * 1.0,                        // width in tiles
-        phase: Math.random() * Math.PI * 2,
-        puffs: makeMistPuffs()
-      });
+    const cc = randInt(3, 5);
+    for (let i = 0; i < cc; i++){
+      // v3.09: a real cumulus: lots of overlapping puffs, biggest in the middle, round tops and a flat-ish base
+      const n = randInt(8, 12), puffs = [];
+      for (let j = 0; j < n; j++){
+        const t = j / (n - 1) - 0.5;                                    // -0.5 .. 0.5 across the cloud
+        const r = (0.11 + Math.random() * 0.06) + (1 - Math.abs(t) * 2) * (0.09 + Math.random() * 0.07);
+        puffs.push({ dx: t * 0.95 + (Math.random() - 0.5) * 0.05, dy: 0.1 - r * 0.95 + (Math.random() - 0.5) * 0.03, r });
+      }
+      // a few billows on top of the middle
+      const extra = randInt(2, 4);
+      for (let j = 0; j < extra; j++){
+        const t = (Math.random() - 0.5) * 0.5, r = 0.12 + Math.random() * 0.08;
+        puffs.push({ dx: t, dy: -0.17 - r * 0.7 - Math.random() * 0.05, r });
+      }
+      // v3.08: prefer a row band with no mountain in it, so the cloud drifts freely instead of fading in and out
+      let cy = 0.5 + Math.random() * (GRID_H * 0.55);
+      for (let tries = 0; tries < 40; tries++){
+        const y = 0.5 + Math.random() * (GRID_H - 1.5);
+        if (!mountains.some(m => y + 0.9 > m.top - 1 && y - 0.9 < m.base + 1.2)){ cy = y; break; }
+      }
+      mountainClouds.push({ x: Math.random() * GRID_W, y: cy,
+        w: 1.1 + Math.random() * 1.6, drift: (Math.random() < 0.5 ? -1 : 1) * (0.002 + Math.random() * 0.003),
+        bob: Math.random() * 6, puffs });
     }
   }
 
@@ -4075,6 +4132,7 @@
         }
         s.x = clamp(s.x, 0, GRID_W - 1);
         s.y = clamp(s.y, 0, GRID_H - 1);
+        if (mtnSolid(s.x, s.y)){ s.x = prevX; s.y = prevY; }   // v2.96: not through mountains
 
         // Burst countdown: after a few moves, pause (rest) so the chase has breaks
         if (s.mode === 'burst'){
@@ -4200,21 +4258,12 @@
   }
 
   // Check if position is on a mountain (Mountain Stick) - single tile mountains
-  function isOnMountain(x, y){
-    if(currentLevelTheme().name !== "Mountain Stick" && currentLevelTheme().name !== "Victory Stick") return null;
-    return getMountainAt(x, y);
-  }
+  function isOnMountain(x, y){ return null; }   // v2.96: replaced by trail mountains
   
   // Get the mountain at position - simple single tile check
-  function getMountainAt(x, y){
-    return mountains.find(m => m.x === x && m.y === y) || null;
-  }
+  function getMountainAt(x, y){ return null; }
 
-  function getMountainMovementCost(x, y){
-    const mountain = isOnMountain(x, y);
-    if(!mountain) return 1;
-    return mountain.difficulty;
-  }
+  function getMountainMovementCost(x, y){ return 1; }
 
   
   // Check if player stepped on banana
@@ -5464,304 +5513,1086 @@ function initWildHorse(){
   }
 
 
-  function drawMountains(){
-    const theme = currentLevelTheme().name;
-    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
-    if(mountains.length === 0) return;
-    
-    const time = Date.now() * 0.001;
-    
-    mountains.forEach(m => {
-      const difficulty = m.difficulty || 3;
-      const cx = m.x * TILE + TILE/2;
-      const cy = m.y * TILE + TILE/2;
-      
-      // Check if player is climbing this mountain
-      const isClimbing = m.currentClimb > 0;
-      const playerOnMountain = game.playerX === m.x && game.playerY === m.y;
-      
-      ctx.save();
-      
-      // Visual scale based on difficulty - each level distinctly larger
-      // diff 2 = 0.85, diff 3 = 1.15, diff 4 = 1.45, diff 5 = 1.75
-      const scale = 0.55 + (difficulty * 0.30);
-      
-      // If player is climbing, draw glowing silhouette BEHIND mountain
-      if(isClimbing && playerOnMountain){
-        const glowPulse = Math.sin(time * 4) * 0.3 + 0.7;
-        ctx.fillStyle = `rgba(255, 220, 100, ${0.6 * glowPulse})`;
-        ctx.beginPath();
-        ctx.arc(cx, cy + TILE * 0.1, TILE * 0.35, 0, Math.PI * 2);
-        ctx.fill();
-        
-        ctx.strokeStyle = `rgba(255, 200, 50, ${0.4 * glowPulse})`;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(cx, cy + TILE * 0.1, TILE * 0.45, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      
-      // Mountain base/shadow - scales with difficulty
-      ctx.fillStyle = "rgba(40, 30, 20, 0.4)";
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + TILE * scale * 0.4, TILE * scale * 0.55, TILE * scale * 0.15, 0, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Mountain triangle (brown) - size based on difficulty
-      ctx.fillStyle = "#5c4a3a";
-      ctx.strokeStyle = "#8b7355";
-      ctx.lineWidth = 1.5 + difficulty * 0.3;
-      
-      const peakY = cy - TILE * scale * 0.55;
-      const baseY = cy + TILE * scale * 0.4;
-      const halfWidth = TILE * scale * 0.5;
-      
-      ctx.beginPath();
-      ctx.moveTo(cx, peakY);
-      ctx.lineTo(cx - halfWidth, baseY);
-      ctx.lineTo(cx + halfWidth, baseY);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      
-      // Rocky texture lines - more for higher difficulty
-      if(difficulty >= 3){
-        ctx.strokeStyle = "#4a3a2a";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(cx - halfWidth * 0.35, peakY + (baseY - peakY) * 0.35);
-        ctx.lineTo(cx - halfWidth * 0.55, peakY + (baseY - peakY) * 0.75);
-        ctx.moveTo(cx + halfWidth * 0.3, peakY + (baseY - peakY) * 0.4);
-        ctx.lineTo(cx + halfWidth * 0.5, peakY + (baseY - peakY) * 0.8);
-        ctx.stroke();
-      }
-      
-      if(difficulty >= 4){
-        ctx.strokeStyle = "#3d2d1d";
-        ctx.beginPath();
-        ctx.moveTo(cx - halfWidth * 0.15, peakY + (baseY - peakY) * 0.25);
-        ctx.lineTo(cx - halfWidth * 0.3, peakY + (baseY - peakY) * 0.6);
-        ctx.moveTo(cx + halfWidth * 0.1, peakY + (baseY - peakY) * 0.3);
-        ctx.lineTo(cx + halfWidth * 0.2, peakY + (baseY - peakY) * 0.55);
-        ctx.stroke();
-      }
-      
-      if(difficulty >= 5){
-        ctx.strokeStyle = "#352517";
-        ctx.lineWidth = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(cx, peakY + (baseY - peakY) * 0.2);
-        ctx.lineTo(cx - halfWidth * 0.1, peakY + (baseY - peakY) * 0.5);
-        ctx.moveTo(cx - halfWidth * 0.5, peakY + (baseY - peakY) * 0.5);
-        ctx.lineTo(cx - halfWidth * 0.65, peakY + (baseY - peakY) * 0.85);
-        ctx.moveTo(cx + halfWidth * 0.45, peakY + (baseY - peakY) * 0.45);
-        ctx.lineTo(cx + halfWidth * 0.6, peakY + (baseY - peakY) * 0.8);
-        ctx.stroke();
-      }
-      
-            // Snow cap on peak - size based on difficulty
-      // Slightly smaller + more blended so it doesn't read like a "triangle hat"
-      const snowSize = 0.06 + difficulty * 0.018;
-
-      // Snow cap (softened triangle, but feathered into the mountain)
-      const capW = TILE * snowSize * scale * 1.05;
-      const capH = TILE * snowSize * scale * 1.18;
-
-      // Feathered gradient to blend the bottom edge into the mountain
-      const snowGrad = ctx.createLinearGradient(0, peakY, 0, peakY + capH * 1.05);
-      snowGrad.addColorStop(0.00, "rgba(255, 255, 255, 0.90)");
-      snowGrad.addColorStop(0.60, "rgba(255, 255, 255, 0.72)");
-      snowGrad.addColorStop(1.00, "rgba(255, 255, 255, 0.22)");
-
-      ctx.fillStyle = snowGrad;
-      ctx.beginPath();
-      // Softened triangular snow cap (keeps the sharp peak vibe, just more natural)
-      ctx.moveTo(cx - capW, peakY + capH);
-      ctx.quadraticCurveTo(cx - capW * 0.22, peakY + capH * 0.18, cx, peakY + capH * 0.06);
-      ctx.quadraticCurveTo(cx + capW * 0.22, peakY + capH * 0.18, cx + capW, peakY + capH);
-      ctx.closePath();
-
-      // Tiny shadow at the seam so it "sits" on the rock instead of floating
-      ctx.save();
-      ctx.shadowColor = "rgba(20, 15, 10, 0.25)";
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetY = 1;
-      ctx.fill();
-      ctx.restore();
-
-      // Subtle highlight edge (very light)
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-// Secondary snow patches removed (single snow cap only)
-      // Display number - show remaining if climbing, otherwise show difficulty
-      const displayNum = isClimbing ? m.currentClimb : difficulty;
-      const fontSize = 10 + difficulty * 2;
-      
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      
-      if(isClimbing){
-        ctx.strokeStyle = "#3d2f1f";
-        ctx.lineWidth = 4;
-        ctx.fillStyle = "#FFE4B5";
-        ctx.font = `bold ${fontSize + 4}px monospace`;
-        ctx.strokeText(displayNum, cx, cy + TILE * 0.08);
-        ctx.fillText(displayNum, cx, cy + TILE * 0.08);
-      } else {
-        ctx.strokeStyle = "#3d2f1f";
-        ctx.lineWidth = 2.5;
-        ctx.fillStyle = "#d4b896";
-        ctx.font = `bold ${fontSize}px monospace`;
-        ctx.strokeText(difficulty, cx, cy + TILE * 0.1);
-        ctx.fillText(difficulty, cx, cy + TILE * 0.1);
-      }
-      
-      // If player is climbing, draw floating arrow indicator to the LEFT SIDE of mountain
-      if(isClimbing && playerOnMountain){
-        const glowPulse = Math.sin(time * 4) * 0.2 + 0.8;
-        const bobY = Math.sin(time * 3) * 3; // Bobbing animation
-        
-        ctx.globalAlpha = 0.95 * glowPulse;
-        
-        // Position arrow to the left side of mountain
-        const arrowX = cx - TILE * scale * 0.6 - 10;
-        const arrowY = cy - TILE * scale * 0.3 + bobY;
-        
-        // Arrow color matches the mountain number color
-        ctx.fillStyle = "#d4b896";
-        ctx.strokeStyle = "#3d2f1f";
-        ctx.lineWidth = 2;
-        
-        // Arrow shape pointing right (toward mountain)
-        ctx.beginPath();
-        ctx.moveTo(arrowX + 10, arrowY); // Point (right)
-        ctx.lineTo(arrowX, arrowY - 6);   // Top
-        ctx.lineTo(arrowX + 3, arrowY - 6);   // Top inner
-        ctx.lineTo(arrowX + 3, arrowY - 3); // Top stem
-        ctx.lineTo(arrowX - 8, arrowY - 3); // Left top
-        ctx.lineTo(arrowX - 8, arrowY + 3); // Left bottom
-        ctx.lineTo(arrowX + 3, arrowY + 3); // Bottom stem
-        ctx.lineTo(arrowX + 3, arrowY + 6);   // Bottom inner
-        ctx.lineTo(arrowX, arrowY + 6);   // Bottom
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        
-        // "YOU" text above arrow - same color scheme
-        ctx.fillStyle = "#d4b896";
-        ctx.strokeStyle = "#3d2f1f";
-        ctx.lineWidth = 2;
-        ctx.font = "bold 9px monospace";
-        ctx.textAlign = "center";
-        ctx.strokeText("YOU", arrowX, arrowY - 12);
-        ctx.fillText("YOU", arrowX, arrowY - 12);
-        
-        ctx.globalAlpha = 1;
-      }
-      
-      ctx.restore();
+  // --- trail mountain art (drawn once per mountain into its own canvas) ---
+  function mtnArtScale(){ return Math.max(2, Math.min(4, Math.ceil((window.devicePixelRatio || 1) * 1.6))); }
+  function buildMountainArt(m){
+    const SC = mtnArtScale(), padX = 1.2, padTop = 1.6, padBot = 1.2;
+    const ox = m.x0 - padX, oy = m.top - padTop;
+    const wT = m.w + padX * 2, hT = (m.base - m.top + 1) + padTop + padBot;
+    const cv = document.createElement("canvas"); cv.width = Math.ceil(wT * TILE * SC); cv.height = Math.ceil(hT * TILE * SC);
+    let g = cv.getContext("2d"); g.scale(SC, SC);
+    const T = TILE, rng = mtnRng(m.seed + 7), st = m.style;
+    const X = (x) => (x - ox) * T, Y = (y) => (y - oy) * T;
+    const silPath = () => { g.beginPath(); m.sil.forEach((p, i) => i ? g.lineTo(X(p[0]), Y(p[1])) : g.moveTo(X(p[0]), Y(p[1]))); g.closePath(); };
+    const baseY = m.base + 0.95;
+    // ground shadow
+    g.fillStyle = "rgba(0,0,0,0.34)";
+    g.beginPath(); g.ellipse(X(m.x0 + m.w / 2) + 5, Y(baseY) + 1, m.w / 2 * T * 1.02, 0.42 * T, 0, 0, Math.PI * 2); g.fill();
+    // rock body
+    const grad = g.createLinearGradient(0, Y(m.top - 0.4), 0, Y(baseY));
+    grad.addColorStop(0, st.hi); grad.addColorStop(1, st.lo);
+    silPath(); g.fillStyle = grad; g.fill();
+    g.save(); silPath(); g.clip();
+    // shaded faces to the right of each summit, a lit ridge to the left
+    m.peaks.forEach(pk => {
+      g.fillStyle = "rgba(15,8,4,0.40)";
+      g.beginPath(); g.moveTo(X(pk.x), Y(pk.y)); g.lineTo(X(pk.x + (m.w * 0.18 + rng() * 0.6)), Y(baseY)); g.lineTo(X(pk.x + m.w), Y(baseY)); g.lineTo(X(pk.x + m.w), Y(pk.y)); g.closePath(); g.fill();
+      g.strokeStyle = "rgba(255,236,212,0.32)"; g.lineWidth = 1.1;
+      g.beginPath(); g.moveTo(X(pk.x), Y(pk.y)); g.quadraticCurveTo(X(pk.x - 0.8), Y(pk.y + 2), X(pk.x - 1.5 - rng()), Y(baseY)); g.stroke();
     });
-  }
-  
-  function drawPeakSticks(){
-    const theme = currentLevelTheme().name;
-    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
-    
-    const time = Date.now() * 0.001;
-    
-    peakSticks.forEach(ps => {
-      if(ps.collected) return;
-      
-      // Find the mountain this stick is on
-      const m = mountains.find(mt => mt.x === ps.x && mt.y === ps.y);
-      if(!m) return;
-      
-      const difficulty = m.difficulty || 3;
-      const scale = 0.55 + (difficulty * 0.30);
-      const cx = ps.x * TILE + TILE/2;
-      const cy = ps.y * TILE + TILE/2;
-      const peakY = cy - TILE * scale * 0.55;
-      
-      // Floating above the peak
-      const floatY = peakY - 12 + Math.sin(time * 2.5) * 4;
-      
-      ctx.save();
-      ctx.translate(cx, floatY);
-      
-      // Rotating
-      ps.rotation += 0.03;
-      ctx.rotate(ps.rotation);
-      
-      // Glow effect matching stick color
-      ctx.shadowColor = ps.color;
-      ctx.shadowBlur = 10 + Math.sin(time * 3) * 4;
-      
-      // Draw the stick - solid color only
-      ctx.strokeStyle = ps.color;
-      ctx.lineWidth = 4;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(0, -10);
-      ctx.lineTo(0, 10);
-      ctx.stroke();
-      
-      ctx.shadowBlur = 0;
-      ctx.restore();
-      
-      // multiplier indicator to the side (not blocking stick)
-      ctx.save();
-      ctx.fillStyle = "#ffd700";
-      ctx.strokeStyle = "#3d2f1f";
-      ctx.lineWidth = 2;
-      ctx.font = "bold 9px monospace";
-      ctx.textAlign = "left";
-      const mult = ps.mult || 2;
-      ctx.strokeText("x"+mult, cx + 12, floatY + 3);
-      ctx.fillText("x"+mult, cx + 12, floatY + 3);
-      ctx.restore();
+    // rock layers and crags
+    g.strokeStyle = "rgba(0,0,0,0.2)"; g.lineWidth = 0.7;
+    for (let k = 0; k < m.w * 2; k++){ const y = Y(m.top + 0.6 + rng() * (m.base - m.top)), x = X(m.x0 + rng() * m.w), w = (0.6 + rng() * 1.1) * T;
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + w / 2, y + (rng() - 0.5) * 5, x + w, y + (rng() - 0.5) * 4); g.stroke(); }
+    g.fillStyle = "rgba(0,0,0,0.22)";
+    for (let k = 0; k < 4 + m.w / 2; k++){ const x = X(m.x0 + 0.8 + rng() * (m.w - 1.6)), y = Y(m.top + 1 + rng() * (m.base - m.top - 1.5)), s = 0.7 + rng() * 0.6;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x + 5 * s, y + 2 * s); g.lineTo(x + 2 * s, y + 9 * s); g.lineTo(x - 3 * s, y + 6 * s); g.closePath(); g.fill(); }
+    // snowcaps with a jagged lower edge (lit and shaded halves)
+    m.peaks.forEach(pk => {
+      const sx = X(pk.x), sy = Y(pk.y), d = pk.s * st.snow * T * 1.05;
+      const edge = [[-0.95, 1.15], [-0.6, 0.88], [-0.32, 1.22], [-0.05, 0.92], [0.22, 1.2], [0.5, 0.94], [0.88, 1.12]].map(e => [e[0] + (rng() - 0.5) * 0.12, e[1] + (rng() - 0.5) * 0.18]);
+      g.fillStyle = "#ffffff"; g.beginPath(); g.moveTo(sx, sy); edge.forEach(e => g.lineTo(sx + e[0] * d, sy + e[1] * d)); g.closePath(); g.fill();
+      g.fillStyle = "rgba(140,165,205,0.55)"; g.beginPath(); g.moveTo(sx, sy); edge.slice(3).forEach(e => g.lineTo(sx + e[0] * d, sy + e[1] * d)); g.closePath(); g.fill();
     });
+    // trees on the lower slopes: pines, firs and round leafy trees in different sizes, never on the trail
+    const nearTrail = (x, y) => m.trail.some(t => Math.abs(t[0] + 0.5 - x) < 0.6 && Math.abs(t[1] + 0.5 - y) < 0.6);
+    const trees = [];
+    for (let k = 0; k < m.w * 9; k++){
+      const x = m.x0 + 0.3 + rng() * (m.w - 0.6), y = baseY - 0.1 - Math.pow(rng(), 1.5) * (m.base - m.top) * 0.6;
+      if (!mtnInPoly(x, y - 0.15, m.sil) || nearTrail(x, y - 0.3)) continue;
+      trees.push({ x, y, h: (7 + rng() * 7) * (1 - (baseY - y) / ((m.base - m.top) * 1.8)), type: rng(), lean: (rng() - 0.5) * 0.12, hue: rng() });
+    }
+    // a few snow-dusted pines up near the summit (where Bigfoot likes to stand)
+    for (let k = 0, made = 0; k < 40 && made < 4; k++){
+      const x = m.summit.x + 0.5 + (rng() - 0.5) * 3.2, y = m.summit.y + 1.3 + rng() * 1.6;
+      if (!mtnInPoly(x, y - 0.2, m.sil) || nearTrail(x, y - 0.3)) continue;
+      trees.push({ x, y, h: 6 + rng() * 3, type: 0.1, lean: (rng() - 0.5) * 0.1, hue: rng(), snow: true }); made++;
+    }
+    trees.sort((a, b) => a.y - b.y).forEach(t => mtnTree(g, X(t.x), Y(t.y), t, rng));
+    g.restore();
+    // outline
+    silPath(); g.strokeStyle = "rgba(20,10,4,0.55)"; g.lineWidth = 1; g.stroke();
+    // the trail: a worn dirt path curving through the square centers, pebbles along its edges, a flat stone per square
+    const pts = m.trail.map(t => [X(t[0] + 0.5), Y(t[1] + 0.5)]);
+    const mainG = g, tl = document.createElement("canvas"); tl.width = cv.width; tl.height = cv.height;
+    g = tl.getContext("2d"); g.scale(SC, SC);
+    const path = () => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length - 1; i++){ const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; g.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); }
+      const e = pts[pts.length - 1]; g.lineTo(e[0], e[1]); };
+    g.lineCap = "round"; g.lineJoin = "round";
+    path(); g.strokeStyle = "rgba(30,18,8,0.55)"; g.lineWidth = 8.5; g.stroke();
+    path(); g.strokeStyle = "#a8875f"; g.lineWidth = 6.6; g.stroke();
+    path(); g.strokeStyle = "#c7a679"; g.lineWidth = 4.2; g.stroke();
+    path(); g.setLineDash([0.8, 2.6]); g.strokeStyle = "rgba(95,68,40,0.7)"; g.lineWidth = 0.8; g.stroke(); g.setLineDash([]);
+    for (let i = 0; i < pts.length - 1; i++){
+      const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
+      for (let k = 0; k < 3; k++){ const t = rng(), sd = rng() < 0.5 ? -1 : 1, off = 4.3 + rng() * 1.2;
+        g.fillStyle = rng() < 0.5 ? "#8d8a84" : "#6f6a62"; g.beginPath(); g.ellipse(a[0] + dx * t + nx * off * sd, a[1] + dy * t + ny * off * sd, 0.9 + rng() * 0.6, 0.6 + rng() * 0.4, rng() * 3, 0, Math.PI * 2); g.fill(); }
+    }
+    pts.forEach((p, i) => {
+      if (i === pts.length - 1) return;
+      g.fillStyle = "#ddd2bf"; g.strokeStyle = "rgba(70,52,34,0.8)"; g.lineWidth = 0.5;
+      g.beginPath(); g.ellipse(p[0], p[1], 4.4, 3.1, (rng() - 0.5) * 0.4, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = "rgba(255,255,255,0.5)"; g.beginPath(); g.ellipse(p[0] - 1.2, p[1] - 1.1, 1.6, 0.6, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = "#4a2f16"; g.font = "bold 5.4px Arial"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(String(i + 1), p[0], p[1] + 0.4);
+    });
+    // v3.02: the trail only shows on the rock, plus its start at the foot, so no other spot looks like a way in
+    g = mainG;
+    g.save(); silPath(); g.clip(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(tl, 0, 0); g.restore();
+    g.save(); g.beginPath(); g.rect(pts[0][0] - T * 0.6, pts[0][1] - T * 0.2, T * 1.2, T * 0.9); g.clip(); g.setTransform(1, 0, 0, 1, 0, 0); g.drawImage(tl, 0, 0); g.restore();
+    // v3.05: a worn dirt path leads out from the first stone onto the ground, so the way in is obvious
+    {
+      const p0 = pts[0], ex = p0[0], ey = p0[1] + T * 1.05;
+      const gr = g.createLinearGradient(0, p0[1], 0, ey);
+      gr.addColorStop(0, "rgba(168,135,95,1)"); gr.addColorStop(1, "rgba(168,135,95,0)");
+      g.lineCap = "round"; g.strokeStyle = "rgba(30,18,8,0.35)"; g.lineWidth = 9;
+      g.beginPath(); g.moveTo(p0[0], p0[1]); g.quadraticCurveTo(p0[0] + 2, p0[1] + T * 0.5, ex, ey); g.stroke();
+      g.strokeStyle = gr; g.lineWidth = 7;
+      g.beginPath(); g.moveTo(p0[0], p0[1]); g.quadraticCurveTo(p0[0] + 2, p0[1] + T * 0.5, ex, ey); g.stroke();
+      g.fillStyle = "#ddd2bf"; g.strokeStyle = "rgba(70,52,34,0.8)"; g.lineWidth = 0.5;
+      g.beginPath(); g.ellipse(p0[0], p0[1], 4.4, 3.1, 0, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = "#4a2f16"; g.font = "bold 5.4px Arial"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("1", p0[0], p0[1] + 0.4);
+    }
+    // TRAIL sign beside the first step, with a little flag so the eye finds the way in
+    const s0 = pts[0], sx = s0[0] + (m.trailhead.x > m.x0 + m.w / 2 ? 9 : -9);
+    g.strokeStyle = "#6b4a2b"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(sx, s0[1] + 9); g.lineTo(sx, s0[1] - 2); g.stroke();
+    g.fillStyle = "#8a6239"; g.fillRect(sx - 7, s0[1] - 6, 14, 5.4);
+    g.fillStyle = "#fff1d6"; g.font = "bold 3.6px Arial"; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("TRAIL", sx, s0[1] - 3.2);
+    g.strokeStyle = "#e8d6b8"; g.lineWidth = 0.7; g.beginPath(); g.moveTo(sx + 5, s0[1] - 6); g.lineTo(sx + 5, s0[1] - 15); g.stroke();
+    g.fillStyle = "#ff8a3d"; g.beginPath(); g.moveTo(sx + 5.3, s0[1] - 15); g.lineTo(sx + 11, s0[1] - 13); g.lineTo(sx + 5.3, s0[1] - 11); g.closePath(); g.fill();
+    m.art = { cv, ox, oy, wT, hT, SC };
   }
-  
-  function updatePeakSticks(){
-    const theme = currentLevelTheme().name;
-    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
-    
-    peakSticks.forEach(ps => {
-      if(ps.collected) return;
-      
-      // Check if player is on this mountain peak AND has finished climbing
-      if(game.playerX === ps.x && game.playerY === ps.y){
-        const m = mountains.find(mt => mt.x === ps.x && mt.y === ps.y);
-        // Player must have completed the climb (currentClimb === 0 means they finished)
-        if(m && m.currentClimb === 0){
-          // Auto-collect if player has room
-          if(game.carry.length < carryCap()){
-            ps.collected = true;
-            const mult = ps.mult || 2;
-            // variable value as reward for climbing!
-            game.carry.push({ color: ps.color, value: mult, fromPeak: true });
-            
-            logEvent("bonus", `⛰️ Peak stick collected! (x${mult} value)`);
-            setHud(`⛰️ PEAK x${mult}!`);
-            
-            // Triumphant sound
-            beep(600, 0.15, "sine", 0.1);
-            setTimeout(() => beep(800, 0.15, "sine", 0.1), 100);
-            setTimeout(() => beep(1000, 0.2, "sine", 0.12), 200);
-            
-            spawnSparks(game.playerX, game.playerY, 25, false);
-            updateUI();
-          } else {
-            // Hands full - show message occasionally
-            if(Math.random() < 0.02){
-              setHud("HANDS FULL!");
-            }
-          }
+  function mtnTree(g, x, y, t, rng){
+    const h = Math.max(3.5, t.h);
+    g.save(); g.translate(x, y); g.rotate(t.lean);
+    if (t.type < 0.62 && t.snow){
+      // snowy pine near the top
+      g.fillStyle = "#4a2f1c"; g.fillRect(-h * 0.06, -h * 0.18, h * 0.12, h * 0.2);
+      for (let i = 0; i < 3; i++){ const ty = -h * 0.14 - i * h * 0.23, w = h * (0.42 - i * 0.09), th = h * 0.46;
+        g.fillStyle = i % 2 ? "#2c5a33" : "#24502c"; g.beginPath(); g.moveTo(0, ty - th); g.lineTo(-w, ty); g.quadraticCurveTo(0, ty + h * 0.06, w, ty); g.closePath(); g.fill();
+        g.fillStyle = "rgba(255,255,255,0.8)"; g.beginPath(); g.moveTo(0, ty - th); g.lineTo(-w * 0.7, ty - th * 0.35); g.quadraticCurveTo(0, ty - th * 0.3, w * 0.55, ty - th * 0.4); g.closePath(); g.fill(); }
+    } else if (t.type < 0.62){
+      // pine: 2–4 tiers, lit on the left
+      const tiers = 2 + Math.floor(t.hue * 3), dark = t.hue < 0.5 ? "#24502c" : "#1f4630", mid = t.hue < 0.5 ? "#2c5a33" : "#2a5a3c";
+      g.fillStyle = "#4a2f1c"; g.fillRect(-h * 0.06, -h * 0.18, h * 0.12, h * 0.2);
+      for (let i = 0; i < tiers; i++){
+        const ty = -h * 0.14 - i * h * (0.7 / tiers), w = h * (0.44 - i * (0.26 / tiers)), th = h * 0.46;
+        g.fillStyle = i % 2 ? mid : dark;
+        g.beginPath(); g.moveTo(0, ty - th); g.lineTo(-w, ty); g.quadraticCurveTo(0, ty + h * 0.06, w, ty); g.closePath(); g.fill();
+        g.fillStyle = "rgba(170,225,150,0.26)";
+        g.beginPath(); g.moveTo(0, ty - th); g.lineTo(-w, ty); g.quadraticCurveTo(-w * 0.4, ty + h * 0.03, -w * 0.05, ty + h * 0.02); g.closePath(); g.fill();
+      }
+    } else if (t.type < 0.8){
+      // tall narrow fir
+      g.fillStyle = "#3d2817"; g.fillRect(-h * 0.04, -h * 0.12, h * 0.08, h * 0.14);
+      g.fillStyle = "#1d4a35"; g.beginPath(); g.moveTo(0, -h * 1.15); g.lineTo(-h * 0.22, -h * 0.1); g.lineTo(h * 0.22, -h * 0.1); g.closePath(); g.fill();
+      g.fillStyle = "rgba(160,220,170,0.22)"; g.beginPath(); g.moveTo(0, -h * 1.15); g.lineTo(-h * 0.22, -h * 0.1); g.lineTo(-h * 0.02, -h * 0.12); g.closePath(); g.fill();
+    } else {
+      // round leafy tree (some turning gold)
+      const cols = t.hue < 0.6 ? ["#2f6a32", "#3f8a3c", "#5aa84c"] : ["#9a6a1c", "#c58a22", "#e0b040"];
+      g.fillStyle = "#4a2f1c"; g.fillRect(-h * 0.05, -h * 0.35, h * 0.1, h * 0.36);
+      const blobs = [[0, -h * 0.62, h * 0.3], [-h * 0.2, -h * 0.48, h * 0.22], [h * 0.2, -h * 0.5, h * 0.22]];
+      g.fillStyle = cols[0]; blobs.forEach(b => { g.beginPath(); g.arc(b[0], b[1], b[2], 0, Math.PI * 2); g.fill(); });
+      g.fillStyle = cols[1]; blobs.forEach(b => { g.beginPath(); g.arc(b[0] - b[2] * 0.18, b[1] - b[2] * 0.18, b[2] * 0.7, 0, Math.PI * 2); g.fill(); });
+      g.fillStyle = cols[2]; g.beginPath(); g.arc(-h * 0.08, -h * 0.72, h * 0.1, 0, Math.PI * 2); g.fill();
+    }
+    g.restore();
+  }
+  // ===== v2.97 BIGFOOT =====
+  // Once per Mountain Stick level, a friendly Bigfoot shows up on one summit for about 50 seconds,
+  // waving, with big footprints up that trail. Reach him and he gives you the Bigfoot stick: worth x50,
+  // and while you carry it, rams and lightning can't hurt you (a warm gold glow on your stick).
+  const BIGFOOT_VALUE = 50, BIGFOOT_STAY = 50 * 60, BIGFOOT_LEAVE = 2 * 60;
+  const BIGFOOT_LEVEL = "Forest Stick";   // v3.07: Bigfoot is moving to his own forest level (the eagle has the mountains)
+  let bigfoot = null, bigfootWait = 0, bigfootDone = false, bigfootProtectNote = 0;
+  const BIGFOOT_LINES = {
+    classic: "Was that... Bigfoot?! I'll stick with him.",
+    angel:   "A gentle giant! Bless his big feet.",
+    alien:   "Finally, a local who gets me.",
+    robot:   "UNIDENTIFIED HAIRY OBJECT DETECTED.",
+    rex:     "WOOF WOOF WOOF!|(translation: BIG DOG! BIG DOG!)",
+    rick:    "Bigfoot? Please. I've got bigger feet.",
+    sally:   "Oh my. Let's be polite and say hello.",
+    sick:    "*sniff* Is he... fuzzy? I'm allergic. Worth it.",
+    super:   "A fellow legend! Up, up and over!",
+    dip:     "Is that a really tall dog?",
+    law:     "Sir, I'll need to see some ID. ...Never mind.",
+    jogger:  "Race you to the top, big guy!",
+    mystic:  "I predicted him. Obviously.",
+    rock:    "Now THAT'S a fan. Hairy, but a fan."
+  };
+  function bigfootReset(){
+    bigfoot = null; bigfootDone = false; bigfootProtectNote = 0;
+    bigfootWait = randInt(20, 45) * 60;            // he turns up 20–45 seconds into the level
+  }
+  function bigfootProtected(){ return !!(game && game.carry && game.carry.some(s => s && s.bigfoot)); }
+  function bigfootSay(text, ms){
+    try { talk.bubble = { text, t0: performance.now(), dur: ms || 3200 }; talkSound(); } catch(_){}
+  }
+  function updateBigfoot(){
+    if (currentLevelTheme().name !== BIGFOOT_LEVEL || !mountains.length) return;
+    if (game.pendingMonster || game.inputLocked || levelIntro.active) return;
+    if (!bigfoot){
+      if (bigfootDone) return;
+      if (--bigfootWait > 0) return;
+      // pick a summit nobody is standing on
+      const free = mountains.filter(m => !(game.playerX === m.summit.x && game.playerY === m.summit.y));
+      if (!free.length){ bigfootWait = 120; return; }
+      const m = free[randInt(0, free.length - 1)];
+      bigfoot = { m, t: 0, phase: "here", leaveT: 0, given: false, wave: 0, bubbleT: 0 };
+      bigfootDone = true;
+      logEvent("bonus", "👣 Bigfoot spotted on a summit! Follow his footprints up the trail. He has a gift.");
+      setHud("👣 BIGFOOT!");
+      beep(220, 0.18, "sine", 0.12); setTimeout(() => beep(165, 0.25, "sine", 0.12), 180);
+      bigfootSay(BIGFOOT_LINES[talkSkin()] || BIGFOOT_LINES.classic, 3600);
+      return;
+    }
+    const b = bigfoot;
+    b.t++; b.wave += 0.09;
+    if (b.phase === "here"){
+      // reach the summit while he's there: he hands you the stick
+      if (!b.given && game.playerX === b.m.summit.x && game.playerY === b.m.summit.y){
+        if (game.carry.length < carryCap()){
+          b.given = true;
+          game.carry.push({ color: "#8a5a30", value: BIGFOOT_VALUE, fromPeak: true, bigfoot: true });
+          logEvent("bonus", `🦶 Bigfoot gave you his stick (x${BIGFOOT_VALUE})! Rams and lightning can't hurt you until you deposit it.`);
+          setHud(`🦶 BIGFOOT STICK x${BIGFOOT_VALUE}!`);
+          [523, 659, 784, 1047].forEach((f, k) => setTimeout(() => beep(f, 0.14, "sine", 0.1), k * 110));
+          spawnSparks(game.playerX, game.playerY, 30, false);
+          b.bubbleT = 4 * 60;
+          b.phase = "leaving"; b.leaveT = 0; b.delay = 4 * 60;     // waves a bit longer, then heads off
+          updateUI();
+        } else if (b.t % 90 === 0){
+          setHud("HANDS FULL! DROP ONE FOR BIGFOOT");
         }
       }
-    });
+      if (b.t >= BIGFOOT_STAY && b.phase === "here"){
+        b.phase = "leaving"; b.leaveT = 0; b.delay = 0;
+        logEvent("info", "👋 Bigfoot waved goodbye and slipped back into the trees.");
+      }
+    } else {
+      if (b.delay > 0){ b.delay--; }
+      else if (++b.leaveT >= BIGFOOT_LEAVE){ bigfoot = { m: b.m, gone: true }; }
+    }
+    if (b.bubbleT > 0) b.bubbleT--;
   }
+  // footprints up the trail he used (they stay after he leaves)
+  function drawBigfootPrints(){
+    if (!bigfoot || !bigfoot.m || currentLevelTheme().name !== BIGFOOT_LEVEL) return;
+    const tr = bigfoot.m.trail;
+    for (let i = 0; i < tr.length - 1; i++){
+      const a = tr[i], c = tr[i + 1], ang = Math.atan2(c[1] - a[1], c[0] - a[0]) + Math.PI / 2;
+      for (let k = 0; k < 2; k++){
+        const t = k === 0 ? 0.28 : 0.72, side = k === 0 ? -1 : 1;
+        const x = (a[0] + (c[0] - a[0]) * t + 0.5) * TILE + Math.cos(ang - Math.PI / 2) * 0 + Math.cos(ang) * side * 2.2;
+        const y = (a[1] + (c[1] - a[1]) * t + 0.5) * TILE + Math.sin(ang) * side * 2.2;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(0.85, 0.85);
+        ctx.fillStyle = "rgba(70,45,25,0.72)";
+        ctx.beginPath(); ctx.ellipse(0, 0, 1.3, 2.6, 0, 0, Math.PI * 2); ctx.fill();
+        for (let f = 0; f < 5; f++){ ctx.beginPath(); ctx.arc(-1.2 + f * 0.6, -3.1 + Math.abs(f - 1.5) * 0.25, 0.36, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+      }
+    }
+  }
+  function bigfootShag(g, cx, cy, rx, ry, n, amp){
+    g.beginPath();
+    for (let i = 0; i <= n * 2; i++){ const a = i / (n * 2) * Math.PI * 2, r = (i % 2 ? 1 + amp : 1 - amp * 0.3);
+      const x = cx + Math.cos(a) * rx * r, y = cy + Math.sin(a) * ry * r; i ? g.lineTo(x, y) : g.moveTo(x, y); }
+    g.closePath();
+  }
+  // the figure: 40 design units tall, feet at y = 0
+  function drawBigfootFigure(g, x, y, s, wave, alpha){
+    const u = s / 40;
+    g.save(); g.globalAlpha = alpha; g.translate(x, y); g.scale(u, u);
+    const FUR = "#6e4a2c", FUR_D = "#4a2f1c", FUR_L = "#9a7350", FACE = "#d8b088", SKIN_D = "#a0714a", RIM = "rgba(255,238,205,0.85)";
+    // warm backlight so he stands out from the brown board
+    const bl = g.createRadialGradient(0, -20, 2, 0, -20, 26);
+    bl.addColorStop(0, "rgba(255,236,190,0.42)"); bl.addColorStop(0.6, "rgba(255,226,170,0.16)"); bl.addColorStop(1, "rgba(255,226,170,0)");
+    g.fillStyle = bl; g.beginPath(); g.arc(0, -20, 26, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "rgba(0,0,0,0.3)"; g.beginPath(); g.ellipse(0, 0.3, 11, 2.2, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = FUR_D;
+    g.beginPath(); g.roundRect(-6.2, -9, 4.6, 8.6, 2); g.fill(); g.beginPath(); g.roundRect(1.6, -9, 4.6, 8.6, 2); g.fill();
+    g.fillStyle = SKIN_D;
+    g.beginPath(); g.ellipse(-4.9, -0.4, 4.2, 1.6, 0, 0, Math.PI * 2); g.fill();
+    g.beginPath(); g.ellipse(4.9, -0.4, 4.2, 1.6, 0, 0, Math.PI * 2); g.fill();
+    g.lineCap = "round";
+    const backArm = () => { g.beginPath(); g.moveTo(-6.5, -24); g.quadraticCurveTo(-11.2, -17, -10.2, -10.5); };
+    g.save(); g.shadowColor = "rgba(255,226,180,0.75)"; g.shadowBlur = 6;
+    backArm(); g.strokeStyle = "#7c5434"; g.lineWidth = 4.4; g.stroke(); g.restore();
+    backArm(); g.strokeStyle = "rgba(220,200,170,0.35)"; g.lineWidth = 1; g.setLineDash([1, 1.6]); g.stroke(); g.setLineDash([]);
+    g.fillStyle = SKIN_D; g.beginPath(); g.ellipse(-10.1, -9.6, 1.9, 1.5, 0.3, 0, Math.PI * 2); g.fill();
+    const bg = g.createLinearGradient(-9, -30, 9, -8); bg.addColorStop(0, FUR_L); bg.addColorStop(1, FUR_D);
+    g.save(); g.shadowColor = "rgba(255,226,180,0.75)"; g.shadowBlur = 7;   // soft glow instead of an outline
+    bigfootShag(g, 0, -18, 8.2, 10.5, 16, 0.07); g.fillStyle = bg; g.fill(); g.restore();
+    g.fillStyle = "rgba(160,115,75,0.55)"; g.beginPath(); g.ellipse(0.6, -19, 4.2, 5.4, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "rgba(225,205,175,0.32)"; g.lineWidth = 0.45;
+    for (let k = 0; k < 26; k++){ const a = k * 2.1 + 0.7, r = Math.sqrt((k + 0.3) / 26); const fx = Math.cos(a) * 7.2 * r, fy = -18 + Math.sin(a) * 9.6 * r;
+      g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx + ((k % 3) - 1) * 0.35, fy + 1.1); g.stroke(); }
+    g.strokeStyle = "rgba(40,22,10,0.28)"; g.lineWidth = 0.35;
+    for (let k = 0; k < 30; k++){ const a = k * 2.399, r = Math.sqrt((k + 0.5) / 30); const fx = Math.cos(a) * 7 * r, fy = -18 + Math.sin(a) * 9.5 * r;
+      g.beginPath(); g.moveTo(fx, fy); g.lineTo(fx + ((k % 3) - 1) * 0.3, fy + 0.9); g.stroke(); }
+    const ang = -2.1 + Math.sin(wave) * 0.35, sx = 6.6, sy = -25, ex = sx + Math.cos(ang) * 6.5, ey = sy + Math.sin(ang) * 6.5;
+    const hx = ex + Math.cos(ang + 0.5) * 5.2, hy = ey + Math.sin(ang + 0.5) * 5.2;
+    const waveArm = () => { g.beginPath(); g.moveTo(sx, sy); g.lineTo(ex, ey); g.lineTo(hx, hy); };
+    g.save(); g.shadowColor = "rgba(255,226,180,0.75)"; g.shadowBlur = 6;
+    waveArm(); g.strokeStyle = "#8a5f3a"; g.lineWidth = 4.4; g.stroke(); g.restore();
+    waveArm(); g.strokeStyle = "rgba(220,200,170,0.35)"; g.lineWidth = 1; g.setLineDash([1, 1.6]); g.stroke(); g.setLineDash([]);
+    g.fillStyle = SKIN_D; g.save(); g.translate(hx, hy); g.rotate(ang + 1.9);
+    g.beginPath(); g.ellipse(0, 0, 2.1, 1.7, 0, 0, Math.PI * 2); g.fill();
+    for (let f = 0; f < 4; f++){ g.beginPath(); g.ellipse(-1.5 + f * 1.0, -2.1, 0.45, 1.1, (f - 1.5) * 0.15, 0, Math.PI * 2); g.fill(); }
+    g.beginPath(); g.ellipse(2.2, -0.6, 0.5, 1.0, -0.9, 0, Math.PI * 2); g.fill();
+    g.restore();
+    g.save(); g.shadowColor = "rgba(255,226,180,0.75)"; g.shadowBlur = 7;
+    bigfootShag(g, 0, -31.5, 5.6, 5.2, 12, 0.09); g.fillStyle = FUR; g.fill(); g.restore();
+    g.beginPath(); g.moveTo(-3, -35); g.quadraticCurveTo(0, -39.8, 3, -35); g.fill();
+    g.fillStyle = "rgba(255,220,170,0.18)"; g.beginPath(); g.ellipse(-1.8, -34, 2.4, 1.6, -0.3, 0, Math.PI * 2); g.fill();
+    g.fillStyle = FACE; g.beginPath(); g.ellipse(0, -30.2, 3.6, 3.4, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = FUR_D; g.lineWidth = 0.9;
+    g.beginPath(); g.moveTo(-2.6, -32.0); g.quadraticCurveTo(-1.4, -32.9, -0.4, -32.2); g.moveTo(0.4, -32.2); g.quadraticCurveTo(1.4, -32.9, 2.6, -32.0); g.stroke();
+    g.fillStyle = "#1b120b"; g.beginPath(); g.arc(-1.35, -31.0, 0.62, 0, Math.PI * 2); g.arc(1.35, -31.0, 0.62, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(-1.15, -31.2, 0.2, 0, Math.PI * 2); g.arc(1.55, -31.2, 0.2, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#5a3a22"; g.beginPath(); g.ellipse(0, -29.6, 1.2, 0.7, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "#3a2414"; g.lineWidth = 0.5; g.beginPath(); g.moveTo(-1.6, -28.3); g.quadraticCurveTo(0, -27.0, 1.6, -28.3); g.stroke();
+    g.fillStyle = "rgba(255,140,120,0.35)"; g.beginPath(); g.arc(-2.4, -29.0, 0.7, 0, Math.PI * 2); g.arc(2.4, -29.0, 0.7, 0, Math.PI * 2); g.fill();
+    g.restore();
+  }
+  function drawBigfootStick(g, x, y, len, rot, glow){
+    g.save(); g.translate(x, y); g.rotate(rot);
+    g.shadowColor = "rgba(255,200,60,0.95)"; g.shadowBlur = glow;
+    g.strokeStyle = "#7a4e2b"; g.lineWidth = len * 0.2; g.lineCap = "round";
+    g.beginPath(); g.moveTo(-len / 2, 0); g.lineTo(len / 2, 0); g.stroke();
+    g.shadowBlur = 0;
+    g.strokeStyle = "#a8743f"; g.lineWidth = len * 0.045;
+    for (let i = 0; i < 9; i++){ const t = -len / 2 + (i + 0.5) * len / 9; g.beginPath(); g.moveTo(t - 1, -len * 0.08); g.lineTo(t + 1.2, len * 0.08); g.stroke(); }
+    g.fillStyle = "#ffd54a"; g.beginPath(); g.arc(len / 2, 0, len * 0.07, 0, Math.PI * 2); g.arc(-len / 2, 0, len * 0.07, 0, Math.PI * 2); g.fill();
+    g.restore();
+  }
+  // Bigfoot himself, his stick, and his "HRRMM!" bubble
+  function drawBigfoot(){
+    if (!bigfoot || bigfoot.gone || currentLevelTheme().name !== BIGFOOT_LEVEL) return;
+    const b = bigfoot, time = Date.now() * 0.001;
+    const sx = (b.m.summit.x + 0.5) * TILE, sy = (b.m.summit.y + 0.5) * TILE;
+    let alpha = Math.min(1, b.t / 50);
+    if (b.phase === "leaving" && !(b.delay > 0)) alpha = Math.max(0, 1 - b.leaveT / BIGFOOT_LEAVE);
+    // he stands right on the very tip of the peak (and wanders off to the side when he leaves)
+    const leaving = b.phase === "leaving" && !(b.delay > 0);
+    const bx = sx + (leaving ? b.leaveT / BIGFOOT_LEAVE * TILE * 1.2 : 0), feetY = sy - TILE * 0.78 + (leaving ? b.leaveT / BIGFOOT_LEAVE * TILE * 0.6 : 0);
+    drawBigfootFigure(ctx, bx, feetY, TILE * 2.6, b.wave, alpha);   // v2.99: bigger than your stick
+    if (!b.given && b.phase === "here"){
+      // v3.04: he holds it in his free hand (the one that isn't waving)
+      const u = TILE * 2.6 / 40, hx = bx - 10.1 * u, hy = feetY - 9.6 * u;
+      ctx.save(); ctx.globalAlpha = alpha;
+      drawBigfootStick(ctx, hx - 1, hy - 2, 18, -1.15 + Math.sin(time * 1.6) * 0.06, 10 + Math.sin(time * 3) * 4);
+      ctx.font = "bold 9px monospace"; ctx.textAlign = "right"; ctx.lineWidth = 2;
+      ctx.strokeStyle = "#3d2f1f"; ctx.fillStyle = "#ffd700";
+      ctx.strokeText("x" + BIGFOOT_VALUE, hx - 9, hy - 8); ctx.fillText("x" + BIGFOOT_VALUE, hx - 9, hy - 8);
+      ctx.restore();
+    }
+    // his bubble: on arrival, and when he hands over the stick
+    const showBubble = (b.phase === "here" && b.t < 4 * 60) || b.bubbleT > 0;
+    if (showBubble && alpha > 0.3){
+      const main = b.given ? "HRRMM!" : "HRRMM?", sub = b.given ? "(take it, friend)" : "(come up and visit)";
+      ctx.save(); ctx.globalAlpha = alpha;
+      const tx = bx + TILE * 0.3, ty = feetY - TILE * 2.95;
+      ctx.font = "bold 7px Arial"; const w = Math.max(ctx.measureText(main).width, (ctx.font = "italic 5.6px Arial", ctx.measureText(sub).width)) + 10;
+      ctx.fillStyle = "rgba(255,255,255,0.96)"; ctx.beginPath(); ctx.roundRect(tx - w / 2, ty - 9, w, 18, 5); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(tx - 4, ty + 9); ctx.lineTo(tx - 1, ty + 15); ctx.lineTo(tx + 3, ty + 9); ctx.fill();
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "#222"; ctx.font = "bold 7px Arial"; ctx.fillText(main, tx, ty - 3);
+      ctx.fillStyle = "#6b7280"; ctx.font = "italic 5.6px Arial"; ctx.fillText(sub, tx, ty + 4.5);
+      ctx.restore();
+    }
+  }
+  // while you carry the Bigfoot stick: a warm gold glow around you, and the stick glowing in hand
+  function drawBigfootCarry(){
+    if (!bigfootProtected()) return;
+    const p = fxPlayerPx(), time = Date.now() * 0.001, pulse = 0.85 + Math.sin(time * 2.6) * 0.15;
+    const r = TILE * 1.05;
+    const gr = ctx.createRadialGradient(p.x, p.y - 2, 2, p.x, p.y - 2, r);
+    gr.addColorStop(0, `rgba(255,214,90,${0.34 * pulse})`); gr.addColorStop(0.6, `rgba(255,190,60,${0.14 * pulse})`); gr.addColorStop(1, "rgba(255,190,60,0)");
+    ctx.save(); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y - 2, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    // v3.06: like the Moon Goddess stick, the Bigfoot stick floats in gold above your head with its x50
+    const fy = p.y - 37 + Math.sin(time * 2.2) * 4;
+    ctx.save();
+    const gl = ctx.createRadialGradient(p.x, fy, 0, p.x, fy, 20);
+    gl.addColorStop(0, `rgba(255,215,0,${0.55 * pulse})`); gl.addColorStop(0.5, `rgba(255,190,50,${0.28 * pulse})`); gl.addColorStop(1, "rgba(255,180,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, fy, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowColor = "#ffd700"; ctx.shadowBlur = 18; ctx.lineCap = "round";
+    ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 5.5; ctx.beginPath(); ctx.moveTo(p.x - 8, fy - 9); ctx.lineTo(p.x + 8, fy + 9); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#fffacd"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(p.x - 7, fy - 8); ctx.lineTo(p.x + 7, fy + 8); ctx.stroke();
+    // little tufts of brown fur at each end, so you know whose stick it is
+    ctx.strokeStyle = "#7a4e2b"; ctx.lineWidth = 1.1;
+    for (const e of [[-8, -9, -1], [8, 9, 1]]) for (let k = -1; k <= 1; k++){
+      ctx.beginPath(); ctx.moveTo(p.x + e[0], fy + e[1]); ctx.lineTo(p.x + e[0] + e[2] * 2.6 + k * 1.6, fy + e[1] + e[2] * 2.2 - k * 1.4); ctx.stroke(); }
+    ctx.fillStyle = "#ffd700"; ctx.strokeStyle = "#3d2f1f"; ctx.lineWidth = 2.2;
+    ctx.font = "bold 9px ui-monospace, monospace"; ctx.textAlign = "center";
+    ctx.strokeText("x" + BIGFOOT_VALUE, p.x, fy - 15); ctx.fillText("x" + BIGFOOT_VALUE, p.x, fy - 15);
+    ctx.restore();
+  }
+  // ===== v3.07 CREEK =====
+  // Mountain Stick gets one snowmelt creek running from the foot of a mountain to the edge of the board.
+  // You can always wade across (2 moves, with a splash), or use one of its log bridges (1 move).
+  let creek = null;                       // { tiles: [[x,y]...], set: Set("x,y"), bridges: Set("x,y"), art }
+  function creekAt(x, y){ return !!(creek && mountains.length && creek.set.has(x + "," + y)); }
+  function creekBridge(x, y){ return !!(creek && creek.bridges.has(x + "," + y)); }
+  // v3.09: one or two thin, natural-looking creeks wander across the board. Scenery only: walking is unaffected.
+  let streams = null;
+  function initStreams(){
+    streams = { list: [], art: null, seed: Math.floor(Math.random() * 1e9) };
+    const W = GRID_W * TILE, H = GRID_H * TILE, count = Math.random() < 0.45 ? 2 : 1;
+    for (let k = 0; k < count; k++){
+      const across = Math.random() < 0.5;          // left->right, or top->bottom
+      let x, y, dir;
+      if (across){ x = -TILE; y = H * (0.15 + Math.random() * 0.7); dir = (Math.random() - 0.5) * 0.6; }
+      else       { y = -TILE; x = W * (0.15 + Math.random() * 0.7); dir = Math.PI / 2 + (Math.random() - 0.5) * 0.6; }
+      const base = dir, pts = [[x, y]];
+      let turn = 0;
+      for (let i = 0; i < 400; i++){
+        turn += (Math.random() - 0.5) * 0.34; turn *= 0.88;            // gentle meanders
+        dir += turn; dir += (base - dir) * 0.045;                          // but keep heading across
+        x += Math.cos(dir) * TILE * 0.5; y += Math.sin(dir) * TILE * 0.5;
+        pts.push([x, y]);
+        if (x < -TILE * 1.5 || x > W + TILE * 1.5 || y < -TILE * 1.5 || y > H + TILE * 1.5) break;
+      }
+      streams.list.push({ pts, w: 3.4 + Math.random() * 1.6 });
+    }
+  }
+  function buildStreamArt(){
+    const SC = mtnArtScale(), cv = document.createElement("canvas");
+    cv.width = Math.ceil(GRID_W * TILE * SC); cv.height = Math.ceil(GRID_H * TILE * SC);
+    const g = cv.getContext("2d"); g.scale(SC, SC);
+    const rng = mtnRng(streams.seed);
+    g.lineCap = "round"; g.lineJoin = "round";
+    for (const st of streams.list){
+      const P = st.pts;
+      // draw in short pieces so the width can swell and narrow naturally
+      const layer = (color, wMul, add, off) => {
+        g.strokeStyle = color;
+        for (let i = 1; i < P.length; i++){
+          const sw = st.w * wMul * (0.75 + 0.35 * Math.sin(i * 0.37 + st.w * 3) + 0.15 * Math.sin(i * 1.3)) + add;
+          g.lineWidth = Math.max(0.4, sw);
+          g.beginPath();
+          const a = P[i - 1], b = P[i], m0 = i > 1 ? [(P[i - 2][0] + a[0]) / 2, (P[i - 2][1] + a[1]) / 2] : a, m1 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          g.moveTo(m0[0] + off, m0[1] + off); g.quadraticCurveTo(a[0] + off, a[1] + off, m1[0] + off, m1[1] + off); g.stroke();
+        }
+      };
+      layer("rgba(95,80,52,0.45)", 1, 4, 0);         // damp earth bank
+      layer("rgba(40,52,40,0.6)", 1, 1.6, 0.4);      // wet, shadowed edge
+      layer("#3a7088", 1, 0, 0);                      // water
+      layer("#5b97ad", 0.6, 0, -0.3);                 // lighter middle of the current
+      layer("rgba(210,236,245,0.45)", 0.15, 0, -0.6); // sky reflection
+      // pebbles and tufts of grass on the banks
+      for (let i = 2; i < P.length - 1; i += 2){
+        if (rng() < 0.35){
+          const [ax, ay] = P[i], [bx, by] = P[i + 1], nx = -(by - ay), ny = bx - ax, L = Math.hypot(nx, ny) || 1, sd = rng() < 0.5 ? -1 : 1;
+          const px = ax + nx / L * sd * (st.w * 0.7 + 2), py = ay + ny / L * sd * (st.w * 0.7 + 2);
+          if (rng() < 0.5){ g.fillStyle = `rgba(${150 + rng() * 40 | 0},${140 + rng() * 30 | 0},${120 + rng() * 30 | 0},0.7)`;
+            g.beginPath(); g.ellipse(px, py, 0.7 + rng() * 0.8, 0.5 + rng() * 0.5, rng() * 3, 0, Math.PI * 2); g.fill(); }
+          else { g.strokeStyle = "rgba(90,120,60,0.7)"; g.lineWidth = 0.5;
+            for (let q = 0; q < 3; q++){ g.beginPath(); g.moveTo(px + q - 1, py + 1); g.lineTo(px + (q - 1) * 1.6, py - 1.6 - rng()); g.stroke(); } }
+        }
+      }
+    }
+    streams.art = { cv, SC };
+  }
+  function drawStreams(){
+    if (!streams || !streams.list.length || currentLevelTheme().name !== "Mountain Stick") return;
+    if (!streams.art || streams.art.SC !== mtnArtScale()) buildStreamArt();
+    ctx.drawImage(streams.art.cv, 0, 0, GRID_W * TILE, GRID_H * TILE);
+    // a few slow glints drifting downstream
+    const time = performance.now() * 0.001;
+    ctx.save(); ctx.fillStyle = "rgba(220,240,250,0.55)";
+    for (const st of streams.list){
+      const P = st.pts;
+      for (let k = 0; k < 4; k++){
+        const f = ((time * 0.035 + k / 4 + st.w) % 1) * (P.length - 1), i = Math.floor(f), u = f - i;
+        if (i + 1 >= P.length) continue;
+        const x = P[i][0] + (P[i + 1][0] - P[i][0]) * u, y = P[i][1] + (P[i + 1][1] - P[i][1]) * u;
+        ctx.globalAlpha = 0.25 + 0.3 * Math.sin(time * 3 + k);
+        ctx.beginPath(); ctx.ellipse(x, y, 1.1, 0.5, Math.atan2(P[i + 1][1] - P[i][1], P[i + 1][0] - P[i][0]), 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  // v3.10: a waterfall spills down the face of one mountain into a small misty pool at its foot. Scenery only.
+  let waterfall = null;
+  function initWaterfall(force){
+    waterfall = null;
+    if (!force) return;   // v3.11: no water on Mountain Stick for now (art kept, switched off)
+    if (!mountains.length) return;
+    const order = mountains.slice().sort(() => Math.random() - 0.5);
+    for (const m of order){
+      const h = m.base - m.top + 1, cands = [];
+      for (let x = m.x0 + 0.8; x < m.x0 + m.w - 0.8; x += 0.25){
+        if (Math.abs(x - (m.trailhead.x + 0.5)) < 1.8 || Math.abs(x - (m.summit.x + 0.5)) < 1.2) continue;
+        for (let ys = m.top + 1.6; ys <= m.base - 1.2; ys += 0.5){
+          if (!mtnInPoly(x, ys - 0.4, m.sil) || !mtnInPoly(x - 0.3, ys, m.sil) || !mtnInPoly(x + 0.3, ys, m.sil)) continue;
+          if (m.base + 0.9 - ys < 2.2) continue;
+          // stay well clear of every trail stone below the lip
+          if (m.trail.some(t => t[1] + 1 > ys - 0.4 && Math.abs(t[0] + 0.5 - x) < 0.95)) continue;
+          cands.push({ x, ys, len: m.base + 0.9 - ys }); break;
+        }
+      }
+      if (!cands.length) continue;
+      cands.sort((a, b) => b.len - a.len);
+      const c = cands[Math.min(cands.length - 1, randInt(0, 1))];
+      waterfall = { m, x: c.x, y0: c.ys, y1: m.base + 0.9, seed: Math.floor(Math.random() * 1e9), mist: [] };
+      return;
+    }
+  }
+  function drawWaterfall(){
+    const wf = waterfall;
+    if (!wf || currentLevelTheme().name !== "Mountain Stick") return;
+    const T = TILE, t = performance.now() * 0.001, rng = mtnRng(wf.seed);
+    const X = wf.x * T, Y0 = wf.y0 * T, Y1 = wf.y1 * T, py = Y1 + T * 0.35, pw = T * 1.05, ph = T * 0.42;
+    ctx.save();
+    // wet dark rock the water has stained, and the notch it pours out of
+    const stain = ctx.createLinearGradient(X - T * 0.45, 0, X + T * 0.45, 0);
+    stain.addColorStop(0, "rgba(20,26,30,0)"); stain.addColorStop(0.5, "rgba(20,26,30,0.4)"); stain.addColorStop(1, "rgba(20,26,30,0)");
+    ctx.fillStyle = stain;
+    ctx.beginPath(); ctx.moveTo(X - T * 0.22, Y0 - 2); ctx.quadraticCurveTo(X - T * 0.42, (Y0 + Y1) / 2, X - T * 0.36, Y1);
+    ctx.lineTo(X + T * 0.36, Y1); ctx.quadraticCurveTo(X + T * 0.42, (Y0 + Y1) / 2, X + T * 0.22, Y0 - 2); ctx.closePath(); ctx.fill();
+    // the pool at the foot: deep water, a lighter rim, and rocks around it
+    ctx.fillStyle = "rgba(90,80,60,0.6)"; ctx.beginPath(); ctx.ellipse(X, py, pw + 2.5, ph + 2, 0, 0, Math.PI * 2); ctx.fill();
+    const pg = ctx.createRadialGradient(X, py, 1, X, py, pw);
+    pg.addColorStop(0, "#5f9fb5"); pg.addColorStop(0.7, "#3a7088"); pg.addColorStop(1, "#2a5568");
+    ctx.fillStyle = pg; ctx.beginPath(); ctx.ellipse(X, py, pw, ph, 0, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 9; i++){
+      const a = rng() * Math.PI * 2, rr = 0.95 + rng() * 0.12;
+      ctx.fillStyle = `rgb(${110 + rng() * 40 | 0},${105 + rng() * 35 | 0},${95 + rng() * 30 | 0})`;
+      ctx.beginPath(); ctx.ellipse(X + Math.cos(a) * pw * rr, py + Math.sin(a) * ph * rr, 1.6 + rng() * 1.6, 1.1 + rng() * 1, rng() * 3, 0, Math.PI * 2); ctx.fill();
+    }
+    // ripples spreading from where the water lands
+    ctx.lineWidth = 0.7;
+    for (let k = 0; k < 3; k++){
+      const f = (t * 0.6 + k / 3) % 1;
+      ctx.strokeStyle = `rgba(220,240,250,${0.5 * (1 - f)})`;
+      ctx.beginPath(); ctx.ellipse(X, py - ph * 0.2, pw * (0.2 + f * 0.7), ph * (0.2 + f * 0.65), 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    // the falling water: two tiers with a ledge between, wavy translucent edges and streaks rushing down
+    const len = py - ph * 0.3 - Y0, two = len > T * 2.6;
+    const tiers = two ? [[Y0, Y0 + len * 0.5, 0, T * 0.13, T * 0.2], [Y0 + len * 0.5 + 2, py - ph * 0.3, T * 0.14, T * 0.17, T * 0.3]]
+                      : [[Y0, py - ph * 0.3, 0, T * 0.14, T * 0.28]];
+    for (const [ya, yb, dx, wa, wb] of tiers){
+      const L = [], R = [], N = 14;
+      for (let i = 0; i <= N; i++){
+        const f = i / N, yy = ya + (yb - ya) * f;
+        const bulge = Math.sin(f * Math.PI) * 0;                                   // straight drop
+        const lip = i === 0 ? 0 : Math.min(1, f * 6) * T * 0.08;                  // it arcs out over the edge first
+        const hw = wa + (wb - wa) * Math.pow(f, 0.8);
+        const wob = Math.sin(yy * 0.45 - t * 9) * 0.7, wob2 = Math.sin(yy * 0.37 + t * 7 + 1) * 0.7;
+        L.push([X + dx + lip + bulge - hw + wob, yy]); R.push([X + dx + lip + bulge + hw + wob2, yy]);
+      }
+      const fg = ctx.createLinearGradient(X + dx - wb, 0, X + dx + wb, 0);
+      fg.addColorStop(0, "rgba(150,200,220,0.45)"); fg.addColorStop(0.35, "rgba(235,248,255,0.88)");
+      fg.addColorStop(0.7, "rgba(205,232,245,0.8)"); fg.addColorStop(1, "rgba(130,185,210,0.45)");
+      ctx.fillStyle = fg;
+      ctx.beginPath(); ctx.moveTo(L[0][0], L[0][1]);
+      L.forEach(p => ctx.lineTo(p[0], p[1])); for (let i = R.length - 1; i >= 0; i--) ctx.lineTo(R[i][0], R[i][1]);
+      ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.clip();
+      ctx.strokeStyle = "rgba(255,255,255,0.8)"; ctx.lineWidth = 0.7; ctx.setLineDash([3, 6]);
+      for (let k = -2; k <= 2; k++){
+        ctx.lineDashOffset = -(t * 75 + k * 4.3);
+        ctx.beginPath(); ctx.moveTo(X + dx + k * wa * 0.45 + T * 0.04, ya); ctx.lineTo(X + dx + k * wb * 0.45 + T * 0.08, yb); ctx.stroke();
+      }
+      ctx.setLineDash([]); ctx.restore();
+      // the rocky lip the water spills over
+      ctx.fillStyle = "rgba(70,66,60,0.95)";
+      ctx.beginPath(); ctx.ellipse(X + dx + T * 0.02, ya + 0.5, wa + 3, 1.8, 0, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(230,245,252,0.9)";
+      ctx.beginPath(); ctx.ellipse(X + dx + T * 0.04, ya + 1, wa + 0.6, 1.1, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    if (two){   // splash on the ledge halfway down
+      const ly = Y0 + len * 0.5;
+      ctx.fillStyle = "rgba(255,255,255,0.75)";
+      for (let k = 0; k < 4; k++){ const q = t * 6 + k * 1.9; ctx.beginPath(); ctx.arc(X + T * 0.07 + (k - 1.5) * 2.4, ly + Math.sin(q) * 0.7, 1 + Math.abs(Math.sin(q)) * 1.2, 0, Math.PI * 2); ctx.fill(); }
+    }
+    // white water where it hits the pool, and mist drifting up
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    for (let k = 0; k < 5; k++){
+      const ph2 = t * 5 + k * 1.7, r = 1.4 + Math.abs(Math.sin(ph2)) * 1.6;
+      ctx.beginPath(); ctx.arc(X + (two ? T * 0.14 : 0) + (k - 2) * T * 0.13, py - ph * 0.3 + Math.sin(ph2 * 1.3) * 0.8, r, 0, Math.PI * 2); ctx.fill();
+    }
+    for (let k = 0; k < 6; k++){
+      const f = (t * 0.25 + k / 6) % 1, mx = X + Math.sin(k * 2.3 + t * 0.5) * T * 0.5 * f + (k - 2.5) * 2;
+      ctx.fillStyle = `rgba(245,250,255,${0.22 * Math.sin(f * Math.PI)})`;
+      ctx.beginPath(); ctx.arc(mx, py - ph * 0.3 - f * T * 1.1, 2.5 + f * 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function initCreek(){
+    creek = null; streams = null;   // v3.10: no creeks; a waterfall instead
+    initWaterfall();
+    return;   // v3.08: the old walk-through creek is switched off
+    if (!mountains.length) return;
+    const blocked = (x, y) => x < 0 || y < 0 || x >= GRID_W || y >= GRID_H || mtnSolid(x, y) || !!mtnAt(x, y) ||
+      (x === game.holeX && y === game.holeY) || (x === game.playerX && y === game.playerY) ||
+      mountains.some(m => (m.trailhead.x === x && m.trailhead.y + 1 === y) || (Math.abs(m.summit.x - x) <= 1 && Math.abs(m.summit.y - y) <= 1));
+    for (let tries = 0; tries < 60; tries++){
+      const m = mountains[randInt(0, mountains.length - 1)];
+      let x = clamp(m.x0 + Math.floor(m.w / 2) + randInt(-1, 1), 0, GRID_W - 1), y = m.base + 1;
+      if (blocked(x, y)) continue;
+      // head for the nearest side or bottom edge
+      const goals = [{ dx: -1, dy: 0, d: x }, { dx: 1, dy: 0, d: GRID_W - 1 - x }, { dx: 0, dy: 1, d: GRID_H - 1 - y }].sort((a, b) => a.d - b.d);
+      const goal = goals[randInt(0, goals.length - 1)];
+      const tiles = [[x, y]], used = new Set([x + "," + y]);
+      let last = { dx: 0, dy: 1 }, ok = false;
+      for (let step = 0; step < 60; step++){
+        if (x === 0 || x === GRID_W - 1 || y === GRID_H - 1){ ok = true; break; }
+        const opts = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }]
+          .filter(d => !(d.dx === -last.dx && d.dy === -last.dy))
+          .map(d => ({ d, w: (d.dx === goal.dx && d.dy === goal.dy ? 2.6 : 0) + (d.dx === last.dx && d.dy === last.dy ? 0.6 : 0) + (d.dy < 0 ? -2.2 : 0.6) + Math.random() * 3 }))   // v3.07: lazy meanders
+          .filter(o => !blocked(x + o.d.dx, y + o.d.dy) && !used.has((x + o.d.dx) + "," + (y + o.d.dy)))
+          .sort((a, b) => b.w - a.w);
+        if (!opts.length) break;
+        const d = opts[0].d; x += d.dx; y += d.dy; last = d;
+        tiles.push([x, y]); used.add(x + "," + y);
+      }
+      if (!ok || tiles.length < 9 || tiles.length > 30) continue;
+      // one or two log bridges where the creek runs straight
+      const bridges = new Set();
+      const want = tiles.length >= 12 ? 2 : 1;
+      for (let k = 0; k < want; k++){
+        const lo = Math.floor(tiles.length * (k === 0 ? 0.25 : 0.6)), hi = Math.floor(tiles.length * (k === 0 ? 0.5 : 0.85));
+        for (let i = lo; i <= hi; i++){
+          if (i < 1 || i >= tiles.length - 1) continue;
+          const a = tiles[i - 1], b = tiles[i], c = tiles[i + 1];
+          if ((a[0] === b[0] && b[0] === c[0]) || (a[1] === b[1] && b[1] === c[1])){ bridges.add(b[0] + "," + b[1]); break; }
+        }
+      }
+      if (!bridges.size) continue;
+      creek = { tiles, set: used, bridges, art: null, seed: Math.floor(Math.random() * 1e9) };
+      break;
+    }
+    if (creek){
+      // nothing should sit in the water
+      for (const s of game.sticks){ if (creekAt(s.x, s.y)){ const p = randomEmptyTile(); s.x = p.x; s.y = p.y; } }
+      if (!game.lifeTileUsed && creekAt(game.lifeTileX, game.lifeTileY)){ const p = randomEmptyTile(); game.lifeTileX = p.x; game.lifeTileY = p.y; }
+    }
+  }
+  function buildCreekArt(){
+    const SC = mtnArtScale(), cv = document.createElement("canvas");
+    cv.width = Math.ceil(GRID_W * TILE * SC); cv.height = Math.ceil(GRID_H * TILE * SC);
+    const g = cv.getContext("2d"); g.scale(SC, SC);
+    const T = TILE, rng = mtnRng(creek.seed);
+    const pts = creek.tiles.map(t => [(t[0] + 0.5) * T, (t[1] + 0.5) * T]);
+    // run the last point off the board edge so the water flows out
+    const L = creek.tiles[creek.tiles.length - 1], P = pts[pts.length - 1];
+    if (L[0] === 0) pts.push([P[0] - T, P[1]]); else if (L[0] === GRID_W - 1) pts.push([P[0] + T, P[1]]); else pts.push([P[0], P[1] + T]);
+    pts.unshift([pts[0][0], pts[0][1] - T * 0.55]);   // starts under the mountain's foot
+    const path = () => { g.beginPath(); g.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length - 1; i++){ const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; g.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); }
+      g.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]); };
+    g.lineCap = "round"; g.lineJoin = "round";
+    path(); g.strokeStyle = "rgba(90,70,45,0.55)"; g.lineWidth = 15; g.stroke();     // muddy bank
+    path(); g.strokeStyle = "#1f5f8f"; g.lineWidth = 11.5; g.stroke();               // deep water
+    path(); g.strokeStyle = "#2f86c0"; g.lineWidth = 8; g.stroke();
+    path(); g.strokeStyle = "rgba(150,215,245,0.45)"; g.lineWidth = 3; g.stroke();  // shallows in the middle
+    // pebbles and reeds along the banks
+    for (let i = 0; i < pts.length - 1; i++){
+      const a = pts[i], b = pts[i + 1], dx = b[0] - a[0], dy = b[1] - a[1], Ln = Math.hypot(dx, dy) || 1, nx = -dy / Ln, ny = dx / Ln;
+      for (let k = 0; k < 3; k++){
+        const t = rng(), sd = rng() < 0.5 ? -1 : 1, off = 7 + rng() * 1.5, x = a[0] + dx * t + nx * off * sd, y = a[1] + dy * t + ny * off * sd;
+        if (rng() < 0.65){ g.fillStyle = rng() < 0.5 ? "#8d8a84" : "#6f6a62"; g.beginPath(); g.ellipse(x, y, 1.1 + rng() * 0.8, 0.8 + rng() * 0.5, rng() * 3, 0, Math.PI * 2); g.fill(); }
+        else { g.strokeStyle = "#4f7a3a"; g.lineWidth = 0.8; g.beginPath(); g.moveTo(x, y + 2); g.lineTo(x - 1, y - 3); g.moveTo(x, y + 2); g.lineTo(x + 1.2, y - 2.5); g.stroke(); }
+      }
+    }
+    // log bridges across the water
+    for (const key of creek.bridges){
+      const [bx, by] = key.split(",").map(Number), i = creek.tiles.findIndex(t => t[0] === bx && t[1] === by);
+      const a = creek.tiles[Math.max(0, i - 1)], c = creek.tiles[Math.min(creek.tiles.length - 1, i + 1)];
+      const flowH = a[1] === c[1];                     // water runs left-right, so the bridge runs up-down
+      const cx = (bx + 0.5) * T, cy = (by + 0.5) * T;
+      g.save(); g.translate(cx, cy); if (flowH) g.rotate(Math.PI / 2);
+      g.fillStyle = "rgba(0,0,0,0.3)"; g.fillRect(-9 + 1.5, -6 + 2, 18, 12);
+      for (let p = 0; p < 5; p++){
+        const px = -9 + p * 3.6;
+        g.fillStyle = p % 2 ? "#8a5a30" : "#9c6a3a"; g.fillRect(px, -6.5, 3.4, 13);
+        g.strokeStyle = "rgba(50,30,15,0.6)"; g.lineWidth = 0.4; g.strokeRect(px, -6.5, 3.4, 13);
+      }
+      g.strokeStyle = "#5a3a1e"; g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(-10, -6.8); g.lineTo(10, -6.8); g.moveTo(-10, 6.8); g.lineTo(10, 6.8); g.stroke();   // side rails
+      g.restore();
+    }
+    creek.art = { cv, SC };
+  }
+  function drawCreek(){
+    if (!creek || currentLevelTheme().name !== "Mountain Stick") return;
+    if (!creek.art || creek.art.SC !== mtnArtScale()) buildCreekArt();
+    ctx.drawImage(creek.art.cv, 0, 0, GRID_W * TILE, GRID_H * TILE);
+    // little moving glints on the water
+    const time = Date.now() * 0.001;
+    ctx.save(); ctx.fillStyle = "rgba(220,245,255,0.7)";
+    creek.tiles.forEach((t, i) => {
+      if (creek.bridges.has(t[0] + "," + t[1])) return;
+      const ph = (time * 0.8 + i * 0.37) % 1, a = Math.sin(ph * Math.PI);
+      ctx.globalAlpha = a * 0.8;
+      ctx.beginPath(); ctx.ellipse((t[0] + 0.3 + ph * 0.4) * TILE, (t[1] + 0.45 + (i % 2) * 0.1) * TILE, 2.2, 0.7, 0, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  // ===== v3.07 BALD EAGLE =====
+  // Once per Mountain Stick level a bald eagle circles high over the board (its shadow sweeping the ground),
+  // then glides down and perches on a summit holding a golden feather. Reach it for the feather: worth x50,
+  // it floats above your head, and while you carry it lightning can't touch you.
+  const FEATHER_VALUE = 50, EAGLE_STAY = 50 * 60;
+  let eagle = null, eagleWait = 0, eagleDone = false, eagleLastT = 0;
+  const EAGLE_LINES = {
+    classic: "A bald eagle! Now that's a stick-ler for freedom.",
+    angel:   "A feathered friend from on high!",
+    alien:   "Your birds are so majestic. Ours just beep.",
+    robot:   "AVIAN UNIT DETECTED. WINGSPAN: IMPRESSIVE.",
+    rex:     "BARK BARK BARK!|(translation: BIRD! BIG BIRD! COME DOWN HERE!)",
+    rick:    "An eagle? Cute. I fly too. Kinda.",
+    sally:   "Oh, look up! Let's not startle it.",
+    sick:    "*sniff* Is that... a really fancy pigeon?",
+    super:   "Finally, someone who gets the whole flying thing!",
+    dip:     "Whoa, that bird is wearing a white hat!",
+    law:     "That bird is clearly over the speed limit.",
+    jogger:  "Race you to the top, bird! ...Never mind, you'll win.",
+    mystic:  "I foresaw feathers. Many feathers.",
+    rock:    "Now THAT'S a high note."
+  };
+  let eagleBanner = null;   // v3.08: big readable message across the top of the board
+  function eagleSay(l1, l2, secs){ eagleBanner = { l1, l2, t0: performance.now(), dur: (secs || 4.5) * 1000 }; }
+  function eagleReset(){ eagle = null; eagleDone = false; eagleBanner = null; eagleWait = randInt(20, 45) * 60; }
+  function featherProtected(){ return !!(game && game.carry && game.carry.some(s => s && s.feather)); }
+  function updateEagle(){
+    if (currentLevelTheme().name !== "Mountain Stick" || !mountains.length) return;
+    if (game.pendingMonster || levelIntro.active){ eagleLastT = 0; return; }
+    // time-based (in 60ths of a second), so it runs the same speed on any screen refresh rate
+    const nowT = performance.now(), step = eagleLastT ? Math.min(3, (nowT - eagleLastT) / (1000 / 60)) : 1; eagleLastT = nowT;
+    if (!eagle){
+      if (eagleDone || (eagleWait -= step) > 0) return;
+      const free = mountains.filter(m => !(game.playerX === m.summit.x && game.playerY === m.summit.y));
+      if (!free.length){ eagleWait = 120; return; }
+      const m = free[randInt(0, free.length - 1)];
+      eagle = { m, value: 25 + 5 * randInt(0, 7), phase: "circle", t: 0, ang: Math.random() * Math.PI * 2, x: 0, y: 0, heading: 0, given: false, bubbleT: 0, leaveDir: Math.random() < 0.5 ? -1 : 1 };
+      eagleDone = true;
+      logEvent("bonus", "🦅 A bald eagle is circling the peaks! Watch where it lands. It's carrying a bundle of golden sticks.");
+      setHud("🦅 EAGLE OVERHEAD!");
+      eagleSay("🦅 A BALD EAGLE IS CIRCLING!", "It's carrying a bundle of golden sticks. Watch where it lands!", 4.5);
+      beep(1400, 0.08, "sine", 0.08); setTimeout(() => beep(1100, 0.2, "sine", 0.08), 90);
+      try { talk.bubble = { text: EAGLE_LINES[talkSkin()] || EAGLE_LINES.classic, t0: performance.now(), dur: 3600 }; talkSound(); } catch(_){}
+      return;
+    }
+    if (eagle.gone) return;   // v3.08: it already flew off (this used to crash every frame and freeze the game)
+    const e = eagle; e.t += step;
+    const perchX = (e.m.summit.x + 0.5) * TILE, perchY = (e.m.summit.y - 0.3) * TILE;
+    if (e.phase === "circle"){
+      const cx = GRID_W * TILE / 2, cy = GRID_H * TILE * 0.4, r = GRID_W * TILE * 0.3;
+      e.ang += 0.022 * step;
+      const nx = cx + Math.cos(e.ang) * r, ny = cy + Math.sin(e.ang) * r * 0.6;
+      e.heading = Math.atan2(ny - e.y, nx - e.x); e.x = nx; e.y = ny;
+      if (e.t > 4.5 * 60){ e.phase = "glide"; e.t = 0; e.gx = e.x; e.gy = e.y; e.m.eagleHold = true; }   // v3.09: its bundle replaces that peak's stick
+    } else if (e.phase === "glide"){
+      const k = Math.min(1, e.t / 120), s = k * k * (3 - 2 * k);
+      const nx = e.gx + (perchX - e.gx) * s, ny = e.gy + (perchY - e.gy) * s - Math.sin(s * Math.PI) * TILE * 1.5;
+      e.heading = Math.atan2(ny - e.y, nx - e.x); e.x = nx; e.y = ny;
+      if (k >= 1){ e.phase = "perched"; e.t = 0; e.bubbleT = 6 * 60;
+        eagleSay("🦅 THE EAGLE LANDED ON A PEAK!", `Climb the trail to it for the GOLDEN BUNDLE  x${e.value}`, 6);
+        logEvent("bonus", `🦅 The eagle landed on a peak. Climb up to it for the golden stick bundle (x${e.value})!`); beep(1500, 0.06, "sine", 0.07); setTimeout(() => beep(1200, 0.25, "sine", 0.07), 80); }
+    } else if (e.phase === "perched"){
+      e.x = perchX; e.y = perchY;
+      if (!e.given && game.playerX === e.m.summit.x && game.playerY === e.m.summit.y){
+        if (game.carry.length < carryCap()){
+          e.given = true;
+          game.carry.push({ color: "#ffd700", value: e.value, fromPeak: true, feather: true, bundle: true });
+          e.m.eagleHold = false; e.m.peakCollected = true; e.m.regrowT = 60 * 60;   // the summit's prize was the bundle; a new peak stick grows back later
+          logEvent("bonus", `🦅 The eagle gave you its golden stick bundle (x${e.value})! Lightning can't touch you until you deposit it. Next step down = slide!`);
+          setHud(`🦅 GOLDEN BUNDLE x${e.value}! NEXT STEP = SLIDE DOWN 🛝`);
+          [784, 988, 1175, 1568].forEach((f, k) => setTimeout(() => beep(f, 0.12, "sine", 0.09), k * 100));
+          spawnSparks(game.playerX, game.playerY, 30, false);
+          e.bubbleT = 3 * 60; e.leaveDelay = 3 * 60;
+          eagleSay(`🦅 GOLDEN BUNDLE  x${e.value}!`, "Lightning can't touch you until you drop it off. Rams still can!", 5);
+          updateUI();
+        } else if (Math.floor(e.t) % 90 === 0){ setHud("HANDS FULL! DROP ONE FOR THE BUNDLE"); }
+      }
+      if ((e.given && (e.leaveDelay -= step) <= 0) || (!e.given && e.t >= EAGLE_STAY)){
+        if (!e.given){ logEvent("info", "🦅 The eagle took off and soared away."); eagleSay("🦅 The eagle flew away...", "Too slow this time!", 3); }
+        e.phase = "leaving"; e.t = 0; e.lx = e.x; e.ly = e.y; e.m.eagleHold = false;
+      }
+    } else if (e.phase === "leaving"){
+      const k = e.t / 150, nx = e.lx + e.leaveDir * k * GRID_W * TILE * 0.8, ny = e.ly - k * GRID_H * TILE * 0.6;
+      e.heading = Math.atan2(ny - e.y, nx - e.x); e.x = nx; e.y = ny;
+      if (e.t > 150) eagle = { gone: true };
+    }
+    if (e.bubbleT > 0) e.bubbleT -= step;
+  }
+  function drawGoldFeather(g, x, y, len, rot, glow){
+    g.save(); g.translate(x, y); g.rotate(rot);
+    g.shadowColor = "#ffd700"; g.shadowBlur = glow;
+    const gr = g.createLinearGradient(0, -len / 2, 0, len / 2);
+    gr.addColorStop(0, "#fff3b0"); gr.addColorStop(0.5, "#ffd700"); gr.addColorStop(1, "#d49a10");
+    g.fillStyle = gr;
+    g.beginPath(); g.moveTo(0, -len / 2);
+    g.quadraticCurveTo(len * 0.26, -len * 0.18, len * 0.1, len * 0.34);
+    g.lineTo(0, len * 0.3);
+    g.lineTo(-len * 0.08, len * 0.34);
+    g.quadraticCurveTo(-len * 0.24, -len * 0.12, 0, -len / 2); g.closePath(); g.fill();
+    g.shadowBlur = 0;
+    g.strokeStyle = "rgba(150,100,10,0.55)"; g.lineWidth = len * 0.022;
+    for (let i = 1; i < 6; i++){ const yy = -len / 2 + i * len * 0.14;
+      g.beginPath(); g.moveTo(0, yy); g.lineTo(len * 0.15, yy - len * 0.05); g.moveTo(0, yy + len * 0.02); g.lineTo(-len * 0.13, yy - len * 0.03); g.stroke(); }
+    g.strokeStyle = "#fff8d0"; g.lineWidth = len * 0.04; g.lineCap = "round";
+    g.beginPath(); g.moveTo(0, -len / 2 + 1); g.lineTo(0, len / 2); g.stroke();      // the quill
+    g.restore();
+  }
+  // v3.09: a bundle of three golden sticks bound with a red-white-blue wrap (like the eagle clutching arrows)
+  function drawGoldBundle(g, x, y, len, rot, glow){
+    g.save(); g.translate(x, y); g.rotate(rot);
+    g.shadowColor = "#ffd700"; g.shadowBlur = glow; g.lineCap = "round";
+    for (const a of [-0.2, 0, 0.2]){
+      g.save(); g.rotate(a);
+      const gr = g.createLinearGradient(0, -len * 0.05, 0, len * 0.05);
+      gr.addColorStop(0, "#fff3b0"); gr.addColorStop(0.5, "#ffd700"); gr.addColorStop(1, "#c88a0c");
+      g.strokeStyle = gr; g.lineWidth = Math.max(2, len * 0.1);
+      g.beginPath(); g.moveTo(-len / 2, 0); g.lineTo(len / 2, 0); g.stroke();
+      g.restore();
+    }
+    g.shadowBlur = 0;
+    const bw = len * 0.05, bh = len * 0.34;
+    [["#c8102e", -bw * 1.5], ["#ffffff", -bw * 0.5], ["#1f3f8f", bw * 0.5]].forEach(([c, o]) => { g.fillStyle = c; g.fillRect(o, -bh / 2, bw, bh); });
+    g.restore();
+  }
+  // flying eagle seen from above: brown wings, white head and tail
+  function drawEagleFlying(g, x, y, heading, flap, s){
+    g.save(); g.translate(x, y); g.rotate(heading); g.scale(s, s);
+    const span = 0.75 + Math.sin(flap) * 0.25;
+    g.fillStyle = "#4a3020";
+    for (const sd of [-1, 1]){
+      g.beginPath(); g.moveTo(-2, 0); g.quadraticCurveTo(-1, sd * 9 * span, -6, sd * 16 * span);
+      for (let f = 0; f < 4; f++) g.lineTo(-7 - f * 1.6, sd * (15.5 - f * 0.8) * span), g.lineTo(-6.2 - f * 1.6, sd * (13.5 - f * 0.9) * span);
+      g.quadraticCurveTo(-8, sd * 6 * span, -6, 0); g.closePath(); g.fill();
+    }
+    g.fillStyle = "#5a3b25"; g.beginPath(); g.ellipse(-1, 0, 6.5, 2.6, 0, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#ffffff"; g.beginPath(); g.moveTo(-7, 0); g.lineTo(-11.5, -2.6); g.lineTo(-11.5, 2.6); g.closePath(); g.fill();   // tail
+    g.beginPath(); g.arc(5.6, 0, 2.4, 0, Math.PI * 2); g.fill();                                                                         // head
+    g.fillStyle = "#f2b705"; g.beginPath(); g.moveTo(7.7, -0.9); g.lineTo(10, 0); g.lineTo(7.7, 0.9); g.closePath(); g.fill();          // beak
+    g.restore();
+  }
+  // perched eagle, side view, standing on the peak
+  function drawEaglePerched(g, x, y, s, t, alpha){
+    g.save(); g.globalAlpha = alpha; g.translate(x, y); g.scale(s, s);
+    const bob = Math.sin(t * 0.05) * 0.3, flap = (t % 300) < 24 ? Math.sin((t % 300) / 24 * Math.PI) : 0;
+    const bl = g.createRadialGradient(0, -12, 1, 0, -12, 18); bl.addColorStop(0, "rgba(255,240,200,0.35)"); bl.addColorStop(1, "rgba(255,240,200,0)");
+    g.fillStyle = bl; g.beginPath(); g.arc(0, -12, 18, 0, Math.PI * 2); g.fill();
+    // a quick wing stretch now and then
+    if (flap > 0){ g.fillStyle = "#4a3020";
+      for (const sd of [-1, 1]){ g.beginPath(); g.moveTo(0, -14); g.quadraticCurveTo(sd * 8 * flap, -24 * flap - 10, sd * 15 * flap, -18); g.lineTo(sd * 3, -8); g.closePath(); g.fill(); } }
+    g.fillStyle = "#ffffff"; g.beginPath(); g.moveTo(-1.2, -3); g.lineTo(-4.6, 2.2); g.lineTo(1.6, 1.4); g.closePath(); g.fill();        // tail
+    g.fillStyle = "#4a3020"; g.beginPath(); g.ellipse(0.4, -9 + bob, 4.6, 7.4, 0.12, 0, Math.PI * 2); g.fill();                         // body
+    g.fillStyle = "#5e3e28"; g.beginPath(); g.ellipse(-0.6, -9 + bob, 3.2, 6.4, 0.2, 0, Math.PI * 2); g.fill();                         // folded wing
+    g.strokeStyle = "rgba(255,230,190,0.25)"; g.lineWidth = 0.4;
+    for (let i = 0; i < 4; i++){ g.beginPath(); g.moveTo(-2.6, -12 + i * 2 + bob); g.lineTo(0.8, -10.8 + i * 2 + bob); g.stroke(); }
+    g.fillStyle = "#ffffff"; g.beginPath(); g.ellipse(1.6, -17.3 + bob, 3.6, 3.3, 0, 0, Math.PI * 2); g.fill();                         // white head
+    g.fillStyle = "#f2b705"; g.beginPath(); g.moveTo(4.6, -18.4 + bob); g.quadraticCurveTo(7.6, -18.2 + bob, 7, -15.6 + bob); g.lineTo(4.6, -16.2 + bob); g.closePath(); g.fill();   // hooked beak
+    g.fillStyle = "#1b1209"; g.beginPath(); g.arc(2.9, -18 + bob, 0.55, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "#7a6a55"; g.lineWidth = 0.5; g.beginPath(); g.moveTo(1.7, -18.9 + bob); g.lineTo(3.8, -18.6 + bob); g.stroke();     // fierce brow
+    g.strokeStyle = "#f2b705"; g.lineWidth = 1.1; g.lineCap = "round";                                                                     // talons
+    g.beginPath(); g.moveTo(-0.8, -2.4); g.lineTo(-1.2, 0); g.moveTo(1.8, -2.4); g.lineTo(2.1, 0); g.stroke();
+    g.restore();
+  }
+  function drawEagleBanner(){
+    if (!eagleBanner || currentLevelTheme().name !== "Mountain Stick") return;
+    const el = performance.now() - eagleBanner.t0;
+    if (el > eagleBanner.dur){ eagleBanner = null; return; }
+    const a = Math.min(1, el / 250, (eagleBanner.dur - el) / 400), W = GRID_W * TILE, cx = W / 2;
+    const y = (eagle && !eagle.gone && eagle.y < 150) ? GRID_H * TILE - 64 : 14;   // keep clear of an eagle near the top
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.font = "bold 17px Arial"; const w1 = ctx.measureText(eagleBanner.l1).width;
+    ctx.font = "bold 12px Arial"; const w2 = ctx.measureText(eagleBanner.l2).width;
+    const bw = Math.min(W - 16, Math.max(w1, w2) + 34), bh = 50;
+    ctx.fillStyle = "rgba(20,14,6,0.88)"; ctx.strokeStyle = "#ffd700"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.roundRect(cx - bw / 2, y, bw, bh, 10); ctx.fill(); ctx.stroke();
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "bold 17px Arial"; ctx.fillStyle = "#ffd700"; ctx.fillText(eagleBanner.l1, cx, y + 17);
+    ctx.font = "bold 12px Arial"; ctx.fillStyle = "#ffffff"; ctx.fillText(eagleBanner.l2, cx, y + 36);
+    ctx.restore();
+  }
+  function drawEagle(){
+    drawEagleBanner();
+    if (!eagle || eagle.gone || currentLevelTheme().name !== "Mountain Stick") return;
+    const e = eagle, time = Date.now() * 0.001;
+    const label = (x, y, align) => {
+      ctx.save(); ctx.font = "bold 13px monospace"; ctx.textAlign = align; ctx.textBaseline = "middle"; ctx.lineWidth = 3;
+      ctx.strokeStyle = "#3d2f1f"; ctx.fillStyle = "#ffd700";
+      ctx.strokeText("x" + e.value, x, y); ctx.fillText("x" + e.value, x, y); ctx.restore();
+    };
+    if (e.phase === "circle" || e.phase === "glide" || e.phase === "leaving"){
+      const high = e.phase === "circle" ? 1 : e.phase === "glide" ? 1 - Math.min(1, e.t / 120) : Math.min(1, e.t / 60);
+      const sc = 1.6 + high * 0.6;
+      // shadow on the ground, offset more the higher it flies
+      ctx.save(); ctx.globalAlpha = 0.3; ctx.filter = "blur(1px)";
+      drawEagleFlying(ctx, e.x + 10 + high * 30, e.y + 12 + high * 40, e.heading, time * 6, 1.4);
+      ctx.restore();
+      // v3.09: the bundle hangs crosswise in its talons under the body, sticking out both sides
+      if (!e.given) drawGoldBundle(ctx, e.x - Math.cos(e.heading) * 2 * sc, e.y - Math.sin(e.heading) * 2 * sc, 44, e.heading + Math.PI / 2, 14);
+      drawEagleFlying(ctx, e.x, e.y, e.heading, time * (e.phase === "leaving" ? 10 : 5), sc);
+      if (!e.given && e.phase !== "leaving") label(e.x + 20, e.y - 18, "left");
+      return;
+    }
+    // perched on the very tip of the peak, bigger now so it reads at a glance
+    const ps = TILE * 2.3 / 24;
+    drawEaglePerched(ctx, e.x, e.y, ps, e.t, 1);
+    if (!e.given){
+      // v3.09: clutching the golden bundle in its talons, right on the summit
+      const bx = e.x + 0.4 * ps, by = e.y - 1.6 * ps, pulse = 0.85 + Math.sin(time * 3) * 0.15;
+      const gl = ctx.createRadialGradient(bx, by, 0, bx, by, 26);
+      gl.addColorStop(0, `rgba(255,215,0,${0.4 * pulse})`); gl.addColorStop(1, "rgba(255,200,0,0)");
+      ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(bx, by, 26, 0, Math.PI * 2); ctx.fill();
+      drawGoldBundle(ctx, bx, by, 34, -0.12, 12 + Math.sin(time * 3) * 5);
+      ctx.save(); ctx.strokeStyle = "#f2b705"; ctx.lineWidth = 1.6; ctx.lineCap = "round";   // talons wrapped over the bundle
+      for (const tx of [-0.9, 2]){ ctx.beginPath(); ctx.arc(e.x + tx * ps, by, 2.2, Math.PI * 1.1, Math.PI * 2.1); ctx.stroke(); }
+      ctx.restore();
+      label(bx + 20, by - 9, "left");
+    }
+    if (e.bubbleT > 0){
+      const main = e.given ? "KREEE!" : "KREEE?", sub = e.given ? "(fly high, friend)" : "(come up here)";
+      const tx = e.x - TILE * 0.2, ty = e.y - TILE * 2.9;
+      ctx.save(); ctx.font = "italic bold 10px Arial"; const w = Math.max(ctx.measureText(sub).width, 50) + 16;
+      ctx.fillStyle = "rgba(255,255,255,0.97)"; ctx.strokeStyle = "#3d2f1f"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.roundRect(tx - w / 2, ty - 15, w, 30, 7); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tx - 5, ty + 14); ctx.lineTo(tx, ty + 22); ctx.lineTo(tx + 5, ty + 14); ctx.fill();
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillStyle = "#222"; ctx.font = "bold 13px Arial"; ctx.fillText(main, tx, ty - 5);
+      ctx.fillStyle = "#4b5563"; ctx.font = "italic bold 10px Arial"; ctx.fillText(sub, tx, ty + 8);
+      ctx.restore();
+    }
+  }
+  // carrying the eagle's bundle: it floats in gold above your head with its value
+  function drawFeatherCarry(){
+    if (!featherProtected()) return;
+    const item = game.carry.find(s => s && s.feather), val = item ? item.value : 25;
+    const p = fxPlayerPx(), time = Date.now() * 0.001, pulse = 0.85 + Math.sin(time * 2.6) * 0.15;
+    const fy = p.y - 38 + Math.sin(time * 2.2) * 4;
+    ctx.save();
+    const gl = ctx.createRadialGradient(p.x, fy, 0, p.x, fy, 20);
+    gl.addColorStop(0, `rgba(255,215,0,${0.5 * pulse})`); gl.addColorStop(0.5, `rgba(255,190,50,${0.25 * pulse})`); gl.addColorStop(1, "rgba(255,180,0,0)");
+    ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, fy, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    drawGoldBundle(ctx, p.x, fy, 24, -0.5 + Math.sin(time * 1.8) * 0.1, 16);
+    ctx.save(); ctx.fillStyle = "#ffd700"; ctx.strokeStyle = "#3d2f1f"; ctx.lineWidth = 2.2;
+    ctx.font = "bold 10px ui-monospace, monospace"; ctx.textAlign = "center";
+    ctx.strokeText("x" + val, p.x, fy - 15); ctx.fillText("x" + val, p.x, fy - 15);
+    ctx.restore();
+  }
+  // v2.99: bumping into rock explains why, and flashes the nearest TRAIL start
+  let mtnHint = null, mtnHintLogged = false, mtnSlide = null;
+  function mtnBlockedHint(x, y, onTrailNow){
+    setHud(onTrailNow ? "⛰️ STAY ON THE TRAIL (FOLLOW THE STONES)" : "⛰️ SOLID ROCK! CLIMB ONLY ON THE TRAIL");
+    beep(140, 0.06, "square", 0.08);
+    const tm = mtnAt(game.playerX, game.playerY);
+    if (tm){
+      // already on a trail: point at the next stone up (or back down if you're at the top)
+      const i = mtnTrailIndex(tm, game.playerX, game.playerY), top = i >= tm.trail.length - 1;
+      const nxt = tm.trail[top ? i - 1 : i + 1];
+      mtnHint = { x: nxt[0], y: nxt[1], t0: performance.now(), label: top ? "WAY DOWN" : "NEXT STEP",
+                  dir: [nxt[0] - game.playerX, nxt[1] - game.playerY], from: [game.playerX, game.playerY] };
+      setHud(top ? "⛰️ FOLLOW THE TRAIL BACK DOWN" : "⛰️ FOLLOW THE STONES: NEXT STEP IS LIT");
+      try { fxPop(top ? "Back down the trail" : "Next step is lit up!", "#ffd27a", 11); } catch(_){}
+    } else {
+      let best = null, bd = 1e9;
+      for (const m of mountains){ const d = Math.abs(m.trailhead.x - game.playerX) + Math.abs(m.trailhead.y - game.playerY); if (d < bd){ bd = d; best = m; } }
+      if (best) mtnHint = { x: best.trailhead.x, y: best.trailhead.y, t0: performance.now(), label: "START HERE" };
+      try { fxPop("Solid rock! Find the TRAIL", "#ffd27a", 11); } catch(_){}
+    }
+    if (!mtnHintLogged){
+      mtnHintLogged = true;
+      logEvent("info", "⛰️ Mountains are solid rock. You can only climb on the dirt TRAIL. Start at the TRAIL sign at the bottom (it's flashing) and follow the numbered stones up.");
+    }
+  }
+  function drawMtnHint(){
+    if (!mtnHint) return;
+    const el = (performance.now() - mtnHint.t0) / 1000;
+    if (el > 3.2){ mtnHint = null; return; }
+    const cx = (mtnHint.x + 0.5) * TILE, cy = (mtnHint.y + 0.5) * TILE, pulse = 0.5 + 0.5 * Math.sin(el * 8);
+    const a = el > 2.6 ? (3.2 - el) / 0.6 : 1;
+    ctx.save(); ctx.globalAlpha = a;
+    ctx.fillStyle = `rgba(255,210,110,${0.25 + pulse * 0.25})`; ctx.beginPath(); ctx.arc(cx, cy, TILE * (0.55 + pulse * 0.12), 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#ffd27a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, TILE * (0.6 + pulse * 0.12), 0, Math.PI * 2); ctx.stroke();
+    if (mtnHint.dir){
+      // v3.04: a direction arrow beside your stick, pointing the way to go (up, down, left or right)
+      const fxp = (mtnHint.from[0] + 0.5) * TILE, fyp = (mtnHint.from[1] + 0.5) * TILE, ang = Math.atan2(mtnHint.dir[1], mtnHint.dir[0]);
+      const push = TILE * (0.62 + Math.abs(Math.sin(el * 5)) * 0.18);
+      const ax = fxp + Math.cos(ang) * push, ay2 = fyp + Math.sin(ang) * push;
+      ctx.save(); ctx.translate(ax, ay2); ctx.rotate(ang);
+      ctx.fillStyle = "#ffd27a"; ctx.strokeStyle = "#3d2f1f"; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(1, -7); ctx.lineTo(1, -2.6); ctx.lineTo(-8, -2.6); ctx.lineTo(-8, 2.6); ctx.lineTo(1, 2.6); ctx.lineTo(1, 7); ctx.closePath(); ctx.stroke(); ctx.fill();
+      ctx.restore();
+      ctx.font = "bold 9px monospace"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = "#3d2f1f"; ctx.fillStyle = "#ffd27a";
+      const ly = ay2 + (mtnHint.dir[1] > 0 ? 18 : -12);
+      ctx.strokeText(mtnHint.label, ax, ly); ctx.fillText(mtnHint.label, ax, ly);
+      ctx.restore();
+      return;
+    }
+    const ay = cy - TILE * (1.05 + Math.abs(Math.sin(el * 5)) * 0.25);   // bouncing arrow
+    ctx.fillStyle = "#ffd27a"; ctx.strokeStyle = "#3d2f1f"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx, ay + 9); ctx.lineTo(cx - 6, ay); ctx.lineTo(cx - 2.2, ay); ctx.lineTo(cx - 2.2, ay - 7); ctx.lineTo(cx + 2.2, ay - 7); ctx.lineTo(cx + 2.2, ay); ctx.lineTo(cx + 6, ay); ctx.closePath(); ctx.stroke(); ctx.fill();
+    ctx.font = "bold 9px monospace"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeText(mtnHint.label || "START HERE", cx, ay - 11); ctx.fillText(mtnHint.label || "START HERE", cx, ay - 11);
+    ctx.restore();
+  }
+  function drawMountains(){
+    const theme = currentLevelTheme().name;
+    if (theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    if (!mountains.length) return;
+    for (const m of mountains){
+      if (!m.art || m.art.SC !== mtnArtScale()) buildMountainArt(m);
+      const a = m.art;
+      ctx.drawImage(a.cv, a.ox * TILE, a.oy * TILE, a.wT * TILE, a.hT * TILE);
+    }
+  }
+  // the peak stick floats and spins just above each summit until it's collected
+  function drawPeakSticks(){
+    const theme = currentLevelTheme().name;
+    if (theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    const time = Date.now() * 0.001;
+    for (const m of mountains){
+      if (m.peakCollected || m.eagleHold) continue;
+      const bfHere = bigfoot && !bigfoot.gone && bigfoot.m === m;
+      const cx = (m.summit.x + 0.5 - (bfHere ? 0.95 : 0)) * TILE, fy = (m.summit.y - (bfHere ? 0.35 : 0.55)) * TILE + Math.sin(time * 2.5) * 3;
+      m.rot += 0.03;
+      ctx.save(); ctx.translate(cx, fy); ctx.rotate(m.rot);
+      ctx.shadowColor = m.peakColor; ctx.shadowBlur = 10 + Math.sin(time * 3) * 4;
+      ctx.strokeStyle = m.peakColor; ctx.lineWidth = 4; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(0, -9); ctx.lineTo(0, 9); ctx.stroke();
+      ctx.restore();
+      ctx.save(); ctx.font = "bold 9px monospace"; ctx.textAlign = "left"; ctx.lineWidth = 2;
+      ctx.strokeStyle = "#3d2f1f"; ctx.fillStyle = "#ffd700";
+      ctx.strokeText("x" + m.mult, cx + 11, fy + 3); ctx.fillText("x" + m.mult, cx + 11, fy + 3);
+      ctx.restore();
+    }
+  }
+  function updatePeakSticks(){
+    const theme = currentLevelTheme().name;
+    if (theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    for (const m of mountains){
+      if (m.peakCollected && m.regrowT > 0 && !(game.pendingMonster || game.inputLocked)){
+        if (--m.regrowT <= 0 && !(game.playerX === m.summit.x && game.playerY === m.summit.y)){
+          m.peakCollected = false;
+          m.peakColor = STICK_COLORS[randInt(0, STICK_COLORS.length - 1)];
+          logEvent("bonus", `⛰️ A new peak stick (x${m.mult}) appeared on a summit!`);
+        } else if (m.regrowT <= 0) m.regrowT = 60;
+      }
+      if (m.eagleHold) continue;   // v3.09: the eagle's bundle is this summit's prize right now
+      if (m.peakCollected || game.playerX !== m.summit.x || game.playerY !== m.summit.y) continue;
+      if (game.carry.length < carryCap()){
+        m.peakCollected = true; m.regrowT = 60 * 60;   // v2.99: a new peak stick grows back in about a minute
+        game.carry.push({ color: m.peakColor, value: m.mult, fromPeak: true });
+        logEvent("bonus", `⛰️ Summit! Peak stick collected (x${m.mult} value). Your next step down the trail is a quick slide back to the bottom.`);
+        setHud(`⛰️ PEAK x${m.mult}! NEXT STEP = SLIDE DOWN 🛝`);
+        try { fxPop("Next step: slide down! 🛝", "#7fd8ff", 11); } catch(_){}
+        beep(600, 0.15, "sine", 0.1);
+        setTimeout(() => beep(800, 0.15, "sine", 0.1), 100);
+        setTimeout(() => beep(1000, 0.2, "sine", 0.12), 200);
+        spawnSparks(game.playerX, game.playerY, 25, false);
+        updateUI();
+      } else if (Math.random() < 0.02){
+        setHud("HANDS FULL!");
+      }
+    }
+  }
+  // after each step: show trail progress
+  function mtnAfterMove(){
+    mtnHint = null;   // you moved, so the hint has done its job
+    const m = mtnAt(game.playerX, game.playerY);
+    if (!m) return;
+    const i = mtnTrailIndex(m, game.playerX, game.playerY);
+    if (i > 0 && i < m.trail.length - 1) setHud(`⛰️ TRAIL ${i}/${m.steps}`);
+  }
+  // puffy clouds, each with its own shape, drifting across (they fade when over your stick)
+  function drawMountainClouds(){
+    const theme = currentLevelTheme().name;
+    if (theme !== "Mountain Stick" && theme !== "Victory Stick") return;
+    if (!mountainClouds.length) return;
+    const time = Date.now() * 0.001;
+    const px = (game.playerX + 0.5) * TILE, py = (game.playerY + 0.5) * TILE;
+    for (const c of mountainClouds){
+      c.x += c.drift;
+      if (c.x > GRID_W + c.w) c.x = -c.w; else if (c.x < -c.w) c.x = GRID_W + c.w;
+      const W = c.w * TILE, cx = c.x * TILE, cy = c.y * TILE + Math.sin(time * 0.6 + c.bob) * 2;
+      const over = Math.abs(px - cx) < W * 0.6 && Math.abs(py - cy) < W * 0.35;
+      // v3.08: a cloud never sits in front of / behind a mountain: it fades out while it drifts past one
+      const T = TILE, hitM = mountains.some(m => cx + W * 0.62 > m.x0 * T && cx - W * 0.62 < (m.x0 + m.w) * T &&
+                                              cy + W * 0.38 > (m.top - 1) * T && cy - W * 0.38 < (m.base + 1.2) * T);
+      const want = hitM ? 0 : over ? 0.3 : 0.85;
+      c.a = (c.a == null ? want : c.a) + (want - (c.a == null ? want : c.a)) * 0.06;
+      if (c.a < 0.02) continue;
+      ctx.save(); ctx.globalAlpha = c.a;
+      ctx.fillStyle = "rgba(255,255,255,0.18)"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W, cy + p.dy * W, p.r * W * 1.12, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = "#99a2b4"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W, cy + p.dy * W + W * 0.04, p.r * W, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = "#e9edf5"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W - W * 0.015, cy + p.dy * W - W * 0.02, p.r * W * 0.9, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = "#ffffff"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W - W * 0.04, cy + p.dy * W - W * 0.06, p.r * W * 0.55, 0, Math.PI * 2); ctx.fill(); });
+      ctx.restore();
+    }
+  }
+  
+  
+  
+  
   
   function tryCollectPeakStick(){
     // Peak sticks now auto-collect, this function no longer needed
@@ -6136,13 +6967,30 @@ function initWildHorse(){
     if(game.pendingMonster || game.inputLocked) return;
     
     rams.forEach(ram => {
+      const ramOX = ram.x, ramOY = ram.y;
       // Check if player is within 1 square - rams get aggressive!
       const dx = Math.abs(ram.x - game.playerX);
       const dy = Math.abs(ram.y - game.playerY);
       const distance = dx + dy;
-      
-      // If within 1 square, DEFINITELY charge!
-      if(distance === 1){
+      // v3.00: after a hit, a ram backs off and wanders away for a while (and heads off the mountain)
+      if (ram.flee > 0){
+        ram.flee--;
+        if (ram.flee % 30 === 0){
+          const opts = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}].map(d => {
+            const nx = clamp(ram.x + d.dx, 0, GRID_W - 1), ny = clamp(ram.y + d.dy, 0, GRID_H - 1);
+            const away = Math.abs(nx - game.playerX) + Math.abs(ny - game.playerY);
+            return { nx, ny, dx: d.dx, score: away * 2 - (mtnSolid(nx, ny) ? 3 : 0) - (mtnAt(nx, ny) ? 2 : 0) + Math.random() };
+          }).sort((a, b) => b.score - a.score);
+          ram.x = opts[0].nx; ram.y = opts[0].ny; if (opts[0].dx) ram.facing = opts[0].dx;
+        }
+        return;
+      }
+      // it lowers its head for a moment before charging, so you have time to step away
+      if (distance === 1){ ram.chargeT = (ram.chargeT || 0) + 1; } else ram.chargeT = 0;
+      if(distance === 1 && ram.chargeT < 35){
+        if (ram.chargeT === 1 && performance.now() - (ram.warnAt || 0) > 3000){ ram.warnAt = performance.now(); setHud("🐏 RAM ABOUT TO CHARGE!"); beep(120, 0.08, "sawtooth", 0.12); }
+      } else if(distance === 1){
+        ram.chargeT = 0;
         // Ram charges immediately towards player
         const dirs = [];
         if (ram.x < game.playerX) dirs.push({dx: 1, dy: 0});
@@ -6179,8 +7027,20 @@ function initWildHorse(){
         if(dir.dx !== 0) ram.facing = dir.dx;
       }
       
+      // v2.97: rams are mountain goats: they climb anywhere on the rock. The Bigfoot stick keeps them off you.
+      if(ram.x === game.playerX && ram.y === game.playerY && !inSanctuary() && bigfootProtected()){
+        if (performance.now() - bigfootProtectNote > 4000){
+          bigfootProtectNote = performance.now();
+          logEvent("bonus", "🐏 The ram bounced off! The Bigfoot stick protects you.");
+          setHud("🦶 PROTECTED!");
+          beep(500, 0.06, "sine", 0.08);
+        }
+        ram.x = ramOX; ram.y = ramOY;
+        return;
+      }
       // Check if ram hit the player
       if(ram.x === game.playerX && ram.y === game.playerY && !inSanctuary()){
+        ram.flee = randInt(6, 9) * 60;   // v3.00: back off after hitting you
         // Ram sound - low thumping
         beep(150, 0.12, "sawtooth", 0.3);
         setTimeout(() => beep(180, 0.1, "sawtooth", 0.25), 80);
@@ -6202,16 +7062,32 @@ function initWildHorse(){
         } else {
           // Knock player 3-5 squares in random direction (more aggressive!)
           const knockDist = randInt(3, 5);
+          // v2.97: on a mountain trail, the ram knocks you back DOWN the trail instead
+          const tm = (typeof mtnAt === "function") ? mtnAt(game.playerX, game.playerY) : null;
+          if (tm){
+            const ti = mtnTrailIndex(tm, game.playerX, game.playerY), to = Math.max(0, ti - knockDist);
+            game.playerX = tm.trail[to][0]; game.playerY = tm.trail[to][1];
+            if (ti === 0){   // already at the bottom: get bumped off onto open ground beside the trailhead
+              const off = [[0,1],[-1,0],[1,0],[0,-1]].map(d => [game.playerX + d[0], game.playerY + d[1]])
+                .find(q => q[0] >= 0 && q[1] >= 0 && q[0] < GRID_W && q[1] < GRID_H && !mtnSolid(q[0], q[1]) && !mtnAt(q[0], q[1]));
+              if (off){ game.playerX = off[0]; game.playerY = off[1]; }
+            }
+            logEvent("ram", ti - to > 0 ? `🐏 Ram knocked you ${ti - to} step${ti - to === 1 ? "" : "s"} down the trail!` : "🐏 Ram bumped you at the trailhead!");
+            setHud("KNOCKED DOWN THE TRAIL!");
+            updateUI();
+          } else {
           const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
           const knockDir = dirs[randInt(0, 3)];
           
           for (let i = 0; i < knockDist; i++){
-            game.playerX = clamp(game.playerX + knockDir.dx, 0, GRID_W - 1);
-            game.playerY = clamp(game.playerY + knockDir.dy, 0, GRID_H - 1);
+            const kx = clamp(game.playerX + knockDir.dx, 0, GRID_W - 1), ky = clamp(game.playerY + knockDir.dy, 0, GRID_H - 1);
+            if (mtnSolid(kx, ky)) break;   // v2.96: you bounce off the mountainside
+            game.playerX = kx; game.playerY = ky;
           }
           logEvent("ram", `🐏 Ram knocked you ${knockDist} squares!`);
           setHud("KNOCKED BACK!");
           updateUI();
+          }
         }
       }
     });
@@ -6295,7 +7171,10 @@ function initWildHorse(){
 }
         
         // Check if player got hit
-        if(game.playerX === lightningWarning.x && game.playerY === lightningWarning.y && !inSanctuary()){
+        if(game.playerX === lightningWarning.x && game.playerY === lightningWarning.y && !inSanctuary() && (bigfootProtected() || featherProtected())){
+          logEvent("bonus", featherProtected() ? "⚡ Lightning fizzled! The eagle's golden bundle protects you." : "⚡ Lightning fizzled! The Bigfoot stick protects you.");
+          setHud("🦶 PROTECTED!");
+        } else if(game.playerX === lightningWarning.x && game.playerY === lightningWarning.y && !inSanctuary()){
           // Player struck by lightning! Lose a life
           game.lives--;
           logEvent("lightning", "⚡ STRUCK BY LIGHTNING!");
@@ -6352,6 +7231,7 @@ function initWildHorse(){
       
       // Don't strike the hole
       if(targetX === game.holeX && targetY === game.holeY) return;
+      if (mtnSolid(targetX, targetY)) return;   // v2.96: strikes land on open ground or the trail
       
       lightningWarning = {
         x: targetX,
@@ -6532,53 +7412,7 @@ function initWildHorse(){
     }
   }
   
-  function drawMountainClouds(){
-    const theme = currentLevelTheme().name;
-    if(theme !== "Mountain Stick" && theme !== "Victory Stick") return;
-    if(mountainClouds.length === 0) return;
-    
-    // Update cloud positions
-    mountainClouds.forEach(cloud => {
-      cloud.x += cloud.drift;
-      if(cloud.x < -0.5) cloud.x = GRID_W;
-      if(cloud.x > GRID_W) cloud.x = -0.5;
-    });
-    
-    // Draw mist wisps: soft feathered blobs (no hard edges), each wisp a different shape
-    const tm = Date.now() * 0.001;
-    mountainClouds.forEach(cloud => {
-      if (!cloud.puffs) cloud.puffs = makeMistPuffs();
-      const len = cloud.len || 1.2;
-      const ph = cloud.phase || 0;
-      const cx = cloud.x * TILE + TILE/2;
-      const cy = cloud.y * TILE + TILE/2 + Math.sin(tm * 0.6 + ph) * 1.2;
-      const breathe = 0.8 + 0.2 * Math.sin(tm * 0.8 + ph);
-      ctx.save();
-      // soft continuous streak underneath ties the blobs into one wisp
-      ctx.save();
-      ctx.translate(cx, cy); ctx.scale(1, 0.32);
-      const sw = len * TILE * 0.62;
-      const base = ctx.createRadialGradient(0, 0, 0, 0, 0, sw);
-      base.addColorStop(0, `rgba(245,238,230,${0.40 * breathe})`);
-      base.addColorStop(0.6, `rgba(230,220,210,${0.16 * breathe})`);
-      base.addColorStop(1, "rgba(220,210,200,0)");
-      ctx.fillStyle = base;
-      ctx.beginPath(); ctx.arc(0, 0, sw, 0, Math.PI * 2); ctx.fill();
-      ctx.restore();
-      cloud.puffs.forEach((pf, k) => {
-        const px = cx + pf.t * len * TILE + Math.sin(tm * 0.9 + ph + k) * 0.8;  // puffs shift a hair = wispy
-        const py = cy + pf.dy * TILE;
-        const r = pf.r * TILE * (1 + 0.08 * Math.sin(tm * 1.1 + k + ph));
-        const g = ctx.createRadialGradient(px, py - r * 0.2, 0, px, py, r);
-        g.addColorStop(0, `rgba(255,252,248,${0.55 * pf.a * breathe})`);
-        g.addColorStop(0.55, `rgba(236,228,220,${0.30 * pf.a * breathe})`);
-        g.addColorStop(1, "rgba(220,210,200,0)");
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
-      });
-      ctx.restore();
-    });
-  }
+  
   
   function drawRams(){
     const theme = currentLevelTheme().name;
@@ -6799,6 +7633,7 @@ function initWildHorse(){
       const m = shadowMonsters[i];
       m.pulse = (m.pulse + 0.1) % (Math.PI * 2);
       
+      const smOX = m.x, smOY = m.y;
       m.moveTimer--;
       if (m.moveTimer <= 0){
         m.moveTimer = randInt(60, 120);
@@ -6822,6 +7657,7 @@ function initWildHorse(){
         }
       }
       
+      if (mtnSolid(m.x, m.y)){ m.x = smOX; m.y = smOY; }   // v2.96: not through mountains
       if (m.x === game.playerX && m.y === game.playerY &&
           !(game.playerX === game.holeX && game.playerY === game.holeY)){
         if (activeShield > 0){
@@ -12969,7 +13805,7 @@ function sfxMonsterVictoryStreak(){
     "Sun Stick":     "Bask in the sun — it blesses you with bonus sticks.",
     "Sky Stick":     "Birds snatch sticks and gusts shove you; planes give lifts.",
     "Fire Stick":    "Don't linger in the fire — and a demon is hunting you.",
-    "Mountain Stick":"A mountain's number is how many moves it takes to climb over it. Peak sticks are worth extra! Dodge rams and lightning.",
+    "Mountain Stick":"Mountains are solid rock. Take the TRAIL to the summit for a big peak stick, then slide back down! If the eagle lands on a peak, climb up for its golden stick bundle (x25 or more)!",
     "Cursed Stick":  "A spirit wants your sticks — keep moving or get possessed.",
     "Banana Stick":  "Peels send you sliding and monkeys grab your stash.",
     "Ice Stick":     "Ice freezes you, wind pushes you, a snowman gives chase.",
@@ -13358,7 +14194,16 @@ function sfxMonsterVictoryStreak(){
         halo.addColorStop(0, "rgba(255,255,255,0.10)"); halo.addColorStop(1, "rgba(255,255,255,0)");
         ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(sx, sy, 62, 0, Math.PI * 2); ctx.fill();
         ctx.translate(sx, sy); ctx.scale(s, s); ctx.translate(-pw.x, -pw.y);
-        talkZooming = true; drawPlayer(); talkZooming = false;
+        // v3.00: draw the stick into its own layer, then fade the layer as one piece
+        const main = ctx, cv = main.canvas;
+        if (!drawLevelIntro.layer) drawLevelIntro.layer = document.createElement("canvas");
+        const lay = drawLevelIntro.layer;
+        if (lay.width !== cv.width || lay.height !== cv.height){ lay.width = cv.width; lay.height = cv.height; }
+        const lctx = lay.getContext("2d");
+        lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clearRect(0, 0, lay.width, lay.height);
+        lctx.setTransform(main.getTransform()); lctx.globalAlpha = 1;
+        try { ctx = lctx; talkZooming = true; drawPlayer(); } finally { talkZooming = false; ctx = main; }
+        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = a; ctx.drawImage(lay, 0, 0);
         ctx.restore();
         ctx.save(); const lp = levelIntro.line.split("|");
         ctx.font = "900 14px ui-monospace, Menlo, Consolas, monospace"; let mw = ctx.measureText(lp[0]).width;
@@ -13511,6 +14356,10 @@ function sfxMonsterVictoryStreak(){
       if ((x===game.playerX && y===game.playerY) || isHole(x,y) || isOccupiedByStick(x,y)) continue;
       if (!game.lifeTileUsed && x===game.lifeTileX && y===game.lifeTileY) continue;
       if (game.treeActive && x===game.treeX && y===game.treeY) continue;
+      if (mtnSolid(x, y)) continue;   // v2.96: never inside a mountain
+      if (creekAt(x, y)) continue;    // v3.07: or in the creek
+      if (mountains.length && mountains.some(m => x >= m.x0 && x < m.x0 + m.w && y >= m.top && y <= m.base && !mtnAt(x, y))) continue;   // v3.07: keep the mountain's sides clear (trail stones are fine)
+      if (mountains.length && mountains.some(m => m.summit.x === x && m.summit.y === y)) continue;   // v3.02: summits are for peak sticks
       
       // Avoid hazard tiles
       if (fireTiles && fireTiles.some(f => f.x === x && f.y === y)) continue;
@@ -13571,6 +14420,7 @@ function sfxMonsterVictoryStreak(){
     function isHazard(x,y){
       try{
         if (typeof isHole === 'function' && isHole(x,y)) return true;
+        if (mtnSolid(x, y)) return true;   // v2.96: never start inside a mountain
         if (typeof fireTiles !== 'undefined' && fireTiles && fireTiles.some(f => f.x === x && f.y === y)) return true;
         if (typeof windTiles !== 'undefined' && windTiles && windTiles.some(w => w.x === x && w.y === y)) return true;
         if (typeof freezeTiles !== 'undefined' && freezeTiles && freezeTiles.some(f => f.x === x && f.y === y)) return true;
@@ -13615,6 +14465,7 @@ function sfxMonsterVictoryStreak(){
     function isHazard(x,y){
       try{
         if (typeof isHole === 'function' && isHole(x,y)) return true;
+        if (mtnSolid(x, y)) return true;   // v2.96: never start inside a mountain
         if (typeof fireTiles !== 'undefined' && fireTiles && fireTiles.some(f => f.x === x && f.y === y)) return true;
         if (typeof windTiles !== 'undefined' && windTiles && windTiles.some(w => w.x === x && w.y === y)) return true;
         if (typeof freezeTiles !== 'undefined' && freezeTiles && freezeTiles.some(f => f.x === x && f.y === y)) return true;
@@ -16341,102 +17192,47 @@ Clear all sticks to advance — watch out for obstacles.`;
       }
     }
     
-    // Check if we're currently climbing a mountain
+    // v2.96 trail mountains: the rock is solid; only the trail goes up. From the summit (once the peak
+    // stick is yours) any step back onto the trail slides you all the way down to the trailhead.
     const themeName = currentLevelTheme().name;
-    if(themeName === "Mountain Stick" || themeName === "Victory Stick"){
-      // Check if currently on a mountain that's being climbed
-      const currentMountain = getMountainAt(game.playerX, game.playerY);
-      if(currentMountain && currentMountain.currentClimb > 0){
-        // We're climbing - spend action to continue
-        if (!spendAction()){
-          return;
-        }
-        
-        currentMountain.currentClimb--;
-        
-        if (currentMountain.currentClimb <= 0){
-          // Finished climbing! Now check if moving to another mountain
-          logEvent("climb", "✓ Mountain cleared!");
-          setHud("MOUNTAIN CLEAR!");
-          beep(600, 0.15, "sine", 0.18);
-          setTimeout(() => beep(800, 0.1, "sine", 0.15), 100);
-          
-          // Check for peak stick on this mountain before leaving
-          const peakStick = peakSticks.find(ps => ps.x === game.playerX && ps.y === game.playerY && !ps.collected);
-          if(peakStick && game.carry.length < carryCap()){
-            peakStick.collected = true;
-            const mult = peakStick.mult || 2;
-            game.carry.push({ color: peakStick.color, value: mult, fromPeak: true });
-            logEvent("bonus", `⛰️ Peak stick collected! (x${mult} value)`);
-            setHud(`⛰️ PEAK x${mult}!`);
-            beep(700, 0.15, "sine", 0.1);
-            setTimeout(() => beep(900, 0.15, "sine", 0.1), 100);
-            setTimeout(() => beep(1100, 0.2, "sine", 0.12), 200);
-            spawnSparks(game.playerX, game.playerY, 25, false);
-          }
-          
-          // Check if new position has a mountain
-          const nextMountain = getMountainAt(newX, newY);
-          if(nextMountain && nextMountain !== currentMountain){
-            // Moving onto another mountain immediately
-            game.playerX = newX;
-            game.playerY = newY;
-            nextMountain.currentClimb = nextMountain.difficulty - 1;
-            if(nextMountain.currentClimb > 0){
-              logEvent("climb", `Entered another mountain (difficulty ${nextMountain.difficulty}). Need ${nextMountain.currentClimb} more.`);
-              setHud(`CLIMBING (${nextMountain.currentClimb})`);
-            }
-          } else {
-            // Move to empty space
-            game.playerX = newX;
-            game.playerY = newY;
-          }
-          beep(220,0.03,"triangle",0.02);
-        } else {
-          // Still climbing - countdown shown on mountain
-          logEvent("climb", `Climbing... ${currentMountain.currentClimb} more`);
-          setHud(`CLIMBING (${currentMountain.currentClimb})`);
-          beep(450, 0.08, "sine", 0.12);
-        }
-        
-        updateUI();
+    if ((themeName === "Mountain Stick" || themeName === "Victory Stick") && mountains.length){
+      if (mtnSolid(newX, newY)){
+        mtnBlockedHint(newX, newY);
         return;
       }
-      
-      // Check if moving onto a new mountain
-      const targetMountain = getMountainAt(newX, newY);
-      if(targetMountain){
-        // Moving onto mountain - start climbing
-        if (!spendAction()) return;
-        
-        game.playerX = newX;
-        game.playerY = newY;
-        
-        // Set climb counter (minus 1 because entering used an action)
-        targetMountain.currentClimb = targetMountain.difficulty - 1;
-        
-        if(targetMountain.currentClimb > 0){
-          logEvent("climb", `Entered mountain (difficulty ${targetMountain.difficulty}). Need ${targetMountain.currentClimb} more.`);
-          setHud(`CLIMBING (${targetMountain.currentClimb})`);
-          beep(400, 0.1, "sine", 0.15);
-        } else {
-          // Easy mountain (diff 2 with 1 action) - already crossed
-          logEvent("climb", `Crossed small hill.`);
-          beep(300, 0.05, "sine", 0.1);
-        }
-        
-        beep(220,0.03,"triangle",0.02);
-        updateUI();
-        return;
+      if (newX !== game.playerX || newY !== game.playerY){
+        const tmTo = mtnAt(newX, newY), tmFrom = mtnAt(game.playerX, game.playerY);
+        const iTo = tmTo ? mtnTrailIndex(tmTo, newX, newY) : -1, iFrom = tmFrom ? mtnTrailIndex(tmFrom, game.playerX, game.playerY) : -1;
+        const slideOk = tmFrom && tmFrom.peakCollected && iFrom === tmFrom.trail.length - 1 && tmTo === tmFrom;
+        const ok = slideOk ||
+          (tmTo && tmFrom === tmTo && Math.abs(iTo - iFrom) === 1) ||          // next / previous stone
+          (tmTo && iTo <= 2 && !(tmFrom && iFrom > 2)) ||                      // v3.05: step on anywhere along the bottom 3 stones
+          (!tmTo && (!tmFrom || iFrom <= 2));                                  // ordinary ground, or stepping off near the bottom
+        if (!ok){ mtnBlockedHint(newX, newY, !!tmFrom && iFrom > 0); return; }
+      }
+      if (mtnSlide && performance.now() - mtnSlide.t0 < mtnSlide.dur + 100) return;   // still sliding
+      mtnSlide = null;
+      const sm = mountains.find(m => m.peakCollected && m.summit.x === game.playerX && m.summit.y === game.playerY);
+      if (sm && (newX !== game.playerX || newY !== game.playerY) && mtnTrailIndex(sm, newX, newY) >= 0){
+        newX = sm.trailhead.x; newY = sm.trailhead.y;
+        mtnSlide = { pts: sm.trail.slice().reverse().map(t => [t[0], t[1]]), t0: performance.now(), dur: 350 + sm.steps * 70 };
+        logEvent("climb", "🛝 Wheee! Slid all the way down the trail.");
+        setHud("🛝 WHEEE! SLIDING DOWN!");
+        try { fxPop("WHEEE!", "#7fd8ff", 13); } catch(_){}
+        [900, 750, 600, 450].forEach((f, k) => setTimeout(() => beep(f, 0.06, "sine", 0.08), k * 60));
       }
     }
-    
+
     // Normal movement
     // Snake Stick pond tiles are "heavy" water: 2 actions to step through.
     let moveCost = 1;
     // if (currentLevelTheme().name === \"Snake Stick\" && isSnakePondTile(newX, newY)) moveCost = 2; // removed
+    // v3.07: wading across the Mountain Stick creek takes 2 moves; the log bridges take 1
+    const wadeCreek = currentLevelTheme().name === "Mountain Stick" && creekAt(newX, newY) && !creekBridge(newX, newY) && !mtnSlide;
+    if (wadeCreek) moveCost = 2;
 if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
-      setHud("POND: NEED 2");
+      setHud(wadeCreek ? "🌊 WADING TAKES 2 MOVES (BRIDGE = 1)" : "POND: NEED 2");
+      try { if (wadeCreek) fxPop("Wading takes 2 moves", "#7fd8ff", 11); } catch(_){}
       beep(120, 0.06, "square", 0.10);
       return;
     }
@@ -16447,6 +17243,8 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     game.playerX = newX;
     game.playerY = newY;
     tutorialEvent("move");
+    try { if (mountains.length) mtnAfterMove(); } catch(_){}
+    if (wadeCreek){ try { fxPop("Splash!", "#7fd8ff", 11); } catch(_){} [700, 500].forEach((f, k) => setTimeout(() => beep(f, 0.05, "triangle", 0.05), k * 50)); }
     beep(220,0.03,"triangle",0.02);
 
     if (tunnelWarp){
@@ -17967,6 +18765,15 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   function fxPlayerPos(){
     const tx = game.playerX, ty = game.playerY;
     if (fxNoSmooth) return { x: tx, y: ty, hop: 0 };
+    // v3.03: sliding down a mountain: ride the trail from the summit back to the start
+    if (mtnSlide){
+      const k = Math.min(1, (performance.now() - mtnSlide.t0) / mtnSlide.dur), e = k * k * (3 - 2 * k);
+      const pts = mtnSlide.pts, f = e * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(f)), u = f - i;
+      const x = pts[i][0] + (pts[i + 1][0] - pts[i][0]) * u, y = pts[i][1] + (pts[i + 1][1] - pts[i][1]) * u;
+      fx.vx = x; fx.vy = y; fx.lastT = performance.now();
+      if (k >= 1) mtnSlide = null;
+      return { x, y, hop: 0 };
+    }
     const now = performance.now(), dt = Math.min(0.05, fx.lastT ? (now - fx.lastT) / 1000 : 0.016);
     fx.lastT = now;
     if (fx.vx === null || Math.abs(tx - fx.vx) > 1.5 || Math.abs(ty - fx.vy) > 1.5){ fx.vx = tx; fx.vy = ty; }
@@ -18834,8 +19641,9 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     }
     // v2.82 WADING: on Sea Stick, out in the water (not on an island or the hole) your stick is shown
     // waist-deep: everything below the waterline is hidden, with a ripple ring and a gentle bob.
-    const wading = !fxNoSmooth && !talkZooming && currentLevelTheme().name === "Sea Stick" &&
-                   !(game.playerX === game.holeX && game.playerY === game.holeY) && !(typeof onIsland === "function" && onIsland(game.playerX, game.playerY));
+    const wading = !fxNoSmooth && !talkZooming && ((currentLevelTheme().name === "Sea Stick" &&
+                   !(game.playerX === game.holeX && game.playerY === game.holeY) && !(typeof onIsland === "function" && onIsland(game.playerX, game.playerY))) ||
+                   (currentLevelTheme().name === "Mountain Stick" && creekAt(game.playerX, game.playerY) && !creekBridge(game.playerX, game.playerY) && !mtnSlide));
     const WL = 6.5;   // waterline, just below the waist
     if (wading){
       ctx.translate(0, 2.5 + Math.sin(Date.now() * 0.003) * 0.6);   // sit a little lower and bob
@@ -20964,6 +21772,8 @@ ctx.restore();
       updateRams();
       updateLightning();
       updatePeakSticks();
+      updateBigfoot();
+      updateEagle();
     }
     
     // Update Cursed Stick features
@@ -21093,6 +21903,7 @@ ctx.restore();
 
 
     // sticks
+    drawStreams(); drawCreek(); drawMountainClouds(); drawMountains(); drawWaterfall(); drawBigfootPrints(); drawPeakSticks(); drawMtnHint();   // v3.05: clouds drift behind the mountains so they never hide the trail   // v2.96: mountains, peak sticks and clouds sit under the sticks and player
     for (const s of game.sticks) drawStick(s);
 
     // hole + player glow (behind player)
@@ -21100,6 +21911,8 @@ ctx.restore();
     if (theme.name === "Night Stick"){
       drawPlayerGlow();
     }
+    drawBigfootCarry();   // v2.97: gold glow + the Bigfoot stick in hand
+    drawFeatherCarry();   // v3.07: the eagle's golden feather floats above you
 
     drawPlayer();
 
@@ -21144,10 +21957,9 @@ ctx.restore();
     }
     
     // Draw mountains (Mountain Stick)
-    drawPeakSticks(); // Draw first so mountain's YOU arrow shows on top
-    drawMountains();
-    drawMountainClouds();
     drawRams();
+    drawBigfoot();
+    drawEagle();
     drawLightning();
     
     // Draw Sky Stick clouds and airplane
