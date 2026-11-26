@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v3.36</span></div>
+          <div>STICKS <span class="badge">v3.37</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -22412,11 +22412,21 @@ ctx.restore();
       ctx.lineTo(6, -19 - antennaBob);
       ctx.stroke();
 
+      // v3.37: neon green glowing antenna tips (were yellow)
+      ctx.save();
+      const tipGlow = 0.7 + Math.sin(time * 4) * 0.3;
+      ctx.shadowColor = "#39ff14"; ctx.shadowBlur = 6 + tipGlow * 6;
+      ctx.fillStyle = "#5dff3a";
       ctx.beginPath();
-      ctx.fillStyle = "#ffd166";
-      ctx.arc(-6, -20 + antennaBob, 1.6, 0, Math.PI*2);
-      ctx.arc(6, -20 - antennaBob, 1.6, 0, Math.PI*2);
+      ctx.arc(-6, -20 + antennaBob, 1.7, 0, Math.PI*2);
+      ctx.arc(6, -20 - antennaBob, 1.7, 0, Math.PI*2);
       ctx.fill();
+      ctx.fillStyle = "rgba(230,255,220,0.9)";
+      ctx.beginPath();
+      ctx.arc(-6.4, -20.4 + antennaBob, 0.55, 0, Math.PI*2);
+      ctx.arc(5.6, -20.4 - antennaBob, 0.55, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
       ctx.strokeStyle = strokeBase;
 
       ctx.beginPath();
@@ -22551,20 +22561,19 @@ ctx.restore();
       ctx.restore();
       ctx.strokeStyle = strokeBase;
 
-      // eyes (RED pulsating glow!)
-      ctx.save();
-      ctx.shadowColor = "#ff1f3a";
-      ctx.shadowBlur = 4 + eyePulse * 6;
-      ctx.fillStyle = "rgba(255,31,58," + eyeGlow + ")";
-      ctx.fillRect(-4, -10, 3, 2);
-      ctx.fillRect(1, -10, 3, 2);
-      ctx.restore();
-      
-      // Eye outlines
-      ctx.beginPath();
-      ctx.rect(-4, -10, 3, 2);
-      ctx.rect(1, -10, 3, 2);
-      ctx.stroke();
+      // v3.37: Knight Rider visor - a red light sweeping back and forth with a fading trail
+      ctx.save(); ctx.shadowBlur = 0;
+      ctx.fillStyle = "#0c0f14"; ctx.fillRect(-4.6, -10.3, 9.2, 2.8);
+      ctx.beginPath(); ctx.rect(-4.6, -10.3, 9.2, 2.8); ctx.clip();
+      const scanT = Date.now() * 0.0024, scanX = Math.sin(scanT) * 3.4, scanV = Math.cos(scanT);
+      for (let k = 5; k >= 0; k--){
+        const tx = scanX - Math.sign(scanV || 1) * k * 0.75, a = k === 0 ? 1 : 0.55 * (1 - k / 6);
+        ctx.fillStyle = "rgba(255," + (k === 0 ? 70 : 20) + ",40," + a.toFixed(2) + ")";
+        ctx.fillRect(tx - 0.9, -9.6, 1.8, 1.4);
+      }
+      ctx.shadowColor = "#ff1f3a"; ctx.shadowBlur = 6; ctx.fillStyle = "#ff3b4f"; ctx.fillRect(scanX - 0.9, -9.6, 1.8, 1.4);
+      ctx.restore(); ctx.strokeStyle = strokeBase;
+      ctx.beginPath(); ctx.rect(-4.6, -10.3, 9.2, 2.8); ctx.lineWidth = 0.8; ctx.stroke(); ctx.lineWidth = 2;
 
       // body
       ctx.beginPath();
