@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v3.19</span></div>
+          <div>STICKS <span class="badge">v3.36</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -1098,7 +1098,7 @@
       <div class="modalText" style="color:#9fb1c6">Stored only on this device (local browser storage).</div>
 
       <div style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap;">
-        <input id="nameInput" maxlength="16" placeholder="ENTER NAME"/>
+        <input id="nameInput" maxlength="16" placeholder="ENTER NAME" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go"/>
         <button id="nameStartBtn" class="saveBtn startActionBtn">Start</button>
       </div>
 
@@ -1310,7 +1310,7 @@
   const LEVELS = [
     { name:"Night Stick",   bg:"#070a0e", grid:"#0f1720", border:"#1f2a37", accent:"#ffd700", accentGlow:"rgba(255,215,0,.35)", accentShadow:"rgba(255,215,0,.28)" },
     { name:"Sparkle Stick", bg:"#9b7bb8", grid:"#e8dff0", border:"#d8a0e8", accent:"#f0c0ff", accentGlow:"rgba(240,192,255,.50)", accentShadow:"rgba(200,160,230,.35)" },
-    { name:"Sun Stick",     bg:"#140a03", grid:"#4a3a06", border:"#ffd400", accent:"#ffd400", accentGlow:"rgba(255,212,0,.46)", accentShadow:"rgba(255,212,0,.28)" },
+    { name:"Forest Stick",  bg:"#111a13", grid:"#22342a", border:"#7fb069", accent:"#9ccc65", accentGlow:"rgba(156,204,101,.46)", accentShadow:"rgba(156,204,101,.28)" },   // v3.20: took Sun Stick's slot
     { name:"Sky Stick",     bg:"#1f4479", grid:"#2d5a95", border:"#1172ff", accent:"#3aa7ff", accentGlow:"rgba(58,167,255,.46)", accentShadow:"rgba(58,167,255,.30)" },
     { name:"Fire Stick",    bg:"#1a0509", grid:"#361017", border:"#ff1f3a", accent:"#ff5a6a", accentGlow:"rgba(255,31,58,.46)", accentShadow:"rgba(255,90,106,.30)" },
     { name:"Mountain Stick", bg:"#2b1f1a", grid:"#5c4a3a", border:"#8b7355", accent:"#a0826d", accentGlow:"rgba(160,130,109,.46)", accentShadow:"rgba(160,130,109,.28)" },
@@ -3039,6 +3039,36 @@
     });
   }
   
+  function drawSkyPlane(x, y, ang){
+    const time = performance.now() * 0.001;
+    ctx.save();
+    // its shadow on the ground, offset down-right
+    ctx.save(); ctx.translate(x + 9, y + 12); ctx.rotate(ang); ctx.fillStyle = "rgba(0,20,50,0.25)";
+    ctx.beginPath(); ctx.ellipse(0, 0, 19, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(4, 0); ctx.lineTo(-6, -19); ctx.lineTo(-10, -19); ctx.lineTo(-4, 0); ctx.lineTo(-10, 19); ctx.lineTo(-6, 19); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.translate(x, y + Math.sin(time * 1.6) * 0.8); ctx.rotate(ang); ctx.lineJoin = "round";
+    const RED = "#e63946", RED_D = "#b02a35";
+    // main wings, swept back, with engines under them
+    for (const sd of [-1, 1]){
+      ctx.fillStyle = RED; ctx.beginPath(); ctx.moveTo(5, sd * 2.6); ctx.lineTo(-5, sd * 2.6); ctx.lineTo(-12, sd * 19); ctx.lineTo(-7, sd * 19); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = RED_D; ctx.beginPath(); ctx.moveTo(-12, sd * 19); ctx.lineTo(-7, sd * 19); ctx.lineTo(-6.4, sd * 17.6); ctx.lineTo(-11.4, sd * 17.6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#d8dde6"; ctx.beginPath(); ctx.ellipse(1, sd * 8.5, 4.2, 1.7, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#4b5563"; ctx.fillRect(4.6, sd * 8.5 - 1.2, 0.9, 2.4);
+      // tail wings
+      ctx.fillStyle = RED; ctx.beginPath(); ctx.moveTo(-13, sd * 1.6); ctx.lineTo(-17, sd * 1.6); ctx.lineTo(-20, sd * 7.5); ctx.lineTo(-17.5, sd * 7.5); ctx.closePath(); ctx.fill();
+    }
+    // body: long and rounded, lit from above
+    const bg = ctx.createLinearGradient(0, -3.2, 0, 3.2); bg.addColorStop(0, "#ffffff"); bg.addColorStop(0.6, "#eef1f6"); bg.addColorStop(1, "#b9c2cf");
+    ctx.fillStyle = bg; ctx.beginPath(); ctx.moveTo(18, 0); ctx.quadraticCurveTo(17, -3.2, 11, -3.2); ctx.lineTo(-14, -3); ctx.quadraticCurveTo(-21, -1.6, -21, 0);
+    ctx.quadraticCurveTo(-21, 1.6, -14, 3); ctx.lineTo(11, 3.2); ctx.quadraticCurveTo(17, 3.2, 18, 0); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(40,60,90,0.35)"; ctx.lineWidth = 0.5; ctx.stroke();
+    ctx.fillStyle = RED; ctx.fillRect(-20, -0.6, 7, 1.2);                     // the tail fin seen from above
+    ctx.fillStyle = "#1e3a5f"; ctx.beginPath(); ctx.moveTo(16.2, -1.4); ctx.quadraticCurveTo(17.6, 0, 16.2, 1.4); ctx.lineTo(14.4, 1.2); ctx.lineTo(14.4, -1.2); ctx.closePath(); ctx.fill();   // cockpit
+    // blinking wingtip lights
+    if (Math.sin(time * 6) > 0.6){ ctx.fillStyle = "#ff4d4d"; ctx.beginPath(); ctx.arc(-9.5, -19, 1, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#4dff88"; ctx.beginPath(); ctx.arc(-9.5, 19, 1, 0, Math.PI * 2); ctx.fill(); }
+    ctx.restore();
+  }
   function drawSkyClouds(){
     // Draw clouds: soft blue-gray underside, white body, bright top (reads well on the twilight sky)
     skyClouds.forEach(cloud => {
@@ -3109,21 +3139,16 @@
     else if(airplane.dy > 0 && airplane.dx === 0) targetAngle = Math.PI / 2; // Down = 90°
     else if(airplane.dy < 0 && airplane.dx === 0) targetAngle = -Math.PI / 2; // Up = -90°
     
-    // Rotate from default to target (ADD Math.PI to reverse direction)
-    ctx.rotate(targetAngle - defaultAngle + Math.PI);
-    
-    ctx.font = "38px Arial";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText("✈️", 0, 0);
-    
+    // v3.35: a drawn airliner seen from above (matches the preview slide: white body, red swept wings and tail)
     ctx.restore();
+    drawSkyPlane(ax, ay, targetAngle);
     
     // If carrying player, draw stick figure attached
     if(airplane.carrying){
       ctx.font = "18px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      ctx.globalAlpha = 1; ctx.fillStyle = "#000";
       ctx.fillText("🧍", ax, ay + TILE * 0.5);
     }
     
@@ -3986,6 +4011,7 @@
     // nothing may sit inside the rock: move any sticks (and the life tile) out onto open ground
     if (game && game.sticks) for (const s of game.sticks){ if (mtnSolid(s.x, s.y) || mountains.some(m => m.summit.x === s.x && m.summit.y === s.y)){ const p = randomEmptyTile(); s.x = p.x; s.y = p.y; } }
     if (!game.lifeTileUsed && mtnSolid(game.lifeTileX, game.lifeTileY)){ const p = randomEmptyTile(); game.lifeTileX = p.x; game.lifeTileY = p.y; }
+    mtnFixHole();   // v3.28
     initCreek(); eagleReset();
     // puffy clouds, each its own shape, drifting slowly across
     mountainClouds = [];
@@ -5668,7 +5694,7 @@ function initWildHorse(){
   // waving, with big footprints up that trail. Reach him and he gives you the Bigfoot stick: worth x50,
   // and while you carry it, rams and lightning can't hurt you (a warm gold glow on your stick).
   const BIGFOOT_VALUE = 50, BIGFOOT_STAY = 50 * 60, BIGFOOT_LEAVE = 2 * 60;
-  const BIGFOOT_LEVEL = "Forest Stick";   // v3.07: Bigfoot is moving to his own forest level (the eagle has the mountains)
+  const BIGFOOT_LEVEL = "(retired)";   // v3.20: the old mountain Bigfoot; Forest Stick runs its own Bigfoot   // v3.07: Bigfoot is moving to his own forest level (the eagle has the mountains)
   let bigfoot = null, bigfootWait = 0, bigfootDone = false, bigfootProtectNote = 0;
   const BIGFOOT_LINES = {
     classic: "Was that... Bigfoot?! I'll stick with him.",
@@ -5679,10 +5705,10 @@ function initWildHorse(){
     rick:    "Bigfoot? Please. I've got bigger feet.",
     sally:   "Oh my. Let's be polite and say hello.",
     sick:    "*sniff* Is he... fuzzy? I'm allergic. Worth it.",
-    super:   "A fellow legend! Up, up and over!",
+    super:   "A fellow legend! Up, up and away!",
     dip:     "Is that a really tall dog?",
     law:     "Sir, I'll need to see some ID. ...Never mind.",
-    jogger:  "Race you to the top, big guy!",
+    jogger:  "Race you through the trees, big guy!",
     mystic:  "I predicted him. Obviously.",
     rock:    "Now THAT'S a fan. Hairy, but a fan."
   };
@@ -6094,7 +6120,7 @@ function initWildHorse(){
     scenery = { items: [], patches: [], art: null, seed: Math.floor(Math.random() * 1e9) };
     const T = TILE, taken = [];
     const blocked = (x, y, pad) => {   // x, y in tiles (centers)
-      if (x < 0.8 || y < 0.8 || x > GRID_W - 0.8 || y > GRID_H - 0.8) return true;
+      if (x < 0.8 || y < 3.7 || x > GRID_W - 0.8 || y > GRID_H - 0.8) return true;   // v3.27: no pines up in the sunset sky
       if (mountains.some(m => x > m.x0 - 0.8 - pad && x < m.x0 + m.w + 0.8 + pad && y > m.top - 1 - pad && y < m.base + 2.2 + pad)) return true;
       if (Math.abs(x - (game.holeX + 0.5)) < 1.6 && Math.abs(y - (game.holeY + 0.5)) < 1.6) return true;
       if (game.treeActive && Math.abs(x - (game.treeX + 0.5)) < 1.6 && Math.abs(y - (game.treeY + 0.5)) < 1.6) return true;
@@ -6397,40 +6423,140 @@ function initWildHorse(){
   }
   // flying eagle seen from above: brown wings, white head and tail
   function drawEagleFlying(g, x, y, heading, flap, s){
-    g.save(); g.translate(x, y); g.rotate(heading); g.scale(s, s);
-    const span = 0.75 + Math.sin(flap) * 0.25;
-    g.fillStyle = "#4a3020";
-    for (const sd of [-1, 1]){
-      g.beginPath(); g.moveTo(-2, 0); g.quadraticCurveTo(-1, sd * 9 * span, -6, sd * 16 * span);
-      for (let f = 0; f < 4; f++) g.lineTo(-7 - f * 1.6, sd * (15.5 - f * 0.8) * span), g.lineTo(-6.2 - f * 1.6, sd * (13.5 - f * 0.9) * span);
-      g.quadraticCurveTo(-8, sd * 6 * span, -6, 0); g.closePath(); g.fill();
+    // v3.30: seen from above, with a real eagle's long, broad wings (about twice its body length).
+    // Every feather is a little different, the two wings aren't mirror images, and the "fingers" spread on the downstroke.
+    g.save(); g.translate(x, y); g.rotate(heading); g.scale(s, s); g.lineJoin = "round"; g.lineCap = "round";
+    const beat = Math.sin(flap), span = 0.8 + beat * 0.2, spread = 0.5 + (1 - beat) * 0.5;
+    const jit = (k) => { const v = Math.sin(k * 12.9898) * 43758.5453; return v - Math.floor(v); };   // fixed per-feather variety
+    // white tail fan (slightly uneven)
+    for (let f = -3; f <= 3; f++){
+      const a = Math.PI + f * 0.14, L = 7.6 - Math.abs(f) * 0.35 + jit(f + 40) * 0.7;
+      g.fillStyle = f % 2 ? "#efeee9" : "#ffffff"; g.strokeStyle = "rgba(110,110,110,0.45)"; g.lineWidth = 0.22;
+      g.beginPath(); g.moveTo(-6.2, f * 0.35); g.lineTo(-6.2 + Math.cos(a - 0.07) * L, f * 0.35 + Math.sin(a - 0.07) * L);
+      g.quadraticCurveTo(-6.2 + Math.cos(a) * (L + 0.7), f * 0.35 + Math.sin(a) * (L + 0.7), -6.2 + Math.cos(a + 0.07) * L, f * 0.35 + Math.sin(a + 0.07) * L);
+      g.closePath(); g.fill(); g.stroke();
     }
-    g.fillStyle = "#5a3b25"; g.beginPath(); g.ellipse(-1, 0, 6.5, 2.6, 0, 0, Math.PI * 2); g.fill();
-    g.fillStyle = "#ffffff"; g.beginPath(); g.moveTo(-7, 0); g.lineTo(-11.5, -2.6); g.lineTo(-11.5, 2.6); g.closePath(); g.fill();   // tail
-    g.beginPath(); g.arc(5.6, 0, 2.4, 0, Math.PI * 2); g.fill();                                                                         // head
-    g.fillStyle = "#f2b705"; g.beginPath(); g.moveTo(7.7, -0.9); g.lineTo(10, 0); g.lineTo(7.7, 0.9); g.closePath(); g.fill();          // beak
+    for (const sd of [-1, 1]){
+      const side = sd > 0 ? 0 : 100, W = 15.5 * span * (1 + (jit(side + 7) - 0.5) * 0.05);   // out to where the fingers start
+      // primaries: six separate "fingers" fanning from the narrow hand, middle ones longest
+      const fA = [0.6, W], fB = [-3.6, W - 1.4];
+      for (let f = 0; f < 6; f++){
+        const u = f / 5, bx = fA[0] + (fB[0] - fA[0]) * u, by = fA[1] + (fB[1] - fA[1]) * u;
+        const len = 5.4 + Math.sin((f + 0.6) / 6 * Math.PI) * 2.4 + (jit(side + f) - 0.5) * 1.1;
+        const ang = (0.05 + f * 0.16 * spread) + (jit(side + f + 20) - 0.5) * 0.1;   // tilt back, more on the downstroke
+        g.save(); g.translate(bx, sd * by); g.rotate(sd > 0 ? ang : -ang);
+        g.fillStyle = ["#2b1a0d", "#33200f", "#291809", "#3a2413", "#2e1c0e", "#35210f"][f];
+        g.beginPath(); g.moveTo(-0.6, 0); g.quadraticCurveTo(-0.75, sd * len * 0.6, -0.15, sd * len); g.quadraticCurveTo(0.55, sd * len * 0.6, 0.6, 0); g.closePath(); g.fill();
+        g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = 0.18; g.beginPath(); g.moveTo(0, 0); g.lineTo(-0.12, sd * len * 0.9); g.stroke();
+        g.restore();
+      }
+      // the wing itself: broad at the body, bulging forward at the wrist, narrowing into the hand
+      const wg = g.createLinearGradient(0, sd * 1, -2, sd * W); wg.addColorStop(0, "#5e3d24"); wg.addColorStop(0.6, "#452e1a"); wg.addColorStop(1, "#2f1d0f");
+      g.fillStyle = wg;
+      g.beginPath(); g.moveTo(2.2, sd * 1.6);
+      g.quadraticCurveTo(3.8, sd * W * 0.22, 3.5, sd * W * 0.48);           // forward to the wrist
+      g.quadraticCurveTo(2.8, sd * W * 0.82, 0.8, sd * W);                   // then sweeping back to the hand
+      g.lineTo(-3.8, sd * (W - 1.5));
+      // trailing edge: curving back out to the widest point, then in to the body, scalloped by the secondaries
+      const T = [[-3.8, W - 1.5], [-5.6, W * 0.8], [-7.6, W * 0.62], [-8.6, W * 0.45], [-8.5, W * 0.3], [-7.8, W * 0.16], [-6, 1.4]];
+      for (let k = 1; k < T.length; k++){
+        const p = T[k - 1], q = T[k], d = 0.7 + jit(side + 30 + k) * 0.9;
+        const m1 = [p[0] + (q[0] - p[0]) * 0.5 - d, p[1] + (q[1] - p[1]) * 0.5];
+        g.quadraticCurveTo(m1[0], sd * m1[1], q[0], sd * q[1]);
+      }
+      g.closePath(); g.fill();
+      g.save(); g.clip();
+      g.fillStyle = "rgba(196,150,100,0.2)";                                  // lighter band of covert feathers
+      g.beginPath(); g.moveTo(2.2, sd * 2); g.quadraticCurveTo(3.6, sd * W * 0.22, 3.3, sd * W * 0.5); g.quadraticCurveTo(1.2, sd * W * 0.55, -1.8, sd * W * 0.5);
+      g.quadraticCurveTo(-1.2, sd * W * 0.25, -1.4, sd * 2); g.closePath(); g.fill();
+      g.strokeStyle = "rgba(15,8,3,0.42)"; g.lineWidth = 0.28;               // rows of secondaries, fanning to the trailing edge
+      for (let k = 0; k < 8; k++){ const u = (k + 0.6) / 8.6, y0 = 2 + u * (W - 3), x1 = -8.2 + Math.abs(u - 0.45) * 7;
+        g.beginPath(); g.moveTo(-1.6 - jit(side + 90 + k) * 0.8, sd * y0); g.lineTo(x1, sd * (y0 + 0.5)); g.stroke(); }
+      g.restore();
+    }
+    // body
+    const bg = g.createLinearGradient(-6, 0, 4, 0); bg.addColorStop(0, "#3a2414"); bg.addColorStop(1, "#5e3e26");
+    g.fillStyle = bg; g.beginPath(); g.ellipse(-0.8, 0, 6.8, 2.9, 0, 0, Math.PI * 2); g.fill();
+    // white head with a ragged ruff, hooked yellow beak
+    g.fillStyle = "#ffffff"; g.beginPath(); g.moveTo(3, -2.2);
+    for (let k = 0; k <= 6; k++) g.lineTo(3 - (k % 2) * 0.9 - jit(k + 120) * 0.3, -2.2 + k * 0.73);
+    g.quadraticCurveTo(7.6, 2.4, 7.8, 0); g.quadraticCurveTo(7.6, -2.4, 3, -2.2); g.closePath(); g.fill();
+    g.fillStyle = "#f2b705"; g.beginPath(); g.moveTo(7.5, -0.9); g.quadraticCurveTo(10.4, -0.6, 10.2, 0.6); g.lineTo(7.5, 0.9); g.closePath(); g.fill();
+    g.fillStyle = "#1b1209"; g.beginPath(); g.arc(6.4, -1.3, 0.32, 0, Math.PI * 2); g.arc(6.4, 1.3, 0.32, 0, Math.PI * 2); g.fill();
     g.restore();
   }
   // perched eagle, side view, standing on the peak
   function drawEaglePerched(g, x, y, s, t, alpha){
-    g.save(); g.globalAlpha = alpha; g.translate(x, y); g.scale(s, s);
+    // v3.29: a proper bald eagle: layered feathers, folded wing with primaries, fanned white tail,
+    // feathered legs, a fierce brow, golden eye and a big hooked beak
+    g.save(); g.globalAlpha = alpha; g.translate(x, y); g.scale(s, s); g.lineJoin = "round"; g.lineCap = "round";
     const bob = Math.sin(t * 0.05) * 0.3, flap = (t % 300) < 24 ? Math.sin((t % 300) / 24 * Math.PI) : 0;
     const bl = g.createRadialGradient(0, -12, 1, 0, -12, 18); bl.addColorStop(0, "rgba(255,240,200,0.35)"); bl.addColorStop(1, "rgba(255,240,200,0)");
     g.fillStyle = bl; g.beginPath(); g.arc(0, -12, 18, 0, Math.PI * 2); g.fill();
-    // a quick wing stretch now and then
-    if (flap > 0){ g.fillStyle = "#4a3020";
-      for (const sd of [-1, 1]){ g.beginPath(); g.moveTo(0, -14); g.quadraticCurveTo(sd * 8 * flap, -24 * flap - 10, sd * 15 * flap, -18); g.lineTo(sd * 3, -8); g.closePath(); g.fill(); } }
-    g.fillStyle = "#ffffff"; g.beginPath(); g.moveTo(-1.2, -3); g.lineTo(-4.6, 2.2); g.lineTo(1.6, 1.4); g.closePath(); g.fill();        // tail
-    g.fillStyle = "#4a3020"; g.beginPath(); g.ellipse(0.4, -9 + bob, 4.6, 7.4, 0.12, 0, Math.PI * 2); g.fill();                         // body
-    g.fillStyle = "#5e3e28"; g.beginPath(); g.ellipse(-0.6, -9 + bob, 3.2, 6.4, 0.2, 0, Math.PI * 2); g.fill();                         // folded wing
-    g.strokeStyle = "rgba(255,230,190,0.25)"; g.lineWidth = 0.4;
-    for (let i = 0; i < 4; i++){ g.beginPath(); g.moveTo(-2.6, -12 + i * 2 + bob); g.lineTo(0.8, -10.8 + i * 2 + bob); g.stroke(); }
-    g.fillStyle = "#ffffff"; g.beginPath(); g.ellipse(1.6, -17.3 + bob, 3.6, 3.3, 0, 0, Math.PI * 2); g.fill();                         // white head
-    g.fillStyle = "#f2b705"; g.beginPath(); g.moveTo(4.6, -18.4 + bob); g.quadraticCurveTo(7.6, -18.2 + bob, 7, -15.6 + bob); g.lineTo(4.6, -16.2 + bob); g.closePath(); g.fill();   // hooked beak
-    g.fillStyle = "#1b1209"; g.beginPath(); g.arc(2.9, -18 + bob, 0.55, 0, Math.PI * 2); g.fill();
-    g.strokeStyle = "#7a6a55"; g.lineWidth = 0.5; g.beginPath(); g.moveTo(1.7, -18.9 + bob); g.lineTo(3.8, -18.6 + bob); g.stroke();     // fierce brow
-    g.strokeStyle = "#f2b705"; g.lineWidth = 1.1; g.lineCap = "round";                                                                     // talons
-    g.beginPath(); g.moveTo(-0.8, -2.4); g.lineTo(-1.2, 0); g.moveTo(1.8, -2.4); g.lineTo(2.1, 0); g.stroke();
+    // a quick wing stretch now and then: real wings with fingered tips
+    if (flap > 0){
+      for (const sd of [-1, 1]){
+        g.save(); g.translate(0, -13 + bob); g.scale(sd, 1); g.rotate(-0.25 - flap * 0.5);
+        const wg = g.createLinearGradient(0, 0, 16, 0); wg.addColorStop(0, "#5a3a22"); wg.addColorStop(1, "#2f1d10");
+        g.fillStyle = wg; g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(6, -4 * flap, 15 * flap + 2, -1);
+        for (let f = 0; f < 4; f++) g.lineTo(14 * flap + 1 - f * 1.4, 1 + f * 1.1), g.lineTo(13.4 * flap + 0.4 - f * 1.4, 0.3 + f * 1.1);
+        g.quadraticCurveTo(5, 6, 0, 4); g.closePath(); g.fill(); g.restore();
+      }
+    }
+    // fanned white tail, peeking out below the wings
+    for (let f = 0; f < 5; f++){
+      const a = 2.05 + f * 0.13, L = 5.6 - Math.abs(f - 2) * 0.5;
+      g.fillStyle = f % 2 ? "#f0f0ec" : "#ffffff"; g.strokeStyle = "rgba(110,110,110,0.55)"; g.lineWidth = 0.22;
+      g.beginPath(); g.moveTo(-1.2, -3.4); g.lineTo(-1.2 + Math.cos(a - 0.07) * L, -3.4 + Math.sin(a - 0.07) * L);
+      g.quadraticCurveTo(-1.2 + Math.cos(a) * (L + 0.8), -3.4 + Math.sin(a) * (L + 0.8), -1.2 + Math.cos(a + 0.07) * L, -3.4 + Math.sin(a + 0.07) * L);
+      g.closePath(); g.fill(); g.stroke();
+    }
+    // yellow scaly legs with black claws (the talons that grip the bundle are drawn over it)
+    g.strokeStyle = "#e9a907"; g.lineWidth = 1.1;
+    g.beginPath(); g.moveTo(-0.6, -3.2); g.lineTo(-0.9, -0.4); g.moveTo(1.9, -3.2); g.lineTo(2.1, -0.4); g.stroke();
+    g.strokeStyle = "rgba(120,80,0,0.6)"; g.lineWidth = 0.25;
+    for (let k = 0; k < 3; k++){ g.beginPath(); g.moveTo(-1.2, -2.6 + k * 0.7); g.lineTo(-0.2, -2.7 + k * 0.7); g.moveTo(1.4, -2.6 + k * 0.7); g.lineTo(2.5, -2.7 + k * 0.7); g.stroke(); }
+    g.fillStyle = "#1b1209"; for (const cx of [-1.6, -0.6, 0.4, 1.4, 2.4, 3.2]){ g.beginPath(); g.moveTo(cx, -0.4); g.quadraticCurveTo(cx + 0.5, 0.2, cx + 0.2, 0.7); g.lineTo(cx - 0.1, -0.2); g.fill(); }
+    // body: deep brown with a rounded chest
+    const bg = g.createLinearGradient(-4, -16, 4, -2); bg.addColorStop(0, "#2e1c0f"); bg.addColorStop(0.6, "#4b2f1a"); bg.addColorStop(1, "#6a4428");
+    g.fillStyle = bg;
+    g.beginPath(); g.moveTo(-1.6, -15.4 + bob); g.quadraticCurveTo(4.6, -15 + bob, 4.4, -9 + bob); g.quadraticCurveTo(4.2, -4.2 + bob, 1.2, -2.8);
+    g.quadraticCurveTo(-2.4, -2.6, -3.4, -6); g.quadraticCurveTo(-4.4, -12 + bob, -1.6, -15.4 + bob); g.closePath(); g.fill();
+    // feathered "pants" over the tops of the legs
+    g.fillStyle = "#3c2614"; g.beginPath(); g.ellipse(-0.4, -3.6, 1.6, 1.2, 0, 0, Math.PI * 2); g.ellipse(2.1, -3.5, 1.5, 1.1, 0, 0, Math.PI * 2); g.fill();
+    // chest feather scallops
+    g.strokeStyle = "rgba(190,140,90,0.35)"; g.lineWidth = 0.3;
+    for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++){ const fx = 1 + c * 1.1 + (r % 2) * 0.5, fy = -13 + r * 1.9 + bob;
+      if (fx < 4.1) { g.beginPath(); g.arc(fx, fy, 0.6, 0.2, Math.PI - 0.2); g.stroke(); } }
+    // folded wing: covert feathers on top, long primaries crossing past the tail
+    const wg = g.createLinearGradient(-3, -14, -2, 0); wg.addColorStop(0, "#5c3c24"); wg.addColorStop(1, "#33200f");
+    g.fillStyle = wg;
+    g.beginPath(); g.moveTo(-0.6, -14.6 + bob); g.quadraticCurveTo(2.6, -12 + bob, 2, -7 + bob); g.quadraticCurveTo(1, -2 + bob, -2.4, 0.6);
+    g.lineTo(-4.4, 1.4); g.quadraticCurveTo(-4.2, -7 + bob, -0.6, -14.6 + bob); g.closePath(); g.fill();
+    g.strokeStyle = "rgba(20,10,4,0.6)"; g.lineWidth = 0.3;                          // primary feather lines
+    for (let k = 0; k < 4; k++){ g.beginPath(); g.moveTo(0.6 - k * 0.5, -7.5 + k * 0.5 + bob); g.quadraticCurveTo(-1 - k * 0.6, -3 + bob, -2.6 - k * 0.45, 0.6 + k * 0.2); g.stroke(); }
+    g.strokeStyle = "rgba(215,170,120,0.35)"; g.lineWidth = 0.35;                    // covert scallops
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++){ const fx = -1.6 + c * 1.2 - r * 0.3, fy = -12.4 + r * 1.6 + bob; g.beginPath(); g.arc(fx, fy, 0.65, 0.3, Math.PI - 0.3); g.stroke(); }
+    // white head with a ragged ruff where it meets the brown
+    const hg = g.createRadialGradient(2.4, -18.6 + bob, 0.5, 1.6, -17 + bob, 4.4); hg.addColorStop(0, "#ffffff"); hg.addColorStop(1, "#e4e2dc");
+    g.fillStyle = hg; g.beginPath(); g.moveTo(-1.8, -14.6 + bob);
+    for (let k = 0; k <= 8; k++) g.lineTo(-1.8 + k * 0.7, -14.6 + (k % 2 ? 0.9 : 0) + bob);
+    g.quadraticCurveTo(5.2, -15 + bob, 5.2, -17.4 + bob); g.quadraticCurveTo(4.6, -21 + bob, 1.2, -20.8 + bob);
+    g.quadraticCurveTo(-2.4, -20.2 + bob, -2.2, -17 + bob); g.closePath(); g.fill();
+    // golden eye under a heavy, fierce brow
+    g.fillStyle = "#f5c518"; g.beginPath(); g.arc(3.05, -18 + bob, 0.78, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#111"; g.beginPath(); g.arc(3.2, -18 + bob, 0.42, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(3.0, -18.25 + bob, 0.16, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "rgba(120,115,105,0.45)"; g.beginPath(); g.moveTo(1.6, -18.9 + bob); g.quadraticCurveTo(3, -19.4 + bob, 4.3, -18.6 + bob); g.lineTo(4.2, -18.2 + bob); g.quadraticCurveTo(3, -18.8 + bob, 1.8, -18.5 + bob); g.closePath(); g.fill();
+    g.fillStyle = "#ffffff"; g.beginPath(); g.moveTo(1.5, -19.2 + bob); g.quadraticCurveTo(3.2, -20 + bob, 4.6, -18.8 + bob); g.quadraticCurveTo(3.1, -19.2 + bob, 1.5, -18.8 + bob); g.closePath(); g.fill();
+    // big hooked beak: pale cere with a nostril, deep yellow beak darkening at the hook, and the gape line
+    g.fillStyle = "#f7dc6f"; g.beginPath(); g.ellipse(4.5, -18.1 + bob, 0.9, 0.75, 0, 0, Math.PI * 2); g.fill();
+    const bk = g.createLinearGradient(4.2, -18.6, 7.6, -15.4); bk.addColorStop(0, "#f2b705"); bk.addColorStop(0.75, "#e39b00"); bk.addColorStop(1, "#a86a00");
+    g.fillStyle = bk; g.beginPath(); g.moveTo(4.6, -18.8 + bob); g.quadraticCurveTo(7.4, -19 + bob, 7.6, -16.6 + bob);
+    g.quadraticCurveTo(7.6, -15.2 + bob, 6.6, -15.2 + bob); g.quadraticCurveTo(7, -16 + bob, 6.4, -16.4 + bob);
+    g.lineTo(4.4, -16.4 + bob); g.closePath(); g.fill();
+    g.fillStyle = "#1b1209"; g.beginPath(); g.ellipse(4.9, -18.2 + bob, 0.28, 0.16, 0, 0, Math.PI * 2); g.fill();
+    g.strokeStyle = "rgba(90,55,0,0.8)"; g.lineWidth = 0.28; g.beginPath(); g.moveTo(3.6, -16.9 + bob); g.quadraticCurveTo(5, -16.5 + bob, 6.5, -16.3 + bob); g.stroke();
     g.restore();
   }
   function drawEagleBanner(){
@@ -6461,13 +6587,14 @@ function initWildHorse(){
     };
     if (e.phase === "circle" || e.phase === "glide" || e.phase === "leaving"){
       const high = e.phase === "circle" ? 1 : e.phase === "glide" ? 1 - Math.min(1, e.t / 120) : Math.min(1, e.t / 60);
-      const sc = 1.6 + high * 0.6;
+      const sc = 1.35 + high * 0.45;   // v3.30: smaller scale, longer wings
       // shadow on the ground, offset more the higher it flies
       ctx.save(); ctx.globalAlpha = 0.3; ctx.filter = "blur(1px)";
       drawEagleFlying(ctx, e.x + 10 + high * 30, e.y + 12 + high * 40, e.heading, time * 6, 1.4);
       ctx.restore();
       // v3.09: the bundle hangs crosswise in its talons under the body, sticking out both sides
-      if (!e.given) drawGoldBundle(ctx, e.x - Math.cos(e.heading) * 2 * sc, e.y - Math.sin(e.heading) * 2 * sc, 44, e.heading + Math.PI / 2, 14);
+      // v3.29: carried lengthwise in its talons, the sticks showing out past the tail
+      if (!e.given) drawGoldBundle(ctx, e.x - Math.cos(e.heading) * 9 * sc, e.y - Math.sin(e.heading) * 9 * sc, 15 * sc, e.heading, 14);
       drawEagleFlying(ctx, e.x, e.y, e.heading, time * (e.phase === "leaving" ? 10 : 5), sc);
       if (!e.given && e.phase !== "leaving") label(e.x + 20, e.y - 18, "left");
       return;
@@ -6483,7 +6610,15 @@ function initWildHorse(){
       ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(bx, by, 26, 0, Math.PI * 2); ctx.fill();
       drawGoldBundle(ctx, bx, by, 34, -0.12, 12 + Math.sin(time * 3) * 5);
       ctx.save(); ctx.strokeStyle = "#f2b705"; ctx.lineWidth = 1.6; ctx.lineCap = "round";   // talons wrapped over the bundle
-      for (const tx of [-0.9, 2]){ ctx.beginPath(); ctx.arc(e.x + tx * ps, by, 2.2, Math.PI * 1.1, Math.PI * 2.1); ctx.stroke(); }
+      for (const tx of [-0.9, 2]){   // v3.29: three yellow toes curl over the bundle, each ending in a black hooked claw
+        const fx = e.x + tx * ps;
+        for (const o of [-1.7, 0, 1.7]){
+          ctx.strokeStyle = "#e9a907"; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(fx + o * 0.5, by - 3.2); ctx.quadraticCurveTo(fx + o * 1.15, by - 2.6, fx + o * 1.05, by + 1.2); ctx.stroke();
+          ctx.fillStyle = "#1b1209"; ctx.beginPath(); ctx.moveTo(fx + o * 1.05 - 0.8, by + 1); ctx.quadraticCurveTo(fx + o * 1.05, by + 3.4, fx + o * 1.05 - 1.4, by + 3.6);
+          ctx.quadraticCurveTo(fx + o * 1.05 + 0.4, by + 2.6, fx + o * 1.05 + 0.8, by + 1); ctx.closePath(); ctx.fill();
+        }
+      }
       ctx.restore();
       label(bx + 20, by - 9, "left");
     }
@@ -6661,9 +6796,10 @@ function initWildHorse(){
       if (c.a < 0.02) continue;
       ctx.save(); ctx.globalAlpha = c.a;
       ctx.fillStyle = "rgba(255,255,255,0.18)"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W, cy + p.dy * W, p.r * W * 1.12, 0, Math.PI * 2); ctx.fill(); });
-      ctx.fillStyle = "#99a2b4"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W, cy + p.dy * W + W * 0.04, p.r * W, 0, Math.PI * 2); ctx.fill(); });
-      ctx.fillStyle = "#e9edf5"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W - W * 0.015, cy + p.dy * W - W * 0.02, p.r * W * 0.9, 0, Math.PI * 2); ctx.fill(); });
-      ctx.fillStyle = "#ffffff"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W - W * 0.04, cy + p.dy * W - W * 0.06, p.r * W * 0.55, 0, Math.PI * 2); ctx.fill(); });
+      const _ss = currentLevelTheme().name === "Mountain Stick";   // v3.26: pink and gold at sunset
+      ctx.fillStyle = _ss ? "#a86f8c" : "#99a2b4"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W, cy + p.dy * W + W * 0.04, p.r * W, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = _ss ? "#f4b9a6" : "#e9edf5"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W - W * 0.015, cy + p.dy * W - W * 0.02, p.r * W * 0.9, 0, Math.PI * 2); ctx.fill(); });
+      ctx.fillStyle = _ss ? "#ffe2b8" : "#ffffff"; c.puffs.forEach(p => { ctx.beginPath(); ctx.arc(cx + p.dx * W - W * 0.04, cy + p.dy * W - W * 0.06, p.r * W * 0.55, 0, Math.PI * 2); ctx.fill(); });
       ctx.restore();
     }
   }
@@ -7105,6 +7241,7 @@ function initWildHorse(){
         if(dir.dx !== 0) ram.facing = dir.dx;
       }
       
+      if (mtnSky(ram.x, ram.y)){ ram.x = ramOX; ram.y = ramOY; }   // v3.27: no grazing in the sky
       // v2.97: rams are mountain goats: they climb anywhere on the rock. The Bigfoot stick keeps them off you.
       if(ram.x === game.playerX && ram.y === game.playerY && !inSanctuary() && bigfootProtected()){
         if (performance.now() - bigfootProtectNote > 4000){
@@ -7511,6 +7648,7 @@ function initWildHorse(){
       ctx.font = "28px Arial";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      ctx.globalAlpha = 1; ctx.fillStyle = "#000";   // v3.27: emoji take the leftover paint's transparency on Windows; that made rams fade in and out
       ctx.fillText("🐐", cx, cy);
       
       // Add brownish overlay in the midsection to give it a more earthy tone
@@ -7796,6 +7934,758 @@ function initWildHorse(){
   // ================================================================
   let snowman = null;
   
+  // ===== v3.20 FOREST STICK =====
+  // Level 3 (it took Sun Stick's slot). A thick pine forest: drifting fog hides sticks until you're
+  // close, two lumberjacks chase you for sticks and chop trees (TIMBER!), a slow bulldozer rumbles
+  // around and squishes anyone in its way, and shy Bigfoot shows up at the end of his footprints.
+  const FOREST_LEVEL = "Forest Stick";
+  let forest = null;
+  function isForest(){ return !!forest && currentLevelTheme().name === FOREST_LEVEL; }
+  function forestTreeAt(x, y){ return !!(forest && forest.treeSet.has(x + "," + y)); }
+  function forestDozerAt(x, y){ const d = forest && forest.dozer; return !!(d && d.x === x && d.y === y); }
+  function forestSay(l1, l2, secs, countdown){ if (forest) forest.banner = { l1, l2, t0: performance.now(), dur: (secs || 4.5) * 1000, countdown: !!countdown }; }
+  function forestTalk(text){ try { talk.bubble = { text, t0: performance.now(), dur: 3600 }; talkSound(); } catch(_){} }
+  function forestFogAt(x, y){   // is this tile inside a fog bank?
+    if (!forest) return false;
+    const cx = x + 0.5, cy = y + 0.5;
+    return forest.fog.some(b => b.kind !== "wisp" && forestFogDens(b) >= 0.55 && ((cx - b.x) / (b.rx * 0.9)) ** 2 + ((cy - b.y) / (b.ry * 0.9)) ** 2 < 1);
+  }
+  function forestScatter(why){   // knock everything you carry loose; special sticks keep their value
+    if (!game.carry.length) return 0;
+    const n = game.carry.length;
+    game.carry.forEach(st => {
+      const pos = randomEmptyTile();
+      const keep = (st.value > 1 || st.feather || st.bigfoot) ? Object.assign({}, st) : null;
+      game.sticks.push({ x: pos.x, y: pos.y, color: st.color, cursed: false, bonus: false, rotation: Math.random() * Math.PI * 2, keep });
+    });
+    game.carry = [];
+    logEvent("bad", why);
+    updateUI();
+    return n;
+  }
+
+  function forestNewFog(kind, x){
+    const K = {
+      big:  { rx: [3, 4.2],   ry: [2, 2.7],   dens: 0.85, n: 13, sp: [0.003, 0.005] },
+      mid:  { rx: [2, 2.8],   ry: [1.3, 1.8], dens: 0.75, n: 9,  sp: [0.004, 0.007] },
+      band: { rx: [5, 7],     ry: [0.8, 1.1], dens: 0.62, n: 16, sp: [0.005, 0.008] },
+      wisp: { rx: [1, 1.7],   ry: [0.5, 0.9], dens: 0.38, n: 6,  sp: [0.008, 0.013] }
+    }[kind];
+    const rr = (a) => a[0] + Math.random() * (a[1] - a[0]);
+    const dir = Math.random() < .5 ? -1 : 1;
+    const b = { kind, x, y: 2 + Math.random() * (GRID_H - 4), vx: dir * rr(K.sp), vy: (Math.random() - .5) * 0.0015,
+                rx: rr(K.rx), ry: rr(K.ry), dens: K.dens, ph: Math.random() * 6, br: 0.15 + Math.random() * 0.25, puffs: [] };
+    for (let k = 0; k < K.n; k++){
+      const edge = Math.random() < 0.3;   // ragged little puffs around the edge
+      b.puffs.push({ dx: (Math.random() - .5) * (edge ? 2 : 1.4), dy: (Math.random() - .5) * (edge ? 1.7 : 1.1),
+                     r: edge ? 0.45 + Math.random() * 0.5 : 0.8 + Math.random() * 0.8, sx: 1.2 + Math.random() * 0.9,
+                     a: edge ? 0.55 : 1, ph: Math.random() * 6 });
+    }
+    // a few streaks trailing behind it, in the direction it drifts from
+    for (let k = 0; k < (kind === "wisp" ? 2 : 3); k++)
+      b.puffs.push({ dx: -dir * (0.75 + Math.random() * 0.55), dy: (Math.random() - .5) * 0.7, r: 0.5 + Math.random() * 0.4, sx: 2.6 + Math.random() * 1.4, a: 0.45, ph: Math.random() * 6 });
+    return b;
+  }
+  function forestFogDens(b){ return b.dens * (1 - b.br * 0.5 + b.br * 0.5 * Math.sin(performance.now() * 0.00025 + b.ph)); }   // thickens and thins slowly
+  function initForest(){
+    const T = TILE;
+    forest = { trees: [], treeSet: new Set(), stumps: [], logs: [], art: null, artDirty: true, patches: [],
+      fog: [], jacks: [], dozer: null, dozerWait: randInt(10, 16) * 60, falls: [], pops: [],
+      splits: 0, bf: { left: 3, given: false, wait: randInt(15, 24) * 60, s: null }, banner: null, inv: 0, saidJack: false, saidFog: false };
+    const F = forest;
+    const busy = (x, y) => (Math.abs(x - game.holeX) <= 1 && Math.abs(y - game.holeY) <= 1) ||
+                           (Math.abs(x - game.playerX) <= 1 && Math.abs(y - game.playerY) <= 1) ||
+                           (game.sticks || []).some(s => s.x === x && s.y === y) ||
+                           (game.lifeTileX === x && game.lifeTileY === y);
+    // pines and firs of every size, loosely clumped, never walled off
+    const want = randInt(58, 70);
+    for (let k = 0; k < 900 && F.trees.length < want; k++){
+      const x = randInt(0, GRID_W - 1), y = randInt(1, GRID_H - 1);
+      if (busy(x, y) || F.treeSet.has(x + "," + y)) continue;
+      let n = 0; for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) if (F.treeSet.has((x + dx) + "," + (y + dy))) n++;
+      if (n >= 3) continue;
+      const r = Math.random(), h = r < 0.3 ? 10 + Math.random() * 6 : r < 0.78 ? 17 + Math.random() * 9 : 29 + Math.random() * 13;
+      if ((y + 0.9) * T < h + 4) continue;   // tall ones not cut off at the top
+      F.trees.push({ x, y, ox: (Math.random() - .5) * 0.3, oy: (Math.random() - .5) * 0.15,
+        t: { h, lean: (Math.random() - .5) * .06, type: Math.random() < .68 ? Math.random() * .6 : .63 + Math.random() * .15, hue: Math.random() * 0.45, snow: false } });
+      F.treeSet.add(x + "," + y);
+    }
+    for (let i = 0; i < 14; i++) F.patches.push({ x: Math.random() * GRID_W * T, y: Math.random() * GRID_H * T, r: (2 + Math.random() * 4) * T, moss: Math.random() < 0.65 });
+    // v3.25: drifting fog of all kinds: thick banks, a long low band, and thin wisps
+    const kinds = ["big", "mid", "band", "wisp", "wisp", Math.random() < 0.5 ? "wisp" : "mid"];
+    kinds.forEach((kind, i) => F.fog.push(forestNewFog(kind, (i + Math.random()) * GRID_W / kinds.length)));
+    for (let i = 0; i < 2; i++) F.jacks.push(forestNewJack(i * 300));
+  }
+  function forestNewJack(delay){
+    let x = 0, y = 0;
+    for (let tries = 0; tries < 80; tries++){
+      const e = randInt(0, 3);
+      x = e === 0 ? 0 : e === 1 ? GRID_W - 1 : randInt(0, GRID_W - 1);
+      y = e === 2 ? 1 : e === 3 ? GRID_H - 1 : randInt(1, GRID_H - 1);   // not the top row (his head would be cut off)
+      if (Math.abs(x - game.playerX) + Math.abs(y - game.playerY) >= 9 && !forestTreeAt(x, y)) break;
+    }
+    return { x, y, px: x, py: y, moveT: 90 + delay, state: "walk", chopT: 0, tree: null, flee: 0, face: 1, cool: 420 + randInt(0, 600), swing: 0 };
+  }
+
+  // ---------- update ----------
+  function updateForest(){
+    if (!isForest() || game.pendingMonster) return;
+    const F = forest;
+    if (F.inv > 0) F.inv--;
+    // fog drifts and wraps around
+    for (const b of F.fog){
+      b.x += b.vx; b.y += b.vy;
+      const m = b.rx * 1.6 + 2; if (b.x < -m) b.x = GRID_W + m - 0.5; if (b.x > GRID_W + m) b.x = -m + 0.5;
+      if (b.y < 1.5 || b.y > GRID_H - 1.5) b.vy = -b.vy;
+    }
+    if (!F.saidFog && forestFogAt(game.playerX, game.playerY)){ F.saidFog = true; logEvent("info", "🌫️ Fog! Sticks hiding in it only show up when you're right next to them."); }
+    updateForestJacks();
+    updateForestFalls();
+    updateForestDozer();
+    updateForestBigfoot();
+    for (const l of F.logs) l.life--;
+    if (F.logs.some(l => l.life <= 0)){ F.logs = F.logs.filter(l => l.life > 0); F.artDirty = true; }
+  }
+
+  const JACK_LINES = {
+    steal:  ["Finders keepers, twig!", "Thanks for the kindling!", "Back to the woods with ya!", "Mine now, pipsqueak!",
+             "Too slow, sapling!", "Ha! Timber tax!", "That's prime firewood, that is.", "Should've branched out, kid!"],
+    empty:  ["Bah! Empty hands?", "Nothin'? Get outta my forest!", "Not even a twig? Pathetic."],
+    scared: ["Yikes! Bigfoot's stick!", "Nope. Not messin' with that.", "That's HIS stick?! I'm out!"],
+    shield: ["Ow! What IS that thing?", "Hey! No fair!"],
+    timber: ["TIMBERRR!", "Watch yer head!", "Heads up, twig!"]
+  };
+  function jackSay(j, kind){ const L = JACK_LINES[kind]; j.say = { text: L[randInt(0, L.length - 1)], t: 0 }; }
+  function updateForestJacks(){
+    const F = forest;
+    for (const j of F.jacks) if (j.say && ++j.say.t > 150) j.say = null;
+    for (const j of F.jacks){
+      j.px += (j.x - j.px) * 0.18; j.py += (j.y - j.py) * 0.18;
+      if (j.cool > 0) j.cool--;
+      const dx = game.playerX - j.x, dy = game.playerY - j.y, dist = Math.abs(dx) + Math.abs(dy);
+      if (j.state === "split"){
+        j.splitT--; j.swing = Math.sin(j.splitT * 0.35);
+        if (j.splitT % 22 === 0 && j.splitT > 0){ beep(200 + Math.random() * 40, 0.05, "square", 0.05); F.pops.push({ text: "chop", x: (j.px + .5 + j.face * 0.6) * TILE, y: (j.py - 0.2) * TILE, t: 30, small: true }); }
+        if ((bigfootProtected() && dist <= 5) || j.flee > 0){ j.state = "walk"; j.log = null; j.swing = 0; j.moveT = 30; continue; }
+        if (j.splitT <= 0){ forestSplitLog(j.log); j.state = "walk"; j.log = null; j.swing = 0; j.cool = 900 + randInt(0, 600); j.moveT = 60; }
+        continue;
+      }
+      if (j.state === "chop"){
+        j.chopT--; j.swing = Math.sin(j.chopT * 0.35);
+        if (j.chopT % 20 === 0 && j.chopT > 0) beep(170 + Math.random() * 30, 0.05, "square", 0.05);
+        if (j.chopT === 80){ forestPlanFall(j); if (Math.random() < 0.5) jackSay(j, "timber"); }
+        if (j.chopT <= 0){ j.state = "walk"; j.tree = null; j.cool = 900 + randInt(0, 600); j.moveT = 60; j.swing = 0; }
+        continue;
+      }
+      if (--j.moveT > 0) continue;
+      j.moveT = j.flee > 0 ? 45 : 80;
+      const scared = bigfootProtected() && dist <= 5;
+      // sometimes he gets distracted by a tree and starts chopping
+      if (!scared && j.flee <= 0 && j.cool <= 0 && dist >= 2 && Math.random() < 0.4){
+        const t = F.trees.find(t => Math.abs(t.x - j.x) + Math.abs(t.y - j.y) === 1 && t.t.h >= 17 && !F.falls.some(f => f.tree === t));
+        if (t){ j.state = "chop"; j.chopT = 170; j.tree = t; j.face = t.x >= j.x ? 1 : -1; continue; }
+      }
+      let opts;
+      if (j.flee > 0 || scared){
+        opts = [[Math.sign(-dx) || (Math.random() < .5 ? 1 : -1), 0], [0, Math.sign(-dy) || (Math.random() < .5 ? 1 : -1)]];
+      } else if (dist <= 10){
+        opts = Math.abs(dx) >= Math.abs(dy) ? [[Math.sign(dx), 0], [0, Math.sign(dy)]] : [[0, Math.sign(dy)], [Math.sign(dx), 0]];
+      } else {
+        opts = [[1,0],[-1,0],[0,1],[0,-1]].sort(() => Math.random() - .5);
+      }
+      for (const [mx, my] of opts){
+        if (!mx && !my) continue;
+        const nx = j.x + mx, ny = j.y + my;
+        if (nx < 0 || ny < 1 || nx >= GRID_W || ny >= GRID_H || forestTreeAt(nx, ny) || forestDozerAt(nx, ny)) continue;
+        j.x = nx; j.y = ny; if (mx) j.face = mx; break;
+      }
+      if (j.flee > 0) j.flee = Math.max(0, j.flee - 45);
+      if (!F.saidJack && dist <= 8){ F.saidJack = true; logEvent("info", "🪓 A lumberjack is after your sticks! He gets distracted by trees, though."); }
+    }
+    // caught you?
+    for (const j of F.jacks){
+      if (j.state !== "walk" || j.x !== game.playerX || j.y !== game.playerY || inSanctuary() || F.inv > 0 || j.flee > 0) continue;
+      if (bigfootProtected()){
+        j.flee = 300; jackSay(j, "scared"); setHud("🪓 He's scared of Bigfoot's stick!"); logEvent("info", "🦶 The lumberjack took one look at Bigfoot's golden stick and ran!");
+      } else if (activeShield > 0){
+        j.flee = 300; jackSay(j, "shield"); setHud("SHIELD!"); logEvent("info", "🛡️ Your shield bounced the lumberjack away!");
+      } else if (game.carry.length){
+        // he grabs one stick (never Bigfoot's) and tosses it into the woods; it keeps its value
+        const pickFrom = game.carry.map((s, i) => i);
+        const i = pickFrom[randInt(0, pickFrom.length - 1)], st = game.carry.splice(i, 1)[0];
+        const pos = randomEmptyTile();
+        const keep = (st.value > 1 || st.feather || st.bigfoot) ? Object.assign({}, st) : null;
+        game.sticks.push({ x: pos.x, y: pos.y, color: st.color, cursed: false, bonus: false, rotation: Math.random() * Math.PI * 2, keep });
+        logEvent("bad", "🪓 A lumberjack grabbed a stick and tossed it into the woods! Go find it.");
+        setHud("🪓 LUMBERJACK!"); beep(260, 0.1, "sawtooth", 0.06); spawnSparks(game.playerX, game.playerY, 12, true);
+        j.flee = 360; F.inv = 60; jackSay(j, "steal"); updateUI();
+      } else {
+        j.flee = 200; jackSay(j, "empty");
+      }
+    }
+  }
+  function forestPlanFall(j){
+    const F = forest, t = j.tree; if (!t || !F.trees.includes(t)) return;
+    const len = Math.max(1, Math.round(t.t.h / TILE));   // v3.21: a small pine makes a short log, a tall one a long log
+    const away = [Math.sign(t.x - j.x), Math.sign(t.y - j.y)];
+    const dirs = [away, [away[1], away[0]], [-away[1], -away[0]]].filter(d => d[0] || d[1]);
+    let dir = null;
+    for (const d of dirs){ const ex = t.x + d[0] * len, ey = t.y + d[1] * len; if (ex >= 0 && ey >= 0 && ex < GRID_W && ey < GRID_H){ dir = d; break; } }
+    if (!dir) dir = away;
+    const tiles = [];
+    for (let i = 1; i <= len; i++){ const x = t.x + dir[0] * i, y = t.y + dir[1] * i; if (x >= 0 && y >= 0 && x < GRID_W && y < GRID_H) tiles.push([x, y]); }
+    F.falls.push({ tree: t, dir, len, tiles, t: 0, jack: j });
+  }
+  function forestSplitLog(lg){
+    const F = forest; if (!lg || !F.logs.includes(lg)) return;
+    const n = lg.len >= 2 ? 3 : 2, cands = [];
+    for (const [x, y] of lg.tiles) for (const [dx, dy] of [[0,0],[lg.dir[1],lg.dir[0]],[-lg.dir[1],-lg.dir[0]]]) cands.push([x + dx, y + dy]);
+    const free = cands.filter(([x, y]) => x >= 0 && y >= 0 && x < GRID_W && y < GRID_H && !isHole(x, y) && !isOccupiedByStick(x, y) &&
+                                          !forestTreeAt(x, y) && !forestDozerAt(x, y) && !(x === game.playerX && y === game.playerY))
+                      .sort(() => Math.random() - .5);
+    const spots = []; for (const c of free) if (!spots.some(p => p[0] === c[0] && p[1] === c[1])) spots.push(c);
+    let made = 0;
+    for (const [x, y] of spots.slice(0, n)){
+      game.sticks.push({ x, y, color: STICK_COLORS[randInt(0, STICK_COLORS.length - 1)], cursed: false, bonus: false, rotation: Math.random() * Math.PI * 2 });
+      made++;
+    }
+    F.logs = F.logs.filter(l => l !== lg); F.artDirty = true;
+    F.pops.push({ text: "CRACK!", x: (lg.x + .5 + lg.dir[0] * lg.len * 0.5) * TILE, y: (lg.y + lg.dir[1] * lg.len * 0.5) * TILE, t: 0 });
+    beep(150, 0.12, "square", 0.07); setTimeout(() => beep(320, 0.08, "triangle", 0.06), 80);
+    if (made){ logEvent("bonus", `🪵 The lumberjack split the log and ${made} sticks of kindling fell loose. Grab them!`); setHud(`🪵 +${made} STICKS OF KINDLING!`); updateUI(); }
+  }
+  function updateForestFalls(){
+    const F = forest;
+    for (const f of F.falls){
+      f.t++;
+      if (f.t === 80){   // CRASH
+        F.trees = F.trees.filter(t => t !== f.tree); F.treeSet.delete(f.tree.x + "," + f.tree.y);
+        F.stumps.push({ x: f.tree.x, y: f.tree.y });
+        const lg = { x: f.tree.x, y: f.tree.y, dir: f.dir, len: f.len, h: f.tree.t.h, life: 20 * 60, tiles: f.tiles.slice() };
+        F.logs.push(lg);
+        // v3.22: he stays and splits the log; some kindling falls loose for you (up to 2 logs a level)
+        const jk = f.jack;
+        if (F.splits < 2 && jk && F.jacks.includes(jk) && jk.flee <= 0 && !bigfootProtected()){
+          F.splits++; jk.state = "split"; jk.splitT = 200; jk.log = lg; jk.face = f.dir[0] || jk.face;
+        }
+        F.artDirty = true;
+        beep(90, 0.25, "sawtooth", 0.08); setTimeout(() => beep(60, 0.3, "triangle", 0.08), 60);
+        F.pops.push({ text: "TIMBER!", x: (f.tree.x + .5) * TILE, y: (f.tree.y - 0.6) * TILE, t: 0 });
+        if (f.tiles.some(([x, y]) => x === game.playerX && y === game.playerY) && !inSanctuary()){
+          const n = forestScatter("🌲 TIMBER! A falling tree knocked your sticks loose!");
+          setHud(n ? "🌲 TIMBER! STICKS SCATTERED!" : "🌲 Whoa, close one!");
+          spawnSparks(game.playerX, game.playerY, 16, true);
+        }
+      }
+    }
+    F.falls = F.falls.filter(f => f.t < 100);
+    for (const p of F.pops) p.t++;
+    F.pops = F.pops.filter(p => p.t < 70);
+  }
+
+  function updateForestDozer(){
+    const F = forest;
+    if (!F.dozer){
+      if (--F.dozerWait > 0) return;
+      // roll in from an edge, heading inward
+      const e = randInt(0, 3), dir = [[1,0],[-1,0],[0,1],[0,-1]][e];
+      const x = e === 0 ? 0 : e === 1 ? GRID_W - 1 : randInt(3, GRID_W - 4), y = e === 2 ? 0 : e === 3 ? GRID_H - 1 : randInt(3, GRID_H - 4);
+      if (Math.abs(x - game.playerX) + Math.abs(y - game.playerY) < 5){ F.dozerWait = 60; return; }
+      F.dozer = { x, y, px: x, py: y, dir, face: dir[0] || 1, moveT: 90, pause: 0, warn: false };
+      if (forestTreeAt(x, y)){ F.trees = F.trees.filter(t => !(t.x === x && t.y === y)); F.treeSet.delete(x + "," + y); F.artDirty = true; }
+      logEvent("bad", "🚜 A bulldozer rumbled into the forest! It's slow, but stay out of its way.");
+      forestSay("🚜 BULLDOZER!", "It's slow, but it squishes! Stay out of its path.", 4);
+      beep(70, 0.4, "sawtooth", 0.06);
+      return;
+    }
+    const d = F.dozer;
+    d.px += (d.x - d.px) * 0.08; d.py += (d.y - d.py) * 0.08;
+    const nx = d.x + d.dir[0], ny = d.y + d.dir[1];
+    d.warn = nx === game.playerX && ny === game.playerY;
+    if (d.pause > 0){ d.pause--; return; }
+    if (--d.moveT > 0) return;
+    d.moveT = 80;
+    // pick where to go: mostly straight, sometimes a turn; never off the board or into the hole
+    const ok = ([dx, dy]) => { const x = d.x + dx, y = d.y + dy; return x >= 0 && y >= 0 && x < GRID_W && y < GRID_H && !(x === game.holeX && y === game.holeY); };
+    let dir = d.dir;
+    if (Math.random() < 0.18 || !ok(dir)){
+      const turns = [[dir[1], dir[0]], [-dir[1], -dir[0]]].sort(() => Math.random() - .5);
+      dir = turns.find(ok) || (ok([-dir[0], -dir[1]]) ? [-dir[0], -dir[1]] : null);
+      if (!dir){ d.pause = 30; return; }
+    }
+    d.dir = dir; if (dir[0]) d.face = dir[0];
+    d.x += dir[0]; d.y += dir[1];
+    beep(55 + Math.random() * 10, 0.12, "sawtooth", 0.035);
+    if (forestTreeAt(d.x, d.y)){   // flattens trees in its way
+      F.trees = F.trees.filter(t => !(t.x === d.x && t.y === d.y)); F.treeSet.delete(d.x + "," + d.y);
+      F.stumps.push({ x: d.x, y: d.y, flat: true }); F.artDirty = true; beep(120, 0.15, "square", 0.05);
+    }
+    if (d.x === game.playerX && d.y === game.playerY && !inSanctuary() && F.inv <= 0){
+      game.lives--;
+      logEvent("bad", "🚜 SQUISHED by the bulldozer! -1 life");
+      setHud("🚜 SQUISHED!"); beep(180, 0.3, "sawtooth", 0.09); setTimeout(() => beep(90, 0.4, "triangle", 0.09), 120);
+      spawnSparks(game.playerX, game.playerY, 26, true);
+      F.inv = 180; d.dir = [-d.dir[0], -d.dir[1]]; if (d.dir[0]) d.face = d.dir[0]; d.pause = 90;
+      if (game.lives <= 0) gameOver(); else updateUI();
+    }
+  }
+
+  function updateForestBigfoot(){
+    const F = forest, B = F.bf;
+    if (!B.s){
+      if (B.given || B.left <= 0) return;
+      if (--B.wait > 0) return;
+      // pick a tree to peek out from, well away from you, with an open spot beside it
+      const cands = [];
+      for (const t of F.trees){
+        for (const sd of [-1, 1]){
+          const x = t.x + sd, y = t.y, dist = Math.abs(x - game.playerX) + Math.abs(y - game.playerY);
+          if (x < 1 || x > GRID_W - 2 || y < 2 || y > GRID_H - 2 || dist < 7 || dist > 15) continue;
+          if (forestTreeAt(x, y) || (x === game.holeX && y === game.holeY) || forestDozerAt(x, y)) continue;
+          cands.push({ x, y, t, sd });
+        }
+      }
+      if (!cands.length){ B.wait = 120; return; }
+      const c = cands[randInt(0, cands.length - 1)];
+      // his footprints come in from the nearest edge
+      const edges = [[-1, c.y, c.x], [GRID_W, c.y, GRID_W - 1 - c.x], [c.x, -1, c.y], [c.x, GRID_H, GRID_H - 1 - c.y]].sort((a, b) => a[2] - b[2]);
+      let px = edges[0][0], py = edges[0][1];
+      const prints = [];
+      for (let k = 0; k < 60 && (px !== c.x || py !== c.y); k++){
+        const ddx = c.x - px, ddy = c.y - py;
+        if (ddx && (!ddy || Math.random() < Math.abs(ddx) / (Math.abs(ddx) + Math.abs(ddy)))) px += Math.sign(ddx); else py += Math.sign(ddy);
+        prints.push([px, py]);
+      }
+      B.s = { x: c.x, y: c.y, sd: c.sd, prints, shown: 0, phase: "prints", t: 0, timer: 20 * 60, a: 0, given: false };
+      logEvent("bonus", "🦶 Huge footprints are appearing in the forest... follow them!");
+      setHud("🦶 BIG FOOTPRINTS!");
+      return;
+    }
+    const s = B.s; s.t++;
+    if (s.phase === "prints"){
+      if (s.t % 7 === 0){ s.shown++; beep(140, 0.04, "sine", 0.04); }
+      if (s.shown >= s.prints.length){
+        s.phase = "wait"; s.t = 0;
+        forestSay("🦶 BIGFOOT SPOTTED!", `Reach him before he slips away for the GOLDEN x${BIGFOOT_VALUE} stick`, 20, true);
+        forestTalk(BIGFOOT_LINES[talkSkin()] || BIGFOOT_LINES.classic);
+      }
+      return;
+    }
+    if (s.phase === "wait"){
+      s.a = Math.min(1, s.a + 0.04); s.timer--;
+      const near = Math.abs(game.playerX - s.x) + Math.abs(game.playerY - s.y) <= 1;
+      if (near){
+        if (game.carry.length >= carryCap()){
+          if (s.t % 90 === 0) setHud("HANDS FULL! DROP ONE FOR BIGFOOT'S GIFT");
+        } else {
+          game.carry.push({ color: "#ffd700", value: BIGFOOT_VALUE, bigfoot: true, fromPeak: true });
+          B.given = true; s.given = true; s.phase = "leave"; s.t = 0; s.bubbleT = 150;
+          logEvent("bonus", `🦶 Bigfoot gave you his golden stick (x${BIGFOOT_VALUE})! Lumberjacks won't come near you until you drop it off.`);
+          setHud(`🦶 BIGFOOT'S STICK x${BIGFOOT_VALUE}!`);
+          forestSay(`🦶 BIGFOOT'S GOLDEN STICK  x${BIGFOOT_VALUE}!`, "Lumberjacks are scared of it. The bulldozer isn't!", 5);
+          [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.12, "triangle", 0.07), i * 90));
+          spawnSparks(game.playerX, game.playerY, 24, false);
+          updateUI();
+          return;
+        }
+      }
+      if (s.timer <= 0){
+        s.phase = "leave"; s.t = 0; B.left--;
+        logEvent("info", B.left > 0 ? `🦶 Bigfoot slipped back into the fog. Sightings left: ${B.left}` : "🦶 Bigfoot is gone for this level.");
+        forestSay("🦶 He slipped away...", B.left > 0 ? `Keep watching for footprints. Sightings left: ${B.left}` : "No more sightings on this level.", 3.5);
+      }
+      return;
+    }
+    if (s.phase === "leave"){
+      if (s.bubbleT) s.bubbleT--;
+      if (s.t > (s.given ? 150 : 0)) s.a = Math.max(0, s.a - 0.03);
+      if (s.a <= 0 && s.t > 20){ B.s = null; B.wait = randInt(20, 32) * 60; }
+    }
+  }
+
+  // ---------- drawing ----------
+  function forestBuildArt(){
+    const F = forest, SC = mtnArtScale(), T = TILE, cv = document.createElement("canvas");
+    cv.width = Math.ceil(GRID_W * T * SC); cv.height = Math.ceil(GRID_H * T * SC);
+    const g = cv.getContext("2d"); g.scale(SC, SC);
+    for (const p of F.patches){
+      const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+      gr.addColorStop(0, p.moss ? "rgba(60,95,45,0.22)" : "rgba(85,66,42,0.18)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle = gr; g.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+    }
+    for (const s of F.stumps){
+      const x = (s.x + .5) * T, y = (s.y + .7) * T;
+      if (s.flat){ g.fillStyle = "rgba(40,30,18,0.6)"; g.beginPath(); g.ellipse(x, y, 7, 2.6, 0, 0, Math.PI * 2); g.fill(); continue; }
+      g.fillStyle = "#5c3d22"; g.fillRect(x - 3, y - 4, 6, 4);
+      g.fillStyle = "#d4b07a"; g.beginPath(); g.ellipse(x, y - 4, 3, 1.3, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = "#a07c4a"; g.lineWidth = 0.4; g.beginPath(); g.ellipse(x, y - 4, 1.6, 0.7, 0, 0, Math.PI * 2); g.stroke();
+    }
+    for (const l of F.logs){
+      const L = (l.h || l.len * T) * 0.95, th = 2.5 + (l.h || 20) * 0.1;
+      const x0 = (l.x + .5) * T, y0 = (l.y + .6) * T, x1 = x0 + l.dir[0] * L, y1 = y0 + l.dir[1] * L;
+      g.lineCap = "round"; g.strokeStyle = "rgba(0,0,0,0.3)"; g.lineWidth = th + 1.5; g.beginPath(); g.moveTo(x0 + 1.5, y0 + 2); g.lineTo(x1 + 1.5, y1 + 2); g.stroke();
+      g.strokeStyle = "#6b4526"; g.lineWidth = th; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke();
+      g.strokeStyle = "rgba(255,220,170,0.25)"; g.lineWidth = 1.2; g.beginPath(); g.moveTo(x0, y0 - 1.2); g.lineTo(x1, y1 - 1.2); g.stroke();
+      // a few dead branches with needles at the far end
+      g.strokeStyle = "#2f5a32"; g.lineWidth = 2.4;
+      for (let k = 0; k < 4; k++){ const f = 0.55 + k * 0.12, bx = x0 + (x1 - x0) * f, by = y0 + (y1 - y0) * f;
+        g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + (l.dir[1] || 0.6) * 4 * (k % 2 ? 1 : -1), by + (l.dir[0] || 0.6) * 4 * (k % 2 ? 1 : -1)); g.stroke(); }
+      g.fillStyle = "#d4b07a"; g.beginPath(); g.arc(x0, y0, th * 0.5, 0, Math.PI * 2); g.fill();
+    }
+    const trees = F.trees.slice().sort((a, b) => a.y - b.y);
+    for (const tr of trees){
+      const x = (tr.x + .5 + tr.ox) * T, y = (tr.y + .85 + tr.oy) * T, rng = mtnRng(tr.x * 97 + tr.y * 31 + 7);
+      g.fillStyle = "rgba(0,0,0,0.3)"; g.beginPath(); g.ellipse(x + 1.5, y + 0.5, tr.t.h * 0.4, tr.t.h * 0.13, 0, 0, Math.PI * 2); g.fill();
+      mtnTree(g, x, y, tr.t, rng);
+    }
+    F.art = { cv, SC }; F.artDirty = false;
+  }
+  function forestDrawBack(){
+    if (!isForest()) return;
+    const F = forest;
+    if (F.artDirty || !F.art || F.art.SC !== mtnArtScale()) forestBuildArt();
+    ctx.drawImage(F.art.cv, 0, 0, GRID_W * TILE, GRID_H * TILE);
+    // Bigfoot's footprints
+    const s = F.bf.s;
+    if (s){
+      const T = TILE, n = Math.min(s.shown, s.prints.length), fade = s.phase === "leave" ? s.a : 1;
+      for (let i = 0; i < n; i++){
+        const a = i ? s.prints[i - 1] : [s.prints[0][0] - (s.prints[1] ? s.prints[1][0] - s.prints[0][0] : 0), s.prints[0][1] - (s.prints[1] ? s.prints[1][1] - s.prints[0][1] : 0)], c = s.prints[i];
+        const ang = Math.atan2(c[1] - a[1], c[0] - a[0]) + Math.PI / 2, sd = i % 2 ? 1 : -1;
+        const x = (c[0] + .5) * T + Math.cos(ang) * sd * 3, y = (c[1] + .5) * T + Math.sin(ang) * sd * 3;
+        ctx.save(); ctx.globalAlpha = fade * (0.55 + 0.45 * Math.min(1, (n - i) / 3 + 0.4)); ctx.translate(x, y); ctx.rotate(ang);
+        ctx.fillStyle = "rgba(160,128,90,0.9)";
+        ctx.beginPath(); ctx.ellipse(0, 0, 1.9, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+        for (let f = 0; f < 5; f++){ ctx.beginPath(); ctx.arc(-1.6 + f * .8, -4.3 + Math.abs(f - 1.5) * .35, .55, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+      }
+    }
+  }
+  function drawLumberjack(x, y, s, face, swing, alpha){
+    // v3.23: a more realistic lumberjack: real face, bushy beard and brows, knit beanie, plaid sleeves, axe over the shoulder
+    ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha; ctx.translate(x, y); ctx.scale(s * face, s); ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const SKIN = "#e7b189", SKIN_D = "#b8825c", BEARD = "#6e4121", BEARD_D = "#4a2a12", BEARD_L = "#8a5a33";
+    ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.beginPath(); ctx.ellipse(0, 12.2, 6.2, 1.8, 0, 0, Math.PI * 2); ctx.fill();
+    // jeans
+    const jean = ctx.createLinearGradient(-4, 0, 4, 0); jean.addColorStop(0, "#2a4a7e"); jean.addColorStop(0.5, "#3a62a0"); jean.addColorStop(1, "#28467a");
+    ctx.fillStyle = jean;
+    ctx.beginPath(); ctx.moveTo(-3.4, 5); ctx.lineTo(-0.3, 5); ctx.lineTo(-1.5, 10.8); ctx.lineTo(-4.3, 10.8); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0.3, 5); ctx.lineTo(3.4, 5); ctx.lineTo(4.3, 10.8); ctx.lineTo(1.5, 10.8); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(210,190,120,0.5)"; ctx.lineWidth = 0.25;   // seams
+    ctx.beginPath(); ctx.moveTo(-1.8, 5.4); ctx.lineTo(-2.9, 10.6); ctx.moveTo(1.8, 5.4); ctx.lineTo(2.9, 10.6); ctx.stroke();
+    // boots with soles
+    for (const sd of [-1, 1]){
+      ctx.fillStyle = "#4a2f1b"; ctx.beginPath(); ctx.roundRect(sd < 0 ? -5.4 : 1.2, 10.2, 4.2, 2, 0.8); ctx.fill();
+      ctx.fillStyle = "#1d130b"; ctx.fillRect(sd < 0 ? -5.4 : 1.2, 11.7, 4.2, 0.6);
+      ctx.fillStyle = "#c9a26a"; ctx.fillRect(sd < 0 ? -4.4 : 2.2, 10.5, 1.6, 0.35);   // laces
+    }
+    // the axe, resting over his shoulder BEHIND his head (it swings when he chops)
+    ctx.save(); ctx.translate(3.2, -1.2); ctx.rotate(swing * 0.9); ctx.translate(-3.2, 1.2);
+    ctx.strokeStyle = "#5c3a1c"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(5.2, 3); ctx.lineTo(-2.6, -12.4); ctx.stroke();
+    ctx.strokeStyle = "#9a6a3a"; ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(5, 2.6); ctx.lineTo(-2.5, -12); ctx.stroke();
+    ctx.save(); ctx.translate(-2.4, -12.2); ctx.rotate(-1.1);
+    const ax = ctx.createLinearGradient(0, -3, 0, 3); ax.addColorStop(0, "#e6e9ee"); ax.addColorStop(1, "#8d949e");
+    ctx.fillStyle = ax; ctx.strokeStyle = "#3d434b"; ctx.lineWidth = 0.4;
+    ctx.beginPath(); ctx.moveTo(-1, -1.2); ctx.lineTo(3.2, -2.8); ctx.quadraticCurveTo(4.6, 0, 3.2, 2.8); ctx.lineTo(-1, 1.2); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    ctx.restore();
+    // plaid shirt
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(-4.2, -0.6); ctx.quadraticCurveTo(-4.2, -2.6, -2, -2.8); ctx.lineTo(2, -2.8); ctx.quadraticCurveTo(4.2, -2.6, 4.2, -0.6);
+    ctx.lineTo(3.8, 5.4); ctx.lineTo(-3.8, 5.4); ctx.closePath();
+    ctx.fillStyle = "#b3261e"; ctx.fill(); ctx.clip();
+    ctx.fillStyle = "rgba(25,8,8,0.55)";
+    for (let i = -5; i <= 5; i += 2.6){ ctx.fillRect(i, -3, 1.1, 9); ctx.fillRect(-5, i + 1.2, 10, 1.1); }
+    ctx.strokeStyle = "rgba(255,190,170,0.25)"; ctx.lineWidth = 0.25;
+    for (let i = -5; i <= 5; i += 2.6){ ctx.beginPath(); ctx.moveTo(i + 1.8, -3); ctx.lineTo(i + 1.8, 6); ctx.stroke(); }
+    ctx.restore();
+    // suspenders + belt
+    ctx.strokeStyle = "#3f2a16"; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(-2, -2.6); ctx.lineTo(-1.6, 4.8); ctx.moveTo(2, -2.6); ctx.lineTo(1.6, 4.8); ctx.stroke();
+    ctx.fillStyle = "#3f2a16"; ctx.fillRect(-3.9, 4.6, 7.8, 1); ctx.fillStyle = "#c9a26a"; ctx.fillRect(-0.6, 4.65, 1.2, 0.9);
+    // arms in plaid sleeves, with hands
+    const sleeve = (pts) => {
+      ctx.strokeStyle = "#8f1f19"; ctx.lineWidth = 2.4; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach(p => ctx.lineTo(p[0], p[1])); ctx.stroke();
+      ctx.strokeStyle = "rgba(25,8,8,0.5)"; ctx.lineWidth = 0.5; ctx.setLineDash([0.6, 0.9]); ctx.stroke(); ctx.setLineDash([]);
+    };
+    sleeve([[-3.7, -1.6], [-5, 1.4], [-4.6, 3.8]]);
+    ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(-4.6, 4.3, 0.95, 0, Math.PI * 2); ctx.fill();
+    ctx.save(); ctx.translate(3.2, -1.2); ctx.rotate(swing * 0.9); ctx.translate(-3.2, 1.2);
+    sleeve([[3.7, -1.6], [5.4, 0.6], [4.6, 2.2]]);
+    ctx.fillStyle = SKIN; ctx.beginPath(); ctx.arc(4.6, 2.4, 0.95, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    // head: real face
+    ctx.fillStyle = SKIN; ctx.strokeStyle = SKIN_D; ctx.lineWidth = 0.35;
+    ctx.beginPath(); ctx.arc(-4.1, -6.8, 0.9, 0, Math.PI * 2); ctx.arc(4.1, -6.8, 0.9, 0, Math.PI * 2); ctx.fill();   // ears
+    ctx.beginPath(); ctx.ellipse(0, -7, 4, 4.3, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "rgba(220,90,80,0.35)"; ctx.beginPath(); ctx.ellipse(-2.4, -6.1, 1.1, 0.7, 0, 0, Math.PI * 2); ctx.ellipse(2.4, -6.1, 1.1, 0.7, 0, 0, Math.PI * 2); ctx.fill();
+    // bushy beard with strands, wavy bottom
+    const bg = ctx.createLinearGradient(0, -6, 0, 0); bg.addColorStop(0, BEARD_L); bg.addColorStop(1, BEARD);
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.moveTo(-4.1, -7.2); ctx.quadraticCurveTo(-4.9, -2.6, -2.8, -0.6);
+    ctx.quadraticCurveTo(-2, 0.4, -1.2, -0.2); ctx.quadraticCurveTo(0, 1, 1.2, -0.2); ctx.quadraticCurveTo(2, 0.4, 2.8, -0.6);
+    ctx.quadraticCurveTo(4.9, -2.6, 4.1, -7.2); ctx.quadraticCurveTo(3.2, -5.2, 1.8, -5.1); ctx.quadraticCurveTo(0, -4.5, -1.8, -5.1); ctx.quadraticCurveTo(-3.2, -5.2, -4.1, -7.2);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = BEARD_D; ctx.lineWidth = 0.28;
+    for (const [a, b, c, d] of [[-3.2,-4.6,-2.6,-1.4],[-1.8,-4,-1.3,-0.6],[0,-3.8,0,-0.2],[1.8,-4,1.3,-0.6],[3.2,-4.6,2.6,-1.4],[-2.6,-3,-2.2,-1],[2.6,-3,2.2,-1]]){
+      ctx.beginPath(); ctx.moveTo(a, b); ctx.quadraticCurveTo((a + c) / 2 + 0.3, (b + d) / 2, c, d); ctx.stroke(); }
+    // mouth peeking through, and the mustache
+    ctx.fillStyle = "#7a2e22"; ctx.beginPath(); ctx.ellipse(0, -4.4, 0.9, 0.35, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = BEARD_D;
+    ctx.beginPath(); ctx.moveTo(0, -5.5); ctx.quadraticCurveTo(-1.4, -6.1, -2.8, -4.8); ctx.quadraticCurveTo(-1.4, -4.9, 0, -5); ctx.quadraticCurveTo(1.4, -4.9, 2.8, -4.8); ctx.quadraticCurveTo(1.4, -6.1, 0, -5.5); ctx.fill();
+    // round red nose
+    ctx.fillStyle = "#d4735c"; ctx.beginPath(); ctx.ellipse(0, -6.2, 0.95, 0.8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.45)"; ctx.beginPath(); ctx.arc(-0.3, -6.5, 0.25, 0, Math.PI * 2); ctx.fill();
+    // eyes with a glint, and gruff bushy brows
+    ctx.fillStyle = "#2b1a10"; ctx.beginPath(); ctx.ellipse(-1.55, -7.7, 0.5, 0.6, 0, 0, Math.PI * 2); ctx.ellipse(1.55, -7.7, 0.5, 0.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-1.4, -7.9, 0.17, 0, Math.PI * 2); ctx.arc(1.7, -7.9, 0.17, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = BEARD_D; ctx.lineWidth = 0.75;
+    ctx.beginPath(); ctx.moveTo(-2.7, -8.5); ctx.quadraticCurveTo(-1.6, -9.2, -0.6, -8.45); ctx.moveTo(2.7, -8.5); ctx.quadraticCurveTo(1.6, -9.2, 0.6, -8.45); ctx.stroke();
+    // hair tufts under the hat
+    ctx.fillStyle = BEARD; ctx.beginPath(); ctx.ellipse(-3.9, -8.8, 0.9, 1.3, 0.3, 0, Math.PI * 2); ctx.ellipse(3.9, -8.8, 0.9, 1.3, -0.3, 0, Math.PI * 2); ctx.fill();
+    // knit beanie: rounded dome, ribbed rolled cuff, fluffy pom-pom
+    const hat = ctx.createLinearGradient(0, -14, 0, -9); hat.addColorStop(0, "#d8473a"); hat.addColorStop(1, "#a92c22");
+    ctx.fillStyle = hat; ctx.beginPath(); ctx.moveTo(-4.3, -10); ctx.quadraticCurveTo(-4.4, -14.1, 0, -14.3); ctx.quadraticCurveTo(4.4, -14.1, 4.3, -10); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(90,15,10,0.35)"; ctx.lineWidth = 0.25;
+    for (let i = -3; i <= 3; i += 1.5){ ctx.beginPath(); ctx.moveTo(i, -9.6); ctx.quadraticCurveTo(i * 0.8, -12.5, i * 0.4, -13.6); ctx.stroke(); }
+    ctx.fillStyle = "#9a271e"; ctx.beginPath(); ctx.roundRect(-4.7, -11, 9.4, 2.1, 1.05); ctx.fill();
+    ctx.strokeStyle = "rgba(60,8,5,0.55)"; ctx.lineWidth = 0.3;
+    for (let i = -4.1; i <= 4.2; i += 0.8){ ctx.beginPath(); ctx.moveTo(i, -10.8); ctx.lineTo(i, -9.1); ctx.stroke(); }
+    for (const [px, py, r] of [[0, -14.9, 1.4], [-0.9, -14.6, 0.9], [0.9, -14.6, 0.9], [0, -15.8, 0.9], [-0.6, -15.5, 0.7], [0.7, -15.5, 0.7]]){
+      ctx.fillStyle = "#f4f1ea"; ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "rgba(180,170,150,0.5)"; ctx.beginPath(); ctx.arc(0.5, -14.4, 0.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  function drawBulldozer(x, y, s, face, warn){
+    const time = performance.now() * 0.001;
+    ctx.save(); ctx.translate(x, y); ctx.scale(s * face, s);
+    ctx.fillStyle = "rgba(0,0,0,0.35)"; ctx.beginPath(); ctx.ellipse(2, 9, 26, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#222"; ctx.beginPath(); ctx.roundRect(-22, 1, 36, 9, 4.5); ctx.fill();
+    ctx.fillStyle = "#555"; for (let i = 0; i < 5; i++){ ctx.beginPath(); ctx.arc(-17.5 + i * 6.4, 5.5, 2.6, 0, Math.PI * 2); ctx.fill(); }
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 0.6; const off = (time * 6) % 3.4;
+    for (let i = 0; i < 11; i++){ ctx.beginPath(); ctx.moveTo(-20 + i * 3.4 + off, 1); ctx.lineTo(-20 + i * 3.4 + off, 2.4); ctx.stroke(); }
+    const yel = ctx.createLinearGradient(0, -12, 0, 2); yel.addColorStop(0, "#ffd23f"); yel.addColorStop(1, "#d99a00");
+    ctx.fillStyle = yel; ctx.strokeStyle = "#7a5200"; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.roundRect(-18, -6, 29, 8, 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(-15, -17, 12, 12, 1.5); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#9fd3ea"; ctx.fillRect(-13, -15, 8, 6.5);
+    ctx.fillStyle = "#333"; ctx.fillRect(3, -11, 2.6, 6);
+    const pf = (time * 1.2) % 1;
+    ctx.fillStyle = `rgba(170,170,170,${0.55 * (1 - pf)})`; ctx.beginPath(); ctx.arc(4.3 + pf * 3, -13 - pf * 7, 2.5 + pf * 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#7a5200"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(9, -1); ctx.lineTo(17, 2); ctx.stroke();
+    ctx.fillStyle = "#8a8f98"; ctx.strokeStyle = "#444"; ctx.lineWidth = 0.7;
+    ctx.beginPath(); ctx.moveTo(16, -9); ctx.quadraticCurveTo(22, -1, 17, 11); ctx.lineTo(20, 11); ctx.quadraticCurveTo(25, -1, 19, -9); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    if (warn){
+      ctx.save(); ctx.font = "bold 16px Arial"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = "#1a1a1a";
+      ctx.fillStyle = Math.sin(time * 14) > 0 ? "#ff3b30" : "#ffd23f";
+      ctx.strokeText("!", x, y - 22 * s); ctx.fillText("!", x, y - 22 * s); ctx.restore();
+    }
+  }
+  function forestDrawMid(){
+    if (!isForest()) return;
+    const F = forest, T = TILE, time = performance.now() * 0.001;
+    // falling trees: a shadow warning where it will land, then the tree tips over
+    for (const f of F.falls){
+      const k = Math.min(1, f.t / 80);
+      if (f.t < 80){
+        ctx.save(); ctx.globalAlpha = 0.25 + 0.3 * k + 0.15 * Math.sin(f.t * 0.5);
+        ctx.fillStyle = "#000";
+        for (const [x, y] of f.tiles){ ctx.beginPath(); ctx.ellipse((x + .5) * T, (y + .6) * T, T * 0.55, T * 0.3, 0, 0, Math.PI * 2); ctx.fill(); }
+        ctx.restore();
+      }
+      if (f.t < 80){
+        const t = f.tree, x = (t.x + .5 + t.ox) * T, y = (t.y + .85 + t.oy) * T;
+        const tip = f.t > 55 ? (f.t - 55) / 25 : 0;
+        const ang = f.dir[0] ? f.dir[0] * tip * Math.PI / 2 : (Math.sin(f.t * 0.6) * 0.04 + f.dir[1] * tip * 0.35);
+        ctx.save(); ctx.translate(x, y); ctx.rotate(ang); if (f.dir[1] && tip) ctx.scale(1, 1 - tip * 0.5 * (f.dir[1] < 0 ? -0.3 : 1));
+        mtnTree(ctx, 0, 0, t.t, mtnRng(t.x * 97 + t.y * 31 + 7)); ctx.restore();
+      }
+    }
+    // lumberjacks
+    for (const j of F.jacks){
+      const x = (j.px + .5) * T, y = (j.py + .5) * T - 3, bob = j.state === "walk" ? Math.abs(Math.sin(time * 6)) * 0.8 : 0;
+      drawLumberjack(x, y - 3 - bob, 1.5, j.face, j.state !== "walk" ? j.swing : 0, 1);   // v3.22: player-sized
+      if (j.say){
+        const a = Math.min(1, j.say.t / 8, (150 - j.say.t) / 20);
+        ctx.save(); ctx.globalAlpha = a; ctx.font = "bold 10px Arial"; const w = ctx.measureText(j.say.text).width + 14, bx = Math.max(w / 2 + 3, Math.min(GRID_W * TILE - w / 2 - 3, x)), by = y - 40;
+        ctx.fillStyle = "rgba(255,255,255,0.97)"; ctx.strokeStyle = "#3d2f1f"; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.roundRect(bx - w / 2, by - 10, w, 20, 6); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - 4, by + 9); ctx.lineTo(x, by + 16); ctx.lineTo(x + 4, by + 9); ctx.fill();
+        ctx.fillStyle = "#7a1c14"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(j.say.text, bx, by);
+        ctx.restore();
+      }
+      if (j.state === "chop" && j.chopT < 80 && !j.say){
+        ctx.save(); ctx.font = "bold 11px Arial"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = "#1a1a1a"; ctx.fillStyle = "#ffd54a";
+        ctx.strokeText("TIMBER!", x, y - 30); ctx.fillText("TIMBER!", x, y - 30); ctx.restore();
+      }
+    }
+    // Bigfoot peeking out beside his tree
+    const s = F.bf.s;
+    if (s && s.phase !== "prints" && s.a > 0){
+      const wave = s.given ? Math.sin(time * 6) : 0.4 + Math.sin(time * 2) * 0.2;
+      drawBigfootFigure(ctx, (s.x + .5 - s.sd * 0.1) * T, (s.y + .95) * T, T * 1.9, wave, s.a);
+      if (s.given && s.bubbleT > 0){
+        const tx = (s.x + .5) * T, ty = (s.y - 1.6) * T;
+        ctx.save(); ctx.globalAlpha = Math.min(1, s.bubbleT / 30);
+        ctx.fillStyle = "rgba(255,255,255,0.97)"; ctx.strokeStyle = "#3d2f1f"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.roundRect(tx - 48, ty - 15, 96, 30, 7); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(tx - 5, ty + 14); ctx.lineTo(tx, ty + 22); ctx.lineTo(tx + 5, ty + 14); ctx.fill();
+        ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "#222"; ctx.font = "bold 13px Arial"; ctx.fillText("HRRMM!", tx, ty - 5);
+        ctx.fillStyle = "#4b5563"; ctx.font = "italic bold 9px Arial"; ctx.fillText("(take good care of it)", tx, ty + 8);
+        ctx.restore();
+      }
+    }
+    // drifting fog (thick banks hide sticks, the hole and lumberjacks; thin wisps are just scenery)
+    for (const b of F.fog){
+      const d = forestFogDens(b);
+      for (const p of b.puffs){
+        const x = (b.x + p.dx * b.rx * 0.7 + Math.sin(time * 0.4 + p.ph) * 0.2) * T, y = (b.y + p.dy * b.ry * 0.7 + Math.cos(time * 0.35 + p.ph) * 0.12) * T;
+        const r = p.r * Math.min(b.rx, b.ry * 1.4) * 0.75 * T, al = Math.min(0.85, d * p.a);
+        ctx.save(); ctx.translate(x, y); ctx.scale(p.sx, 1);
+        const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+        gr.addColorStop(0, `rgba(208,218,215,${al})`); gr.addColorStop(0.55, `rgba(194,206,202,${al * 0.55})`); gr.addColorStop(1, "rgba(180,195,190,0)");
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+      }
+    }
+    // ...but anything right next to you shows through
+    for (const st of game.sticks) if (Math.max(Math.abs(st.x - game.playerX), Math.abs(st.y - game.playerY)) <= 1 && forestFogAt(st.x, st.y)) drawStick(st);
+    if (Math.max(Math.abs(game.holeX - game.playerX), Math.abs(game.holeY - game.playerY)) <= 1 && forestFogAt(game.holeX, game.holeY)) drawHole(currentLevelTheme());
+    // the bulldozer (always visible: it's the one that can squish you)
+    const d = F.dozer;
+    if (d) drawBulldozer((d.px + .5) * T, (d.py + .5) * T, 0.95, d.face, d.warn);
+  }
+  function forestDrawTop(){
+    if (!isForest()) return;
+    const F = forest;
+    for (const p of F.pops){
+      ctx.save(); ctx.globalAlpha = Math.max(0, 1 - p.t / 70); ctx.font = p.small ? "italic bold 10px Arial" : "bold 14px Arial"; ctx.textAlign = "center"; ctx.lineWidth = 3; ctx.strokeStyle = "#1a1a1a"; ctx.fillStyle = "#ffd54a";
+      ctx.strokeText(p.text, p.x, p.y - p.t * 0.3); ctx.fillText(p.text, p.x, p.y - p.t * 0.3); ctx.restore();
+    }
+    const bn = F.banner;
+    if (bn){
+      const el = performance.now() - bn.t0, s = F.bf.s;
+      let done = el > bn.dur;
+      if (bn.countdown) done = !s || s.phase !== "wait";
+      if (done){ F.banner = null; }
+      else {
+        const W = GRID_W * TILE, cx = W / 2, a = Math.min(1, el / 250, bn.countdown ? 1 : (bn.dur - el) / 400);
+        let l1 = bn.l1;
+        if (bn.countdown && s){ const sec = Math.max(0, Math.ceil(s.timer / 60)); l1 += `  0:${String(sec).padStart(2, "0")}`; }
+        const y = game.playerY < 4 ? GRID_H * TILE - 64 : 12;
+        ctx.save(); ctx.globalAlpha = a;
+        ctx.font = "bold 17px Arial"; const w1 = ctx.measureText(l1).width; ctx.font = "bold 12px Arial"; const w2 = ctx.measureText(bn.l2).width;
+        const bw = Math.min(W - 16, Math.max(w1, w2) + 34);
+        ctx.fillStyle = "rgba(14,20,10,0.9)"; ctx.strokeStyle = "#c9a26a"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(cx - bw / 2, y, bw, 50, 10); ctx.fill(); ctx.stroke();
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.font = "bold 17px Arial"; ctx.fillStyle = "#ffd700"; ctx.fillText(l1, cx, y + 17);
+        ctx.font = "bold 12px Arial"; ctx.fillStyle = "#fff"; ctx.fillText(bn.l2, cx, y + 36);
+        ctx.restore();
+      }
+    }
+    if (!F.bf.given && F.bf.left < 3){
+      ctx.save(); ctx.font = "bold 10px Arial"; ctx.fillStyle = "rgba(201,228,192,0.85)"; ctx.textAlign = "right";
+      ctx.fillText(F.bf.left > 0 ? `Bigfoot sightings left: ${F.bf.left}` : "Bigfoot is gone", GRID_W * TILE - 6, GRID_H * TILE - 6); ctx.restore();
+    }
+  }
+
+  // ===== v3.26 Mountain Stick at sunset: sky strip on the horizon, evening-lit land, alpenglow, long shadows =====
+  const SUN = { x: 0.72, y: 0.06 };   // sun low on the far horizon, upper right
+  let sunsetCache = null;
+  function sunsetBack(){
+    if (currentLevelTheme().name !== "Mountain Stick") return;
+    const SC = mtnArtScale();
+    if (!sunsetCache || sunsetCache.m !== mountains || sunsetCache.SC !== SC){
+      // painted once per board (blurred shadows and gradients are too heavy to redraw every frame)
+      const cv = document.createElement("canvas"); cv.width = Math.ceil(GRID_W * TILE * SC); cv.height = Math.ceil(GRID_H * TILE * SC);
+      const g = cv.getContext("2d"); g.scale(SC, SC);
+      const keep = ctx; ctx = g;
+      try { sunsetPaint(); } finally { ctx = keep; }
+      sunsetCache = { cv, m: mountains, SC };
+    }
+    ctx.drawImage(sunsetCache.cv, 0, 0, GRID_W * TILE, GRID_H * TILE);
+    // the first stars twinkle live, far from the sun
+    const T = TILE, W = GRID_W * T, t = performance.now() * 0.001;
+    let s = 4242; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 14; i++){ const x = rnd() * W * 0.32, y = rnd() * T * 2.6 * 0.7, tw = 0.35 + 0.35 * Math.sin(t * (1 + rnd() * 2) + i);
+      ctx.fillStyle = `rgba(255,240,220,${tw})`; ctx.beginPath(); ctx.arc(x, y, 0.6 + rnd() * 0.7, 0, Math.PI * 2); ctx.fill(); }
+  }
+  function sunsetPaint(){
+    const T = TILE, W = GRID_W * T, H = GRID_H * T;
+    const HZ = T * 2.6;   // the horizon: sky above, land below
+    // GROUND: real land at dusk. Gold-lit near the horizon, falling into purple-brown shade up close.
+    const gg = ctx.createLinearGradient(0, HZ, 0, H);
+    gg.addColorStop(0, "rgba(150,108,72,0.9)"); gg.addColorStop(0.3, "rgba(112,82,62,0.9)");
+    gg.addColorStop(0.7, "rgba(72,54,56,0.92)"); gg.addColorStop(1, "rgba(44,34,48,0.95)");
+    ctx.fillStyle = gg; ctx.fillRect(0, HZ, W, H - HZ);
+    const sx = SUN.x * W, sy = SUN.y * H;
+    const lit = ctx.createRadialGradient(sx, HZ, 0, sx, HZ, W * 0.7);   // last light washing across the ground from the sun
+    lit.addColorStop(0, "rgba(255,190,120,0.32)"); lit.addColorStop(1, "rgba(255,170,110,0)");
+    ctx.fillStyle = lit; ctx.fillRect(0, HZ, W, H - HZ);
+    let s2 = 31337; const r2 = () => (s2 = (s2 * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 16; i++){   // patchy meadow and dirt so it reads as land
+      const x = r2() * W, y = HZ + r2() * (H - HZ), r = (2 + r2() * 4) * T, gr = ctx.createRadialGradient(x, y, 0, x, y, r);
+      gr.addColorStop(0, r2() < 0.55 ? "rgba(96,104,60,0.22)" : "rgba(60,40,30,0.22)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = gr; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    }
+    // SKY: only the strip above the horizon. Gold by the sun, rose and violet away from it.
+    const sk = ctx.createLinearGradient(0, 0, W, 0);
+    sk.addColorStop(0, "rgba(120,80,130,1)"); sk.addColorStop(0.45, "rgba(226,128,112,1)"); sk.addColorStop(0.75, "rgba(250,186,110,1)"); sk.addColorStop(1, "rgba(236,150,100,1)");
+    ctx.fillStyle = sk; ctx.fillRect(0, 0, W, HZ + 2);
+    const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, W * 0.3);
+    sg.addColorStop(0, "rgba(255,236,170,0.8)"); sg.addColorStop(1, "rgba(255,190,120,0)");
+    ctx.fillStyle = sg; ctx.fillRect(0, 0, W, HZ + 2);
+    ctx.save(); ctx.shadowColor = "#ffd27a"; ctx.shadowBlur = 30; ctx.fillStyle = "#ffe7a8";
+    ctx.beginPath(); ctx.arc(sx, HZ - 6, 20, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    // distant ranges sit ON the horizon, hazy blue-mauve, their feet fading into the land
+    const range = (amp, seed, rgb, a) => {
+      let q = seed; const rq = () => (q = (q * 16807) % 2147483647) / 2147483647;
+      const g = ctx.createLinearGradient(0, HZ - amp, 0, HZ + T * 1.2);
+      g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(0.7, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`);
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, HZ + T * 1.2);
+      for (let x = 0; x <= W + 30; x += 18 + rq() * 26) ctx.lineTo(x, HZ - amp * (0.3 + rq() * 0.7));
+      ctx.lineTo(W, HZ + T * 1.2); ctx.closePath(); ctx.fill();
+    };
+    range(T * 1.9, 77, "170,118,140", 0.75);
+    range(T * 1.2, 913, "118,84,104", 0.85);
+    // faint grid so the board still reads as a board
+    ctx.strokeStyle = "rgba(255,225,200,0.06)"; ctx.lineWidth = 1; ctx.beginPath();
+    for (let i = 0; i <= GRID_W; i++){ ctx.moveTo(i * T, 0); ctx.lineTo(i * T, H); ctx.moveTo(0, i * T); ctx.lineTo(W, i * T); } ctx.stroke();
+    // long soft shadows from each mountain, cast away from the sun (down and to the left)
+    for (const m of mountains){
+      const bx = (m.x0 + m.w * 0.5) * T, by = (m.base + 0.9) * T, len = (m.base - m.top + 1) * T * 0.9;
+      ctx.save(); ctx.filter = "blur(5px)"; ctx.translate(bx, by); ctx.rotate(2.45);
+      const shg = ctx.createLinearGradient(0, 0, len, 0); shg.addColorStop(0, "rgba(30,16,40,0.4)"); shg.addColorStop(1, "rgba(30,16,40,0)");
+      ctx.fillStyle = shg; ctx.beginPath(); ctx.moveTo(0, -m.w * T * 0.32); ctx.lineTo(len, -m.w * T * 0.18); ctx.lineTo(len, m.w * T * 0.18); ctx.lineTo(0, m.w * T * 0.32); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+  function sunsetFront(){
+    if (currentLevelTheme().name !== "Mountain Stick") return;
+    const T = TILE;
+    for (const m of mountains){
+      if (!m.sil) continue;
+      ctx.save(); ctx.beginPath(); m.sil.forEach((p, i) => i ? ctx.lineTo(p[0] * T, p[1] * T) : ctx.moveTo(p[0] * T, p[1] * T)); ctx.closePath(); ctx.clip();
+      const x0 = m.x0 * T, x1 = (m.x0 + m.w) * T, y0 = (m.top - 0.6) * T, y1 = (m.base + 1) * T;
+      // alpenglow: snow and upper slopes turn pink-gold
+      ctx.globalCompositeOperation = "soft-light";
+      const ag = ctx.createLinearGradient(0, y0, 0, y1); ag.addColorStop(0, "rgba(255,140,120,0.95)"); ag.addColorStop(0.45, "rgba(255,150,110,0.55)"); ag.addColorStop(1, "rgba(120,60,120,0.7)");
+      ctx.fillStyle = ag; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      // warm light on the sunny (right) side, cool purple shade on the left
+      ctx.globalCompositeOperation = "source-over";
+      const side = ctx.createLinearGradient(x0, 0, x1, 0); side.addColorStop(0, "rgba(60,30,90,0.35)"); side.addColorStop(0.5, "rgba(60,30,90,0)"); side.addColorStop(0.75, "rgba(255,170,110,0)"); side.addColorStop(1, "rgba(255,170,110,0.22)");
+      ctx.fillStyle = side; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      const snow = ctx.createLinearGradient(0, y0, 0, y0 + (y1 - y0) * 0.35); snow.addColorStop(0, "rgba(255,170,150,0.35)"); snow.addColorStop(1, "rgba(255,170,150,0)");
+      ctx.fillStyle = snow; ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      ctx.restore();
+    }
+  }
+
+  // v3.27: on Mountain Stick the top rows are sunset sky: nothing walks, spawns or grazes up there,
+  // except on a mountain itself (its rock and trail can rise into the sky)
+  const MTN_SKY_ROWS = 3;
+  function mtnSky(x, y){ return currentLevelTheme().name === "Mountain Stick" && y < MTN_SKY_ROWS && !mtnSolid(x, y) && !mtnAt(x, y); }
   function initSnowman(){
     let x, y;
     do {
@@ -10834,8 +11724,8 @@ function updateSpiderWebs(){
         case "Sparkle Stick":   // Level 2 - pink accent
           glowColor = {r: 255, g: 20, b: 147};
           break;
-        case "Sun Stick":       // Level 3 - gold/yellow accent
-          glowColor = {r: 255, g: 212, b: 0};
+        case "Forest Stick":    // Level 3 - pine green accent
+          glowColor = {r: 156, g: 204, b: 101};
           break;
         case "Sky Stick":       // Level 4 - sky blue accent
           glowColor = {r: 58, g: 167, b: 255};
@@ -12660,7 +13550,7 @@ function updateSpiderWebs(){
     // Match music style to theme groups!
     // Calm/Peaceful themes: Flowing arpeggios (MUSIC_B)
     if(theme.name === "Night Stick" || theme.name === "Sparkle Stick" || 
-       theme.name === "Sky Stick" || theme.name === "Sea Stick"){
+       theme.name === "Sky Stick" || theme.name === "Sea Stick" || theme.name === "Forest Stick"){
       seq = MUSIC_B;
     }
     // Spooky/Dark themes: Ominous minor key (MUSIC_D)
@@ -13887,7 +14777,7 @@ function sfxMonsterVictoryStreak(){
   const LEVEL_TIPS = {
     "Night Stick":   "The friendly UFO beams you to a random spot. Stand under it for a free ride!",
     "Sparkle Stick": "Walk through the rainbow to become a cupcake. Sweet! Every stick counts double.",
-    "Sun Stick":     "Bask in the sun — it blesses you with bonus sticks.",
+    "Forest Stick":  "Fog hides sticks until you're close. Lumberjacks grab sticks and yell TIMBER! The slow bulldozer squishes. Follow Bigfoot's footprints for his golden x50 stick!",
     "Sky Stick":     "Birds snatch sticks and gusts shove you; planes give lifts.",
     "Fire Stick":    "Don't linger in the fire — and a demon is hunting you.",
     "Mountain Stick":"Mountains are solid rock. Take the TRAIL to the summit for a big peak stick, then slide back down! If the eagle lands on a peak, climb up for its golden stick bundle (x25 or more)!",
@@ -14340,7 +15230,7 @@ function sfxMonsterVictoryStreak(){
 
   // v2.69: the one color used for the hole's "drop" glow-up on each level (the rim color, brightened;
   // Night Stick uses its gold stars and Mountain a brighter tan, since their rims are dull).
-  const HOLE_RIM = { "Sparkle Stick":"#c080e0", "Sun Stick":"#ffd400", "Cursed Stick":"#8b00ff", "Sea Stick":"#00bfff",
+  const HOLE_RIM = { "Sparkle Stick":"#c080e0", "Forest Stick":"#8d6e4a", "Cursed Stick":"#8b00ff", "Sea Stick":"#00bfff",
     "Sky Stick":"#3aa7ff", "Fire Stick":"#ff5a6a", "Banana Stick":"#ffd700", "Snake Stick":"#caa14a", "Spell Stick":"#ff69ff",
     "Ice Stick":"#7fdcff", "Glow Stick":"#ffb347", "Spider Stick":"#8b5cf6", "Victory Stick":"#27ae60",
     "Night Stick":"#ffd54a", "Mountain Stick":"#e2b77a" };
@@ -14464,7 +15354,9 @@ function sfxMonsterVictoryStreak(){
       if (!game.lifeTileUsed && x===game.lifeTileX && y===game.lifeTileY) continue;
       if (game.treeActive && x===game.treeX && y===game.treeY) continue;
       if (mtnSolid(x, y)) continue;   // v2.96: never inside a mountain
+      if (mtnSky(x, y)) continue;     // v3.27: or up in the sunset sky
       if (creekAt(x, y)) continue;    // v3.07: or in the creek
+      if (forest && forestTreeAt(x, y)) continue;   // v3.20: or under a forest tree
       if (mountains.length && mountains.some(m => x >= m.x0 && x < m.x0 + m.w && y >= m.top && y <= m.base && !mtnAt(x, y))) continue;   // v3.07: keep the mountain's sides clear (trail stones are fine)
       if (mountains.length && mountains.some(m => m.summit.x === x && m.summit.y === y)) continue;   // v3.02: summits are for peak sticks
       
@@ -14500,6 +15392,20 @@ function sfxMonsterVictoryStreak(){
     }
     game.holeX = randInt(6, GRID_W-7);
     game.holeY = randInt(6, GRID_H-7);
+    mtnFixHole();
+  }
+  // v3.28: the hole never sits on (or right against) a mountain, whichever was placed first
+  function mtnHoleBad(x, y){
+    return mountains.some(m => x >= m.x0 - 1 && x <= m.x0 + m.w && y >= m.top - 1 && y <= m.base + 1);
+  }
+  function mtnFixHole(){
+    if (!mountains || !mountains.length || !mtnHoleBad(game.holeX, game.holeY)) return;
+    for (let k = 0; k < 500; k++){
+      const x = randInt(3, GRID_W - 4), y = randInt(5, GRID_H - 4);
+      if (mtnHoleBad(x, y) || (x === game.playerX && y === game.playerY) || isOccupiedByStick(x, y)) continue;
+      if (forest && forestTreeAt(x, y)) continue;
+      game.holeX = x; game.holeY = y; return;
+    }
   }
 
   // Center the player on the board when starting a game or entering a new level.
@@ -14659,7 +15565,7 @@ function sfxMonsterVictoryStreak(){
     if (themeName === 'Cursed Stick' && level >= 6){
       maxB += 1;
     }
-    if (themeName === 'Sun Stick' && level >= 8){
+    if (themeName === 'Forest Stick' && level >= 8){
       maxB += 1;
     }
 
@@ -14849,7 +15755,13 @@ function sfxMonsterVictoryStreak(){
       ui.nameLoadBtn.disabled = !hasSavedGame;
     }
 
-    gameSetTimeout(()=>ui.nameInput.focus(), 50);
+    gameSetTimeout(()=>nameFocusIfKeyboard(), 50);
+  }
+  // v3.36: only jump into the name box on computers. On phones/tablets that pops the on-screen keyboard
+  // over the stick picker; there you tap the box when you're ready to type.
+  function nameFocusIfKeyboard(){
+    let touch = false; try { touch = window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches; } catch(_){}
+    if (!touch) try { ui.nameInput.focus(); } catch(_){}
   }
   function closeNameModal(){
     ui.nameOverlay.style.display = "none";
@@ -14864,7 +15776,7 @@ function sfxMonsterVictoryStreak(){
   // everything moves: sticks fall, the hole swallows sticks, dice tumble, the UFO beams, figures dance.
   const PreviewArt = (function(){
     const W = 640, H = 640;
-    const SLIDE = 7.5;   // seconds per slide (22 slides x 7.5 s = about the length of "Casey Plays Sticks")
+    const SLIDE = 6.875;   // v3.31: 24 slides x 6.875 s = the same 165 s as before (about the length of "Casey Plays Sticks")
     const FONT = '"Consolas","Menlo","DejaVu Sans Mono",monospace';
     const COLORS = ['#ff4d6d','#ffd54a','#4dd0ff','#7cff6b','#c77dff','#ff9f43','#f8f8f8','#ff6bd6'];
     let X = null, canvas = null, scene = 0, t0 = 0, raf = 0, lastDraw = 0;
@@ -14913,6 +15825,15 @@ function sfxMonsterVictoryStreak(){
       neon(() => { X.moveTo(neck.x, neck.y); X.lineTo(hip.x, hip.y);
         L.forEach(l => { X.moveTo(l[0].x, l[0].y); X.lineTo(l[1].x, l[1].y); X.lineTo(l[2].x, l[2].y); }); }, color, w);
       return { hands:[L[0][2], L[1][2]], feet:[L[2][2], L[3][2]] };
+    }
+    // v3.32: where a figure's hand is, so a held stick sits IN the hand (same math as figure())
+    function handAt(x, y, s, p, side){
+      p = Object.assign({ lArm:[-140,-170], rArm:[-40,-10], tilt:0 }, p || {});
+      const body = s*2.6, up = s*1.5, lo = s*1.4, neck = { x:x, y:y + s };
+      const hip = { x:x + Math.sin(rad(p.tilt))*body, y:y + s + Math.cos(rad(p.tilt))*body };
+      const sh = { x:neck.x + (hip.x-neck.x)*0.18, y:neck.y + (hip.y-neck.y)*0.18 };
+      const a = side === 'l' ? p.lArm : p.rArm, e = { x:sh.x + Math.cos(rad(a[0]))*up, y:sh.y + Math.sin(rad(a[0]))*up };
+      return { x:e.x + Math.cos(rad(a[1]))*lo, y:e.y + Math.sin(rad(a[1]))*lo };
     }
     // Rex Stick, the game's stick dog (same shape as the in-game skin, scaled up): big round head,
     // two ears, short body, stub legs that paddle, wagging tail, plus two eye dots for the close-up.
@@ -15373,23 +16294,53 @@ function sfxMonsterVictoryStreak(){
         text('walk the rainbow, become a cupcake', 320, 602, 20, '#ffe6ff', { weight:700, alpha:0.9 });
         frame('#f0c0ff');
       },
-      // Sun Stick: the sun blesses you with bonus sticks
+      // Forest Stick (v3.32): a misty pine forest. Sticks hide in the fog, a bulldozer rolls through,
+      // and Bigfoot peeks out at the end of his footprints
       function(t){
-        bg('#2a1505', '#0a0500', 'rgba(255,212,0,0.07)', 0, t);
         const p = t % SLIDE;
-        X.save(); X.translate(460, 150); X.rotate(t * 0.3);
-        for (let i = 0; i < 16; i++){ X.rotate(TAU / 16); neon(() => { X.moveTo(80, 0); X.lineTo(120 + wave(t, 4, 12, i), 0); }, '#ffd400', 4); }
-        X.restore(); glow(460, 150, 150, '#ffd400', 0.55); X.fillStyle = '#ffe066'; X.shadowColor = '#ffd400'; X.shadowBlur = 40; X.beginPath(); X.arc(460, 150, 66, 0, TAU); X.fill(); X.shadowBlur = 0;
-        X.fillStyle = '#7a4a00'; X.beginPath(); X.arc(440, 140, 6, 0, TAU); X.arc(480, 140, 6, 0, TAU); X.fill();
-        neon(() => { X.arc(460, 158, 22, 0.2, Math.PI - 0.2); }, '#7a4a00', 3);
-        const pg = 0.6 + 0.4 * Math.sin(t * 6); glow(200, 330, 140, '#ffd400', 0.35 * pg);
-        figure(200, 230, 30, '#ffffff', { lArm:[-150, -120], rArm:[-30, -60], lLeg:[112, 100], rLeg:[68, 82] });
-        for (let k = 0; k < 4; k++){ const q = ((p * 0.55 + k / 4) % 1);
-          const sx = 460 - q * 240 + Math.sin(q * 9 + k) * 20, sy = 200 + q * 260;
-          stick(sx, sy, 32, q * 8 + k, COLORS[k + 1], 3); glow(sx, sy, 26, '#ffd400', 0.4); }
-        text('SUN STICK', 320, 560, 40, '#ffd400', { spacing:4 });
-        text('bask in the sun for bonus sticks', 320, 602, 20, '#ffe9a8', { weight:700, alpha:0.9 });
-        frame('#ffd400');
+        const g0 = X.createLinearGradient(0, 0, 0, H); g0.addColorStop(0, '#1d3424'); g0.addColorStop(1, '#0a140d');
+        X.fillStyle = g0; X.fillRect(0, 0, W, H);
+        seed = 4321; for (let i = 0; i < 12; i++){ const x = R(0, W), y = R(140, 520), r = R(60, 140), gg = X.createRadialGradient(x, y, 0, x, y, r);
+          gg.addColorStop(0, rnd() < 0.6 ? 'rgba(70,110,55,0.22)' : 'rgba(80,60,38,0.2)'); gg.addColorStop(1, 'rgba(0,0,0,0)'); X.fillStyle = gg; X.fillRect(x - r, y - r, r * 2, r * 2); }
+        // a real pine: layered tiers, darker underneath, lighter at the tips, with a soft shadow
+        const pine = (x, y, h, haze) => {
+          X.save(); X.globalAlpha = haze == null ? 1 : haze;
+          X.fillStyle = 'rgba(0,0,0,0.28)'; X.beginPath(); X.ellipse(x + 6, y + 2, h * 0.36, h * 0.07, 0, 0, TAU); X.fill();
+          X.fillStyle = '#4a2f1a'; X.fillRect(x - h * 0.035, y - h * 0.14, h * 0.07, h * 0.15);
+          for (let k = 0; k < 4; k++){ const ty = y - h * 0.1 - k * h * 0.22, tw = h * (0.38 - k * 0.075), th = h * 0.34;
+            const gr = X.createLinearGradient(x - tw, 0, x + tw, 0); gr.addColorStop(0, '#173d24'); gr.addColorStop(0.55, '#2f6b3a'); gr.addColorStop(1, '#1d4a2b');
+            X.fillStyle = gr; X.beginPath(); X.moveTo(x, ty - th); X.lineTo(x + tw, ty); X.quadraticCurveTo(x, ty + h * 0.05, x - tw, ty); X.closePath(); X.fill(); }
+          X.restore();
+        };
+        // far trees in the haze, then the near ones
+        seed = 77; for (let i = 0; i < 9; i++) pine(R(10, 630), R(150, 190), R(60, 95), 0.45);
+        pine(80, 300, 150); pine(610, 280, 120); pine(170, 520, 110);
+        // Bigfoot's footprints, then Bigfoot peeking out from behind the big pine
+        const nP = Math.min(6, Math.floor(p * 1.6));
+        for (let i = 0; i < nP; i++){ const fx = 630 - i * 22, fy = 445 - i * 7 + (i % 2 ? 6 : -6);
+          X.fillStyle = 'rgba(175,140,100,0.85)'; X.beginPath(); X.ellipse(fx, fy, 6.5, 3.6, -0.3, 0, TAU); X.fill(); }
+        const bfA = Math.max(0, Math.min(1, (p - 3.6) * 1.4));
+        if (bfA > 0 && typeof drawBigfootFigure === 'function') drawBigfootFigure(X, 468, 420, 150, Math.sin(t * 2) * 0.3 + 0.4, bfA);
+        pine(520, 440, 290);
+        // drifting fog (a stick hides inside it until you get close)
+        const reveal = Math.max(0, Math.min(1, (p - 2.2) * 1.2));
+        stick(300, 330, 34, -0.6, '#ff9f43', 4); stick(395, 255, 30, 0.7, '#4dd0ff', 4);
+        for (let i = 0; i < 6; i++){ const fx = ((i * 160 + t * 16) % 900) - 130, fy = 250 + (i % 3) * 70, rr = 120 - (i % 2) * 30;
+          glow(fx, fy, rr, '#d4ddd8', 0.34); }
+        glow(395, 255, 80, '#d4ddd8', 0.55 * (1 - reveal));      // the fog thins as you walk up to that stick
+        // you, walking up to the stick and grabbing it
+        const walk = Math.min(1, p / 2.8), px = 150 + walk * 150, st = walk < 1 ? Math.sin(p * 12) : 0;
+        const arm = { lLeg:[110 + st * 22, 100], rLeg:[70 - st * 22, 80], lArm:[-140 + st * 18, -170], rArm:[-30, 20] };
+        figure(px, 245, 24, '#ffffff', arm);
+        const hd = handAt(px, 245, 24, arm, 'r'); stick(hd.x + 6, hd.y - 4, 34, -0.9, '#ffd54a', 4);
+        // the bulldozer rolls in from the left, flattening a sapling on the way
+        const dz = Math.min(1, p / 6.2), dxp = -90 + dz * 400;
+        if (dxp < 255) pine(255, 505, 60);
+        if (typeof drawBulldozer === 'function' && typeof ctx !== 'undefined'){ const keep = ctx; ctx = X; try { drawBulldozer(dxp, 485, 2.6, 1, false); } finally { ctx = keep; } }
+        X.save(); X.fillStyle = 'rgba(0,0,0,0.55)'; X.fillRect(0, 528, W, 112); X.restore();
+        text('FOREST STICK', 320, 560, 40, '#9ccc65', { spacing:4 });
+        text('fog, a bulldozer, and Bigfoot', 320, 602, 20, '#dcefc8', { weight:700, alpha:0.9 });
+        frame('#9ccc65');
       },
       // Sky Stick: clouds drift, a gust shoves you, a bird snatches a stick, a plane offers a lift
       function(t){
@@ -15402,8 +16353,6 @@ function sfxMonsterVictoryStreak(){
           X.beginPath(); X.arc(0, 0, 26, 0, TAU); X.arc(30, -14, 32, 0, TAU); X.arc(64, -4, 26, 0, TAU); X.arc(32, 8, 26, 0, TAU); X.fill(); X.restore(); }
         // wind gust from the left: streaks, and the player leans into it
         const gust = Math.max(0, Math.sin(p * 1.3)), px = 230 + gust * 60;
-        for (let i = 0; i < 5; i++){ const gy = 230 + i * 34, gx = ((t * 300 + i * 120) % 760) - 80;
-          X.save(); X.globalAlpha = 0.25 + gust * 0.6; neon(() => { X.moveTo(gx, gy); X.quadraticCurveTo(gx + 45, gy - 8, gx + 90, gy); X.quadraticCurveTo(gx + 105, gy + 4, gx + 98, gy + 12); }, '#ffffff', 2); X.restore(); }
         figure(px, 210, 28, '#ffffff', { tilt:-8 - gust * 10, lArm:[-115, -70 + gust * 15], rArm:[25 + gust * 20, 50 + gust * 20], lLeg:[122, 108], rLeg:[72 + gust * 8, 86] });
         // a bird swoops across and carries off a stick
         const bq = (p / SLIDE), bx = 700 - bq * 820, by = 230 + Math.sin(bq * 7) * 25, flap = Math.sin(t * 12);
@@ -15421,11 +16370,24 @@ function sfxMonsterVictoryStreak(){
         const plx = ((t * 120) % 1000) - 200, ply = 120 + Math.sin(t * 1.5) * 8;
         X.save(); X.translate(plx, ply); X.rotate(Math.sin(t * 1.5) * 0.04);
         X.shadowColor = '#ffd54a'; X.shadowBlur = 14;
-        X.fillStyle = '#f5f7fb'; X.beginPath(); X.moveTo(-60, -6); X.quadraticCurveTo(-64, 0, -60, 8); X.lineTo(50, 10); X.quadraticCurveTo(72, 4, 70, 0); X.quadraticCurveTo(66, -10, 48, -10); X.closePath(); X.fill();
-        X.fillStyle = '#e63946'; X.beginPath(); X.moveTo(-58, -6); X.lineTo(-70, -32); X.lineTo(-46, -32); X.lineTo(-38, -8); X.closePath(); X.fill();
-        X.beginPath(); X.moveTo(-10, 2); X.lineTo(-30, 28); X.lineTo(-12, 28); X.lineTo(16, 4); X.closePath(); X.fill();
-        X.shadowBlur = 0; X.fillStyle = '#3aa7ff'; for (let i = 0; i < 5; i++){ X.beginPath(); X.arc(-30 + i * 14, -1, 3.2, 0, TAU); X.fill(); }
-        X.fillStyle = '#9ad1ff'; X.beginPath(); X.moveTo(48, -9); X.quadraticCurveTo(62, -8, 66, -1); X.lineTo(50, -1); X.closePath(); X.fill();
+        // v3.34: a proper side-view airliner: wings sweep back from mid-body, engine under the wing, small swept tail
+        X.shadowBlur = 0;
+        X.fillStyle = '#c9303d'; X.beginPath(); X.moveTo(8, -4); X.lineTo(-14, -4); X.lineTo(-30, -20); X.lineTo(-22, -20); X.closePath(); X.fill();          // far wing (behind the body)
+        X.fillStyle = '#c9303d'; X.beginPath(); X.moveTo(-46, -5); X.lineTo(-58, -5); X.lineTo(-64, -13); X.lineTo(-58, -13); X.closePath(); X.fill();       // far tail wing
+        X.shadowColor = '#ffd54a'; X.shadowBlur = 12;
+        X.fillStyle = '#f5f7fb'; X.beginPath(); X.moveTo(-58, -7); X.quadraticCurveTo(-64, -4, -62, 3); X.quadraticCurveTo(-50, 9, -30, 9);
+        X.lineTo(52, 9); X.quadraticCurveTo(72, 8, 74, 1); X.quadraticCurveTo(70, -8, 52, -8); X.lineTo(-40, -8); X.closePath(); X.fill();                 // body, tail rising at the back
+        X.shadowBlur = 0;
+        X.fillStyle = 'rgba(160,175,200,0.45)'; X.beginPath(); X.moveTo(-50, 5); X.quadraticCurveTo(-30, 9.5, 52, 9); X.quadraticCurveTo(66, 8.5, 72, 4); X.lineTo(-48, 4); X.closePath(); X.fill();   // belly shading
+        X.fillStyle = '#e63946'; X.beginPath(); X.moveTo(-40, -8); X.lineTo(-56, -8); X.lineTo(-66, -34); X.lineTo(-56, -34); X.closePath(); X.fill();        // tail fin, swept back
+        X.fillStyle = '#e63946'; X.fillRect(-36, -1, 84, 2.4);                                                                                         // cheat line
+        X.fillStyle = '#3aa7ff'; for (let i = 0; i < 9; i++){ X.beginPath(); X.ellipse(-30 + i * 9, -3.2, 2.2, 2.6, 0, 0, TAU); X.fill(); }            // windows
+        X.fillStyle = '#1e3a5f'; X.beginPath(); X.moveTo(58, -6.5); X.quadraticCurveTo(68, -6, 70, -1); X.lineTo(60, -1.5); X.closePath(); X.fill();   // cockpit
+        X.fillStyle = '#e63946'; X.beginPath(); X.moveTo(14, 2); X.lineTo(-10, 2); X.lineTo(-34, 26); X.lineTo(-22, 26); X.closePath(); X.fill();        // near wing
+        X.fillStyle = '#b02a35'; X.beginPath(); X.moveTo(-22, 26); X.lineTo(-34, 26); X.lineTo(-33, 23); X.lineTo(-21, 23); X.closePath(); X.fill();
+        X.fillStyle = '#d8dde6'; X.beginPath(); X.ellipse(-2, 13, 10, 4.2, 0, 0, TAU); X.fill();                                                        // engine
+        X.fillStyle = '#4b5563'; X.beginPath(); X.ellipse(8, 13, 2, 3.6, 0, 0, TAU); X.fill();
+        X.fillStyle = '#e63946'; X.beginPath(); X.moveTo(-46, 2); X.lineTo(-58, 2); X.lineTo(-68, 12); X.lineTo(-60, 12); X.closePath(); X.fill();         // near tail wing
         X.restore();
         text('SKY STICK', 320, 560, 40, '#3aa7ff', { spacing:4 });
         text('gusts, sneaky birds and a plane ride', 320, 602, 20, '#e6f4ff', { weight:700, alpha:0.9 });
@@ -15446,6 +16408,80 @@ function sfxMonsterVictoryStreak(){
         text('FIRE STICK', 320, 560, 40, '#ff5a6a', { spacing:4 });
         text('a demon is hunting you', 320, 602, 20, '#ffd0d6', { weight:700, alpha:0.9 });
         frame('#ff1f3a');
+      },
+      // Mountain Stick (v3.34: the clean v3.31 scene, with the bigger eagle swoop): sunset; climb the switchback trail to the peak stick, then the eagle drops its golden bundle
+      function(t){
+        const p = t % SLIDE;
+        const sky = X.createLinearGradient(0, 0, W, 0); sky.addColorStop(0, '#6b4a8a'); sky.addColorStop(0.55, '#e08070'); sky.addColorStop(0.85, '#f8b86a'); sky.addColorStop(1, '#ec9664');
+        X.fillStyle = sky; X.fillRect(0, 0, W, 150);
+        const gr = X.createLinearGradient(0, 150, 0, H); gr.addColorStop(0, '#8a6244'); gr.addColorStop(0.5, '#5a4240'); gr.addColorStop(1, '#2a2034');
+        X.fillStyle = gr; X.fillRect(0, 150, W, H - 150);
+        glow(520, 150, 120, '#ffe2a0', 0.7); X.fillStyle = '#ffe7a8'; X.beginPath(); X.arc(520, 146, 24, 0, TAU); X.fill();
+        seed = 333; X.fillStyle = 'rgba(150,100,125,0.85)'; X.beginPath(); X.moveTo(0, 175);
+        for (let x = 0; x <= W + 30; x += R(26, 52)) X.lineTo(x, 150 - R(10, 46)); X.lineTo(W, 175); X.closePath(); X.fill();
+        // the big mountain, with alpenglow on its snowcap
+        const peak = [330, 175], L = [140, 470], Rr = [520, 470];
+        X.fillStyle = '#4a3a46'; X.beginPath(); X.moveTo(L[0], L[1]); X.lineTo(peak[0], peak[1]); X.lineTo(Rr[0], Rr[1]); X.closePath(); X.fill();
+        X.fillStyle = 'rgba(255,160,120,0.25)'; X.beginPath(); X.moveTo(peak[0], peak[1]); X.lineTo(Rr[0], Rr[1]); X.lineTo(400, 470); X.closePath(); X.fill();
+        X.fillStyle = '#ffd9cc'; X.beginPath(); X.moveTo(peak[0], peak[1]); X.lineTo(295, 245); X.lineTo(312, 236); X.lineTo(330, 250); X.lineTo(350, 232); X.lineTo(366, 245); X.closePath(); X.fill();
+        neon(() => { X.moveTo(L[0], L[1]); X.lineTo(peak[0], peak[1]); X.lineTo(Rr[0], Rr[1]); }, '#ffb38a', 2);
+        // the switchback trail, stone by stone
+        const trail = [[430, 460], [400, 420], [280, 410], [250, 370], [360, 330], [380, 290], [300, 265], [320, 215], [330, 185]];
+        X.save(); X.setLineDash([2, 9]); neon(() => { trail.forEach((q, i) => i ? X.lineTo(q[0], q[1]) : X.moveTo(q[0], q[1])); }, '#e2b77a', 5); X.restore();
+        // you climb it
+        const k = Math.min(1, p / 4.2) * (trail.length - 1), i0 = Math.min(trail.length - 2, Math.floor(k)), u = k - i0;
+        const cx = trail[i0][0] + (trail[i0 + 1][0] - trail[i0][0]) * u, cy = trail[i0][1] + (trail[i0 + 1][1] - trail[i0][1]) * u;
+        const st = k < trail.length - 1 ? Math.sin(p * 12) : 0;
+        figure(cx, cy - 58, 15, '#ffffff', { lLeg:[110 + st * 20, 100], rLeg:[70 - st * 20, 80], lArm:[-140, -170], rArm:[-40, -10] });
+        if (p < 4.2){ glow(330, 165, 30, '#4dd0ff', 0.6); stick(330, 160, 30, -0.7, '#4dd0ff', 4); text('x8', 370, 150, 22, '#ffd54a'); }
+        else text('x8!', cx + 40, cy - 100, 26, '#ffd54a', { alpha:Math.min(1, (p - 4.2) * 3) });
+        // a ram grazing at the foot
+        X.save(); X.font = '52px Arial'; X.textAlign = 'center'; X.fillStyle = '#000';
+        X.fillText('🐐', 470 + wave(t, 0.7, 5), 418 + wave(t, 1.4, 2));                                   // one climbing the rock
+        X.save(); X.translate(560 + wave(t, 1, 6), 505); X.scale(-1, 1); X.fillText('🐐', 0, 0); X.restore();   // one grazing at the foot
+        X.restore();
+        // the bald eagle sweeps over with its golden bundle
+        const eq = Math.max(0, (p - 0.8) / 5.6), ex = -100 + eq * 860, ey = 240 - Math.sin(eq * Math.PI) * 140;
+        if (eq > 0 && eq < 1){
+          const hd = Math.atan2(-Math.cos(eq * Math.PI) * 140 * Math.PI / 5.6, 860 / 5.6);
+          X.save(); X.globalAlpha = 0.25; X.filter = 'blur(2px)'; if (typeof drawEagleFlying === 'function') drawEagleFlying(X, ex + 30, ey + 150, hd, t * 5, 2.6); X.restore();
+          if (typeof drawGoldBundle === 'function') drawGoldBundle(X, ex - Math.cos(hd) * 26, ey - Math.sin(hd) * 26, 44, hd, 14);
+          if (typeof drawEagleFlying === 'function') drawEagleFlying(X, ex, ey, hd, t * 5, 3.2);
+          text('x40', ex, ey - 72, 24, '#ffd700');
+        }
+        text('MOUNTAIN STICK', 320, 560, 40, '#e2b77a', { spacing:4 });
+        text("climb the trail, catch the eagle's gold", 320, 602, 20, '#ffe9d0', { weight:700, alpha:0.9 });
+        frame('#e2b77a');
+      },
+      // Cursed Stick (v3.31): a spirit drifts after you; stop moving and you get possessed
+      function(t){
+        bg('#1a0a2a', '#07020e', 'rgba(170,90,255,0.07)', 30, t);
+        const p = t % SLIDE;
+        seed = 515; for (let i = 0; i < 7; i++){ const x = R(40, 600), y = R(80, 500); glow(x + wave(t, 0.5, 20, i), y, 70, '#7a2bd1', 0.12); }
+        seed = 516; for (let i = 0; i < 8; i++) stick(R(60, 580), R(90, 480), R(22, 32), R(0, Math.PI), COLORS[i % COLORS.length], 3);
+        // you walk... then stop
+        const walking = p < 3.6, wk = Math.min(1, p / 3.6), px = 140 + wk * 260, st = walking ? Math.sin(p * 12) : 0;
+        const poss = Math.max(0, Math.min(1, (p - 4.4) * 2.5));
+        const col = poss > 0.5 ? '#9b4dff' : '#ffffff';
+        figure(px, 260, 26, col, { lLeg:[110 + st * 22, 100], rLeg:[70 - st * 22, 80], lArm:[-140 + st * 18, -170], rArm:[-40 - st * 18, -10] });
+        if (poss > 0){ X.fillStyle = 'rgba(255,40,40,' + poss + ')'; X.shadowColor = '#ff2020'; X.shadowBlur = 12;
+          X.beginPath(); X.arc(px - 9, 256, 4, 0, TAU); X.arc(px + 9, 256, 4, 0, TAU); X.fill(); X.shadowBlur = 0; }
+        // the spirit: a wispy sheet with hollow eyes, closing in once you stop
+        const close = walking ? 0 : Math.min(1, (p - 3.6) / 0.8);
+        const gx = px - 170 + close * 170 + wave(t, 1.6, 8), gy = 220 + wave(t, 2.1, 10);
+        if (poss < 1){
+          X.save(); X.globalAlpha = 1 - poss;
+          glow(gx, gy + 20, 90, '#b066ff', 0.4);
+          X.fillStyle = 'rgba(220,190,255,0.85)'; X.beginPath(); X.moveTo(gx - 36, gy + 60); X.lineTo(gx - 36, gy); X.arc(gx, gy, 36, Math.PI, 0);
+          X.lineTo(gx + 36, gy + 60); for (let k = 0; k < 4; k++) X.quadraticCurveTo(gx + 27 - k * 18, gy + 72 + wave(t, 6, 6, k), gx + 18 - k * 18, gy + 60); X.closePath(); X.fill();
+          X.fillStyle = '#2a0a44'; X.beginPath(); X.ellipse(gx - 12, gy - 4, 7, 10, 0, 0, TAU); X.ellipse(gx + 12, gy - 4, 7, 10, 0, 0, TAU); X.fill();
+          X.restore();
+        }
+        if (p > 3.7 && p < 4.4) text('KEEP MOVING!', 320, 140, 34, '#ffd54a', { spacing:2 });
+        if (poss > 0) text('POSSESSED!', 320, 140, 40, '#ff4d6d', { spacing:3, alpha:poss });
+        text('CURSED STICK', 320, 560, 40, '#b066ff', { spacing:4 });
+        text('keep moving or get possessed', 320, 602, 20, '#ead6ff', { weight:700, alpha:0.9 });
+        frame('#9b4dff');
       },
       // Banana Stick: a quick slip on a banana, while a monkey runs off with a stick
       function(t){
@@ -15513,17 +16549,17 @@ function sfxMonsterVictoryStreak(){
         bg('#1a3a5c', '#0b1a2c', 'rgba(135,206,235,0.08)', 0, t);
         seed = 1000; for (let i = 0; i < 60; i++){ const sx = (R(0, 680) + t * 30 + Math.sin(t + i) * 10) % 680 - 20, sy = (R(0, 680) + t * R(30, 70)) % 680 - 20;
           X.fillStyle = 'rgba(255,255,255,0.8)'; X.beginPath(); X.arc(sx, sy, R(1.5, 3.5), 0, TAU); X.fill(); }
-        const p = t % SLIDE, px = 150 + (p / SLIDE) * 300, st = Math.sin(p * 10);
+        const p = t % SLIDE, px = 230 + (p / SLIDE) * 240, st = Math.sin(p * 10);
         figure(px, 230, 26, '#ffffff', { lLeg:[105 + st * 22, 100], rLeg:[75 - st * 22, 80], lArm:[-150 + st * 20, -170], rArm:[-30 - st * 20, -10] });
         X.fillStyle = '#dc2626'; X.beginPath(); X.moveTo(px - 26, 212); X.lineTo(px + 26, 212); X.quadraticCurveTo(px + 34, 190, px + 26, 178); X.lineTo(px - 8, 178); X.quadraticCurveTo(px - 18, 190, px - 26, 212); X.fill();
         X.fillStyle = '#f5f5f5'; X.beginPath(); X.ellipse(px, 212, 27, 6, 0, 0, TAU); X.fill(); X.beginPath(); X.arc(px + 30, 178, 9, 0, TAU); X.fill();
-        const sx = px - 190 + wave(t, 1.5, 10), sy = 300;
+        const sx = px - 150 + wave(t, 1.5, 10), sy = 300;   // v3.31: close enough to stay in view
         X.fillStyle = '#f2f8ff'; X.shadowColor = '#87ceeb'; X.shadowBlur = 20;
         [[0, 60, 46], [0, 0, 34], [0, -50, 24]].forEach(b => { X.beginPath(); X.arc(sx + b[0], sy + b[1], b[2], 0, TAU); X.fill(); }); X.shadowBlur = 0;
         X.fillStyle = '#111'; X.beginPath(); X.arc(sx - 8, sy - 54, 3.5, 0, TAU); X.arc(sx + 8, sy - 54, 3.5, 0, TAU); X.fill();
         X.fillStyle = '#ff8c1a'; X.beginPath(); X.moveTo(sx + 2, sy - 48); X.lineTo(sx + 26, sy - 44); X.lineTo(sx + 2, sy - 42); X.fill();
         neon(() => { X.moveTo(sx + 30, sy); X.lineTo(sx + 70, sy - 20 + wave(t, 6, 8)); X.moveTo(sx - 30, sy); X.lineTo(sx - 70, sy - 20 - wave(t, 6, 8)); }, '#8b5a2b', 3);
-        X.fillStyle = '#1a1a1a'; X.fillRect(sx - 22, sy - 92, 44, 6); X.fillRect(sx - 14, sy - 120, 28, 30);
+        X.fillStyle = '#1a1a1a'; X.fillRect(sx - 24, sy - 78, 48, 7); X.fillRect(sx - 15, sy - 108, 30, 32); X.fillStyle = '#c0392b'; X.fillRect(sx - 15, sy - 84, 30, 5);
         text('ICE STICK', 320, 560, 40, '#87ceeb', { spacing:4 });
         text('a snowman gives chase', 320, 602, 20, '#e6f7ff', { weight:700, alpha:0.9 });
         frame('#4da6ff');
@@ -15596,8 +16632,9 @@ function sfxMonsterVictoryStreak(){
           X.beginPath(); X.moveTo(-14, 2); X.quadraticCurveTo(-2, -34, 16, -40); X.quadraticCurveTo(8, -18, 14, 2); X.closePath(); X.fill(); X.stroke();
           X.shadowBlur = 0; X.strokeStyle = 'rgba(200,230,255,0.5)'; X.beginPath(); X.ellipse(0, 3, 30, 5, 0, 0, TAU); X.stroke(); X.restore(); });
         if (p < 4.4){ const st = Math.sin(p * 16);
-          figure(px, py - 130, 24, '#ffffff', { tilt:8, lLeg:[100 + st * 35, 90], rLeg:[80 - st * 35, 90], lArm:[-150 + st * 40, -170], rArm:[-30 - st * 40, -10] });
-          stick(px + 34, py - 70, 30, 0.8, '#7cff6b', 3); }
+          const pose = { tilt:8, lLeg:[100 + st * 35, 90], rLeg:[80 - st * 35, 90], lArm:[-150 + st * 40, -170], rArm:[-30 - st * 40, -10] };
+          figure(px, py - 130, 24, '#ffffff', pose);
+          const hd = handAt(px, py - 130, 24, pose, 'r'); stick(hd.x + 5, hd.y - 5, 30, -0.9, '#7cff6b', 3); }   // v3.32: in the hand
         if (p >= 4.3 && p < 6) text('SAFE! + POINTS', 470, 300 - (p - 4.3) * 15, 32, '#00e5ff', { spacing:2, alpha:Math.min(1, (6 - p) * 2) });
         text('SEA STICK', 320, 560, 40, '#00bfff', { spacing:4 });
         text('dodge the sharks', 320, 602, 20, '#cdd9e5', { weight:700, alpha:0.85 });
@@ -15713,7 +16750,7 @@ function sfxMonsterVictoryStreak(){
       // 7. Fifteen worlds: all 15 level themes in level order, hopping in a wave from Level 1 to 15
       function(t){
         bg('#0a0d16', '#020306', null, 40, t);
-        const T = [['NIGHT','#e0b04a'],['SPARKLE','#e7b3ff'],['SUN','#ffd400'],['SKY','#4da6ff'],['FIRE','#ff4d4d'],
+        const T = [['NIGHT','#e0b04a'],['SPARKLE','#e7b3ff'],['FOREST','#9ccc65'],['SKY','#4da6ff'],['FIRE','#ff4d4d'],
                    ['MOUNTAIN','#c8b49a'],['CURSED','#9b4dff'],['BANANA','#ffe14d'],['ICE','#a8dcff'],['GLOW','#ff9f2e'],
                    ['SPELL','#ff3fa8'],['SEA','#00bfff'],['SNAKE','#e8c88a'],['SPIDER','#a77dff'],['VICTORY','#4dff88']];
         T.forEach((w, i) => { const cx = 80 + (i % 5) * 120, cy = 128 + Math.floor(i / 5) * 140;
@@ -15823,7 +16860,7 @@ function sfxMonsterVictoryStreak(){
     previewTimer = setInterval(() => {
       if (!previewMode || !previewPlaying) return;
       showPreviewImage(previewIdx + 1);
-    }, 7500);   // v2.50: 7.5 s per slide; 22 slides run about as long as the first song
+    }, 6875);   // v3.31: 6.875 s per slide; 24 slides run as long as the 22 x 7.5 s did
   }
 
   function stopPreviewSlideshow(){
@@ -16153,6 +17190,8 @@ Clear all sticks to advance — watch out for obstacles.`;
       sunBurstTiles = [];
       sunBurstWarningTimer = 0;
     }
+    // v3.20 Forest Stick
+    if (currentLevelTheme().name === FOREST_LEVEL) initForest(); else forest = null;
     
     // Init star grid for Night Stick
     if (currentLevelTheme().name === "Night Stick"){
@@ -16371,6 +17410,9 @@ Clear all sticks to advance — watch out for obstacles.`;
         // Moon is persistent by design, but ensure it's initialized at least once
         try{ if (!moonStick) initMoon(); }catch(e){}
       }
+    },
+    "Forest Stick": {
+      afterLoad(saved){ try{ if (!forest) initForest(); }catch(e){} }
     },
     "Sun Stick": {
       afterLoad(saved){
@@ -16599,6 +17641,8 @@ Clear all sticks to advance — watch out for obstacles.`;
           scubaDiver = null;
         }
         
+        // v3.20 Forest Stick
+        if (currentLevelTheme().name === FOREST_LEVEL) initForest(); else forest = null;
         // Initialize sun bursts for Sun Stick
         if (currentLevelTheme().name === "Sun Stick"){
           initSunBursts();
@@ -17302,6 +18346,12 @@ Clear all sticks to advance — watch out for obstacles.`;
       }
     }
     
+    // v3.27: Mountain Stick's sky strip
+    if (mtnSky(newX, newY)){ setHud("☁️ That's the sky up there!"); return; }
+    // v3.20: the bulldozer is solid
+    if (forest && currentLevelTheme().name === FOREST_LEVEL && forestDozerAt(newX, newY)){
+      setHud("🚜 The bulldozer's in the way!"); return;
+    }
     // v2.96 trail mountains: the rock is solid; only the trail goes up. From the summit (once the peak
     // stick is yours) any step back onto the trail slides you all the way down to the trailhead.
     const themeName = currentLevelTheme().name;
@@ -18428,10 +19478,10 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       holeColor = "#e8d0f8";  // Light lavender fill
       holeStroke = "#c080e0"; // Purple stroke
       glowColor = "rgba(192,128,224,0.6)"; // Purple glow
-    } else if (theme.name === "Sun Stick") {
-      holeColor = "#2a1a00";
-      holeStroke = "#ffd400";
-      glowColor = "rgba(255,212,0,0.6)";
+    } else if (theme.name === "Forest Stick") {
+      holeColor = "#0b1209";
+      holeStroke = "#8d6e4a";
+      glowColor = "rgba(141,110,74,0.55)";
     } else if (theme.name === "Cursed Stick") {
       holeColor = "#1a0a2a";
       holeStroke = "#8b00ff";
@@ -19151,21 +20201,21 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "mystic": "I foresee frosting.",
     "rock": "Sugar, sprinkles and rock 'n' roll."
    },
-   "Sun Stick": {
-    "classic": "Sunny with a chance of sticks!",
-    "angel": "Heavenly sunshine!",
-    "alien": "Your star is so... yellow.",
-    "robot": "SOLAR CHARGING: 100%.",
-    "rex": "*flops in a sunbeam*|(translation: five more minutes.)",
-    "rick": "The sun's trying to match my glow.",
-    "sally": "Sunscreen first, then sticks.",
-    "sick": "Sunshine... feeling better already.",
-    "super": "Powered by the sun!",
-    "dip": "Don't look at the sun. Ow. I looked.",
-    "law": "Nice day for an arrest.",
-    "jogger": "Perfect day for a run!",
-    "mystic": "The sun's blessing was foretold.",
-    "rock": "Sunshine set? Let's get loud."
+   "Forest Stick": {
+    "classic": "Into the woods! Sticks, sticks everywhere.",
+    "angel": "Such peaceful trees. Mostly.",
+    "alien": "Your planet grows tall green spikes. Charming.",
+    "robot": "FOG DETECTED. VISIBILITY: LOW. BRAVERY: HIGH.",
+    "rex": "*sniffs every single tree*|(translation: so many trees, so little time.)",
+    "rick": "Fog can't hide this much charisma.",
+    "sally": "Everyone stay together. And watch for bulldozers.",
+    "sick": "*achoo* Pine pollen. Worth it.",
+    "super": "Nothing gets past me. Except maybe fog.",
+    "dip": "Which one's the forest? Oh. All of it.",
+    "law": "Logging without a permit? Not on my watch.",
+    "jogger": "Trail run! My favorite kind.",
+    "mystic": "The fog whispers secrets. And sticks.",
+    "rock": "Nature's amphitheater. The acoustics are unreal."
    },
    "Sky Stick": {
     "classic": "Up here? I'll stick the landing.",
@@ -21962,6 +23012,7 @@ ctx.restore();
       updateBigfoot();
       updateEagle();
     }
+    if (currentLevelTheme().name === FOREST_LEVEL) updateForest();   // v3.20
     
     // Update Cursed Stick features
     if (currentLevelTheme().name === "Cursed Stick"){
@@ -22090,11 +23141,13 @@ ctx.restore();
 
 
     // sticks
-    drawScenery(); drawStreams(); drawCreek(); drawMountainClouds(); drawMountains(); drawWaterfall(); drawBigfootPrints(); drawPeakSticks(); drawMtnHint();   // v3.05: clouds drift behind the mountains so they never hide the trail   // v2.96: mountains, peak sticks and clouds sit under the sticks and player
+    sunsetBack(); drawScenery(); drawStreams(); drawCreek(); drawMountainClouds(); drawMountains(); sunsetFront(); drawWaterfall(); drawBigfootPrints(); drawPeakSticks(); drawMtnHint();   // v3.05: clouds drift behind the mountains so they never hide the trail   // v2.96: mountains, peak sticks and clouds sit under the sticks and player
+    forestDrawBack();
     for (const s of game.sticks) drawStick(s);
 
     // hole + player glow (behind player)
     drawHole(theme);
+    forestDrawMid();   // v3.20: lumberjacks, Bigfoot, fog, bulldozer
     if (theme.name === "Night Stick"){
       drawPlayerGlow();
     }
@@ -22148,6 +23201,7 @@ ctx.restore();
     drawBigfoot();
     drawEagle();
     drawLightning();
+    forestDrawTop();   // v3.20
     
     // Draw Sky Stick clouds and airplane
     if (theme.name === "Sky Stick"){
@@ -22250,7 +23304,7 @@ ctx.restore();
   function closeInfo(){
     ui.infoOverlay.style.display = "none";
     // v2.42: back on the name screen, put the cursor back in the name box so Enter starts the game
-    if (ui.nameOverlay.style.display === "flex") { try { ui.nameInput.focus(); } catch(_){} }
+    if (ui.nameOverlay.style.display === "flex") nameFocusIfKeyboard();
     if (!paused && ui.nameOverlay.style.display !== "flex" &&
         ui.gameOverOverlay.style.display !== "flex" &&
         ui.winOverlay.style.display !== "flex"){
@@ -22261,8 +23315,8 @@ ctx.restore();
   }
 
   // Skip to Level functionality
-  const levelNames = ["Night", "Sparkle", "Sun", "Sky", "Fire", "Mountain", "Cursed", "Banana", "Ice", "Glow", "Spell", "Sea", "Snake", "Spider", "Victory"];
-  const levelEmojis = ["🌙", "✨", "☀️", "☁️", "🔥", "⛰️", "💀", "🍌", "❄️", "💫", "🔮", "🌊", "🐍", "🕷️", "👑"];
+  const levelNames = ["Night", "Sparkle", "Forest", "Sky", "Fire", "Mountain", "Cursed", "Banana", "Ice", "Glow", "Spell", "Sea", "Snake", "Spider", "Victory"];
+  const levelEmojis = ["🌙", "✨", "🌲", "☁️", "🔥", "⛰️", "💀", "🍌", "❄️", "💫", "🔮", "🌊", "🐍", "🕷️", "👑"];
 
   function resetTemporaryTransformations(){
     // When the player skips to another level, clear any temporary
@@ -22400,8 +23454,8 @@ ctx.restore();
   ui.btnRight.addEventListener("click", () => move(1,0));
 
   if (ui.skin) ui.skin.addEventListener("change", (e) => setAndStoreSkin(e.target.value));
-  document.getElementById("skinPrev").addEventListener("click", () => { cycleSkin(-1); try { ui.nameInput.focus(); } catch(_){} });
-  document.getElementById("skinNext").addEventListener("click", () => { cycleSkin(1); try { ui.nameInput.focus(); } catch(_){} });
+  document.getElementById("skinPrev").addEventListener("click", () => { cycleSkin(-1); nameFocusIfKeyboard(); });
+  document.getElementById("skinNext").addEventListener("click", () => { cycleSkin(1); nameFocusIfKeyboard(); });
 
   ui.btnGameOverClose.addEventListener("click", () => {
     tryHardClose();
@@ -22586,6 +23640,7 @@ ui.nameInput.addEventListener("keydown", (e) => {
           if (theme === "Glow Stick") initShadowMonsters();
           if (theme === "Sea Stick") initSharks();
           if (theme === "Sun Stick") initSunBursts();
+          if (theme === FOREST_LEVEL) initForest(); else forest = null;
           if (theme === "Night Stick"){ initStarGrid(); initUFO(); initMoon(); }
           if (theme === "Spider Stick"){ initSpiderWebs(); initSpiders(); }
           if (theme === "Victory Stick"){
