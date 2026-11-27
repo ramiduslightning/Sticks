@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v3.80</span></div>
+          <div>STICKS <span class="badge">v3.94</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -3743,8 +3743,9 @@
   
   // Clouds (2026-10-19): mixed sizes, unique puff shapes, big ones drift slower (depth)
   function makeSkyCloud(){
-    const big = Math.random() < 0.3;
-    const size = big ? (1.5 + Math.random() * 0.4) : (0.8 + Math.random() * 0.25);
+    // v3.83: more variety: small wisps, medium clouds, and a few big cumulus clouds
+    const r = Math.random();
+    const size = r < 0.3 ? (0.6 + Math.random() * 0.15) : r < 0.78 ? (0.95 + Math.random() * 0.45) : (2.6 + Math.random() * 0.9);
     const dir = Math.random() < 0.5 ? -1 : 1;
     return {
       x: randInt(0, GRID_W - 1),
@@ -3754,20 +3755,239 @@
       puffs: makeCloudPuffs(size)
     };
   }
-  function makeCloudPuffs(size){
-    const n = size > 1.3 ? 6 : 4;
+  function makeCloudPuffs(size){   // v3.83: wisps are flat and thin; big clouds get a stacked top row
     const puffs = [];
-    for (let k = 0; k < n; k++){
-      const t = n === 1 ? 0 : (k / (n - 1)) - 0.5;            // -0.5 .. 0.5 across the cloud
-      const mid = 1 - Math.abs(t) * 1.4;                         // taller in the middle
-      puffs.push({
-        ox: t * 0.9 * size + (Math.random() - 0.5) * 0.08,
-        oy: -mid * 0.16 * size + (Math.random() - 0.5) * 0.05,
-        r: (0.2 + mid * 0.12 + Math.random() * 0.05) * Math.min(size, 1.35)
+    const row = (n, w, yOff, rBase, rMid) => {
+      for (let k = 0; k < n; k++){
+        const t = n === 1 ? 0 : (k / (n - 1)) - 0.5, mid = 1 - Math.abs(t) * 1.4;
+        puffs.push({ ox: t * w + (Math.random() - 0.5) * 0.08, oy: yOff - mid * 0.12 * Math.min(size, 1.6) + (Math.random() - 0.5) * 0.05,
+                     r: rBase + mid * rMid + Math.random() * 0.05 });
+      }
+    };
+    if (size < 0.8){ row(5, 0.75 * size + 0.25, 0, 0.15, 0.07); }                      // wisp: a thin, soft streak
+    else if (size < 1.6){ row(size > 1.25 ? 5 : 4, 0.9 * size, 0, 0.2 * Math.min(size, 1.35), 0.12 * Math.min(size, 1.35)); }
+    else { row(8, 0.95 * size, 0.05, 0.3, 0.16); row(5, 0.6 * size, -0.36, 0.3, 0.16); row(3, 0.3 * size, -0.66, 0.26, 0.1); }   // big cumulus
+    // v3.85: lumpy edges. Little bumps of different sizes sit on the upper edge of the bigger puffs,
+    // so the outline isn't a row of perfect circles.
+    if (size >= 0.8){
+      const base = puffs.slice();
+      base.forEach(pf => {
+        const n = randInt(1, 3);
+        for (let i = 0; i < n; i++){
+          const an = -Math.PI / 2 + (Math.random() - 0.5) * 2.4, rr = pf.r * (0.3 + Math.random() * 0.3);
+          puffs.push({ ox: pf.ox + Math.cos(an) * pf.r * 0.82, oy: pf.oy + Math.sin(an) * pf.r * 0.82, r: rr });
+        }
+        pf.r *= 0.85 + Math.random() * 0.3;
       });
     }
     return puffs;
   }
+
+
+
+  // ===================== v3.81 SKY STICK GLOW-UP =====================
+  // A detailed white-and-red prop plane (side view flying left/right, top view flying up/down) about 3 tiles
+  // long that you ride standing on top of; seagulls with real two-part wingbeats as the stick thieves; and
+  // wind tiles that show which way they'll throw you.
+  const SKY_TAU = Math.PI * 2, SKY_PLANE_S = 1.3, SKY_GULL_S = 1.7;
+  function skyPlaneSide(x, y, s, t, bank){
+    const X = ctx;
+    X.save(); X.translate(x, y); X.rotate(bank || 0); X.scale(s, s); X.lineCap = "round"; X.lineJoin = "round";
+    const W = "#f4f1ea", WS = "#cfd4dc", RED = "#d63a35", RED_D = "#9e2522";
+    X.fillStyle = "#b9bec8"; X.beginPath(); X.ellipse(2, 1.5, 13, 2.2, -0.06, 0, SKY_TAU); X.fill();
+    X.fillStyle = "#b9bec8"; X.beginPath(); X.ellipse(-25, -1, 6, 1.4, 0, 0, SKY_TAU); X.fill();
+    const fg = X.createLinearGradient(0, -7, 0, 6); fg.addColorStop(0, "#ffffff"); fg.addColorStop(0.5, W); fg.addColorStop(1, WS);
+    X.fillStyle = fg; X.beginPath(); X.moveTo(26, -3.5); X.bezierCurveTo(29, -3, 30, 2, 26, 4.2); X.lineTo(4, 5.6); X.bezierCurveTo(-12, 5.2, -24, 2.6, -31, 0.6);
+    X.lineTo(-31, -2.2); X.bezierCurveTo(-22, -4.4, -10, -6.4, 4, -6.8); X.bezierCurveTo(14, -6.6, 22, -5.4, 26, -3.5); X.closePath(); X.fill();
+    X.save(); X.clip(); X.fillStyle = RED; X.beginPath(); X.moveTo(30, 0.6); X.lineTo(-32, -0.2); X.lineTo(-32, 1.6); X.lineTo(30, 2.6); X.closePath(); X.fill(); X.restore();
+    X.fillStyle = RED; X.beginPath(); X.moveTo(24, -4); X.bezierCurveTo(28.6, -3.4, 29.6, 2, 25.6, 4.4); X.lineTo(22.6, 4.6); X.bezierCurveTo(23.6, 1, 23.6, -2, 22.4, -4.4); X.closePath(); X.fill();
+    const gg = X.createLinearGradient(10, -12, 16, -5); gg.addColorStop(0, "#bfe7ff"); gg.addColorStop(1, "#3b6f9e");
+    X.fillStyle = gg; X.beginPath(); X.moveTo(8, -6.6); X.quadraticCurveTo(12, -11.6, 19, -5.4); X.closePath(); X.fill();
+    X.strokeStyle = "rgba(255,255,255,0.8)"; X.lineWidth = 0.7; X.beginPath(); X.moveTo(10.5, -7.6); X.quadraticCurveTo(12.5, -9.6, 15, -8.4); X.stroke();
+    X.fillStyle = "#3b6f9e"; [[-1, -3.4], [-5.6, -3.2]].forEach(([wx, wy]) => { X.beginPath(); X.ellipse(wx, wy, 1.5, 1.2, 0, 0, SKY_TAU); X.fill(); });
+    X.fillStyle = RED; X.beginPath(); X.moveTo(-22, -3.4); X.lineTo(-29, -13.5); X.quadraticCurveTo(-31.5, -14, -32, -11.5); X.lineTo(-31, -1.6); X.closePath(); X.fill();
+    X.fillStyle = RED_D; X.fillRect(-31.2, -12, 1.2, 10);
+    X.fillStyle = "#e6e8ec"; X.beginPath(); X.ellipse(-26, 0.4, 7, 1.5, 0.04, 0, SKY_TAU); X.fill();
+    const wg = X.createLinearGradient(0, 0, 0, 5); wg.addColorStop(0, "#ffffff"); wg.addColorStop(1, "#c9ced6");
+    X.fillStyle = wg; X.beginPath(); X.ellipse(3, 2.6, 15, 2.6, 0.05, 0, SKY_TAU); X.fill();
+    X.fillStyle = RED; X.beginPath(); X.ellipse(16.2, 3.5, 2, 1.5, 0.05, 0, SKY_TAU); X.fill();
+    X.strokeStyle = "#5b6170"; X.lineWidth = 0.9; X.beginPath(); X.moveTo(12, 5); X.lineTo(13.5, 9); X.stroke(); X.fillStyle = "#2b2e36"; X.beginPath(); X.arc(13.6, 9.4, 1.6, 0, SKY_TAU); X.fill();
+    X.fillStyle = "#d9dce2"; X.beginPath(); X.moveTo(28.4, -2); X.quadraticCurveTo(32.6, 0, 28.4, 2.4); X.closePath(); X.fill();
+    X.save(); X.translate(30.4, 0.2); const pb = X.createRadialGradient(0, 0, 0, 0, 0, 10); pb.addColorStop(0, "rgba(220,225,235,0.55)"); pb.addColorStop(1, "rgba(220,225,235,0.05)");
+    X.fillStyle = pb; X.beginPath(); X.ellipse(0, 0, 1.6, 10, 0, 0, SKY_TAU); X.fill();
+    X.strokeStyle = "rgba(60,60,70,0.55)"; X.lineWidth = 0.9; const pa = t * 60; X.beginPath(); X.moveTo(0, Math.sin(pa) * 9.5); X.lineTo(0, -Math.sin(pa) * 9.5); X.stroke(); X.restore();
+    X.restore();
+  }
+  function skyPlaneTop(x, y, s, t, ang){
+    const X = ctx;
+    X.save(); X.translate(x, y); X.rotate(ang || 0); X.scale(s, s);
+    const RED = "#d63a35";
+    const wg = X.createLinearGradient(0, -6, 0, 4); wg.addColorStop(0, "#ffffff"); wg.addColorStop(1, "#cfd4dc");
+    X.fillStyle = wg; X.beginPath(); X.moveTo(-28, -1); X.quadraticCurveTo(-29, -5, -24, -5.4); X.lineTo(24, -5.4); X.quadraticCurveTo(29, -5, 28, -1); X.lineTo(24, 2.6); X.lineTo(-24, 2.6); X.closePath(); X.fill();
+    X.fillStyle = RED; X.fillRect(-28.4, -4.6, 4, 6.6); X.fillRect(24.4, -4.6, 4, 6.6);
+    X.fillStyle = wg; X.beginPath(); X.moveTo(-10, 23); X.lineTo(10, 23); X.lineTo(9, 27); X.lineTo(-9, 27); X.closePath(); X.fill();
+    X.fillStyle = RED; X.fillRect(-1.2, 19, 2.4, 9);
+    const fg = X.createLinearGradient(-5, 0, 5, 0); fg.addColorStop(0, "#d7dbe2"); fg.addColorStop(0.5, "#ffffff"); fg.addColorStop(1, "#c6cbd3");
+    X.fillStyle = fg; X.beginPath(); X.moveTo(0, -26); X.bezierCurveTo(4.4, -24, 4.8, -12, 4.2, 4); X.lineTo(1.6, 26); X.lineTo(-1.6, 26); X.lineTo(-4.2, 4); X.bezierCurveTo(-4.8, -12, -4.4, -24, 0, -26); X.closePath(); X.fill();
+    X.fillStyle = RED; X.beginPath(); X.moveTo(0, -26); X.bezierCurveTo(3.6, -24.6, 4.2, -21, 4.3, -19); X.lineTo(-4.3, -19); X.bezierCurveTo(-4.2, -21, -3.6, -24.6, 0, -26); X.fill();
+    const gg = X.createLinearGradient(0, -16, 0, -8); gg.addColorStop(0, "#bfe7ff"); gg.addColorStop(1, "#3b6f9e"); X.fillStyle = gg; X.beginPath(); X.ellipse(0, -12, 2.8, 4.6, 0, 0, SKY_TAU); X.fill();
+    X.fillStyle = "rgba(225,230,240,0.35)"; X.beginPath(); X.ellipse(0, -27, 10, 1.6, 0, 0, SKY_TAU); X.fill();
+    X.strokeStyle = "rgba(60,60,70,0.6)"; X.lineWidth = 1; X.beginPath(); const pa = t * 50; X.moveTo(Math.cos(pa) * 9.5, -27); X.lineTo(-Math.cos(pa) * 9.5, -27); X.stroke();
+    X.restore();
+  }
+  // Seagull, side view facing right. Two-part wings: the inner wing leads, the wingtip follows a beat later,
+  // a quick strong downstroke and a slower upstroke; the wing foreshortens as it sweeps past level.
+  function skyGull(x, y, s, t, o){
+    const X = ctx; o = o || {};
+    X.save(); X.translate(x, y); if (o.flip) X.scale(-1, 1); X.scale(s, s); X.lineCap = "round"; X.lineJoin = "round";
+    const rate = o.rate || 1.6, ph0 = (t * rate + (o.phase || 0)) % 1;
+    const ang = (p) => { p = ((p % 1) + 1) % 1; const UP = 0.35, DOWN = 2.55;
+      if (p < 0.38){ const k = p / 0.38, e = k * k * (3 - 2 * k); return UP + (DOWN - UP) * e; }
+      const k = (p - 0.38) / 0.62, e = k * k * (3 - 2 * k); return DOWN + (UP - DOWN) * e; };
+    const a1 = ang(ph0), a2 = ang(ph0 - 0.09);
+    const lift = Math.cos(a1) * -0.9;   // body rises on the downstroke
+    X.translate(0, lift);
+    const GRAY = "#9aa3ad", GRAY_D = "#7c8590";
+    const wing = (far) => {
+      const c1 = Math.cos(a1), c2 = Math.cos(a2), wx0 = far ? 0.5 : 1.2, wy0 = -2.6;
+      const wrist = [wx0 - 2.2, wy0 - 7.5 * c1], tip = [wrist[0] - 4.2, wrist[1] - 9.5 * c2];
+      const col = far ? GRAY_D : GRAY;
+      X.fillStyle = col; X.beginPath();
+      X.moveTo(wx0 + 3, wy0 + 0.6); X.quadraticCurveTo(wx0 + 2.4, wy0 - 4 * c1, wrist[0] + 1.6, wrist[1]);
+      X.lineTo(tip[0] + 0.6, tip[1]); X.lineTo(tip[0] - 0.6, tip[1] + 1.2 * Math.sign(c2 || 1));
+      X.lineTo(wrist[0] - 1.8, wrist[1] + 1.4 * Math.sign(c1 || 1)); X.quadraticCurveTo(wx0 - 3.6, wy0 - 3 * c1, wx0 - 3.4, wy0 + 0.8); X.closePath(); X.fill();
+      // black wingtip with a white spot
+      X.fillStyle = "#1d1f24"; X.beginPath();
+      const m = [wrist[0] + (tip[0] - wrist[0]) * 0.45, wrist[1] + (tip[1] - wrist[1]) * 0.45];
+      X.moveTo(m[0] + 1.3, m[1]); X.lineTo(tip[0] + 0.6, tip[1]); X.lineTo(tip[0] - 0.6, tip[1] + 1.2 * Math.sign(c2 || 1)); X.lineTo(m[0] - 1.6, m[1] + 0.8 * Math.sign(c2 || 1)); X.closePath(); X.fill();
+      X.fillStyle = "#fff"; X.beginPath(); X.arc(tip[0] + (m[0] - tip[0]) * 0.3, tip[1] + (m[1] - tip[1]) * 0.3, 0.45, 0, SKY_TAU); X.fill();
+    };
+    wing(true);
+    X.fillStyle = "#f2f2f2"; X.beginPath(); X.moveTo(-8, -0.6); X.lineTo(-13.5, -2); X.lineTo(-13, 1.6); X.lineTo(-7.5, 1.8); X.closePath(); X.fill();
+    X.fillStyle = "#2a2c31"; X.beginPath(); X.moveTo(-12.6, -1.8); X.lineTo(-13.6, -2); X.lineTo(-13.1, 1.5); X.lineTo(-12.2, 1.4); X.closePath(); X.fill();
+    const bg = X.createLinearGradient(0, -4, 0, 4); bg.addColorStop(0, "#ffffff"); bg.addColorStop(1, "#d9dde2");
+    X.fillStyle = bg; X.beginPath(); X.moveTo(8, -2.2); X.bezierCurveTo(3, -4.6, -6, -3.6, -9.5, -0.4); X.bezierCurveTo(-6, 3.2, 2, 4.2, 8, 1.6); X.closePath(); X.fill();
+    X.fillStyle = GRAY; X.beginPath(); X.moveTo(5, -3.2); X.bezierCurveTo(1, -4.2, -5, -3.2, -8.6, -0.6); X.bezierCurveTo(-4, -1.6, 2, -2, 5, -1.8); X.closePath(); X.fill();
+    X.fillStyle = "#ffffff"; X.beginPath(); X.ellipse(8.4, -3, 2.6, 2.35, 0, 0, SKY_TAU); X.fill();
+    X.fillStyle = "#1b1b1e"; X.beginPath(); X.arc(9.1, -3.7, 0.7, 0, SKY_TAU); X.fill(); X.fillStyle = "#fff"; X.beginPath(); X.arc(9.3, -3.9, 0.22, 0, SKY_TAU); X.fill();
+    if (o.angry){ X.strokeStyle = "#1b1b1e"; X.lineWidth = 0.7; X.beginPath(); X.moveTo(7.6, -5.4); X.lineTo(10.2, -4.6); X.stroke(); }
+    const open = o.open ? 0.9 : 0;
+    X.fillStyle = "#f2c230"; X.beginPath(); X.moveTo(10.4, -3.4); X.lineTo(15, -2.8 - open); X.quadraticCurveTo(15.4, -2.2 - open, 14.6, -2 - open * 0.6); X.lineTo(10.6, -2); X.closePath(); X.fill();
+    X.beginPath(); X.moveTo(10.6, -2); X.lineTo(14.2, -1.5 + open * 0.6); X.lineTo(10.6, -1.1); X.closePath(); X.fill();
+    X.fillStyle = "#d8392e"; X.beginPath(); X.arc(13.6, -1.7 + open * 0.3, 0.45, 0, SKY_TAU); X.fill();
+    if (o.carryCol){ X.strokeStyle = o.carryCol; X.lineWidth = 1.8; X.shadowColor = o.carryCol; X.shadowBlur = 4; X.beginPath(); X.moveTo(11, 0.4); X.lineTo(19, -4); X.stroke(); X.shadowBlur = 0; }
+    X.strokeStyle = "#e8a06a"; X.lineWidth = 0.9; X.beginPath(); X.moveTo(-2, 2.8); X.lineTo(-5, 3.6); X.moveTo(0, 3); X.lineTo(-3, 3.9); X.stroke();
+    wing(false);
+    X.restore();
+  }
+  const SKY_PLANE_STEP = 16;   // frames per tile while flying free (~3.7 tiles a second)
+  let skyGustFx = null, skyWisps = [], skyLastPP = null;
+  // v3.87: a little propeller-plane engine: a low buzzy hum with a fast prop "chop", louder as the plane gets
+  // closer to you, panned left/right to where it is, and loud and steady while you ride it.
+  let skyEng = null;
+  function skyEngineTick(running){
+    let target = 0, pan = 0;
+    const ok = running && !paused && !(typeof levelIntro !== "undefined" && levelIntro.active) && currentLevelTheme().name === "Sky Stick" &&
+               airplane && airplane.active && !airplane.gone && audioCtx && audioCtx.state === "running";
+    if (ok){
+      if (airplane.carrying){ target = 0.03; pan = 0; }
+      else {
+        const d = Math.hypot(airplane.x - game.playerX, airplane.y - game.playerY);
+        const onBoard = airplane.x >= -1 && airplane.x <= GRID_W && airplane.y >= -1 && airplane.y <= GRID_H;
+        target = (onBoard ? 0.006 : 0.002) + 0.024 * Math.max(0, 1 - d / 14);
+        pan = Math.max(-0.8, Math.min(0.8, (airplane.x - game.playerX) / 12));
+      }
+    }
+    if (!skyEng){
+      if (target <= 0) return;
+      const A = audioCtx, o1 = A.createOscillator(), o2 = A.createOscillator(), f = A.createBiquadFilter(), am = A.createGain(),
+            lfo = A.createOscillator(), lg = A.createGain(), g = A.createGain(), pn = A.createStereoPanner ? A.createStereoPanner() : null;
+      o1.type = "sawtooth"; o1.frequency.value = 84; o2.type = "square"; o2.frequency.value = 42.5;
+      const o2g = A.createGain(); o2g.gain.value = 0.45;
+      f.type = "lowpass"; f.frequency.value = 480; f.Q.value = 1.2;
+      lfo.type = "sine"; lfo.frequency.value = 27; lg.gain.value = 0.35; am.gain.value = 0.65;   // propeller chop
+      g.gain.value = 0;
+      o1.connect(f); o2.connect(o2g); o2g.connect(f); f.connect(am); lfo.connect(lg); lg.connect(am.gain);
+      am.connect(g); if (pn){ g.connect(pn); pn.connect(A.destination); } else g.connect(A.destination);
+      o1.start(); o2.start(); lfo.start();
+      skyEng = { o1, o2, lfo, g, pn, f };
+    }
+    const now = audioCtx.currentTime;
+    skyEng.g.gain.setTargetAtTime(target, now, 0.25);
+    if (skyEng.pn) skyEng.pn.pan.setTargetAtTime(pan, now, 0.3);
+    const rev = airplane && airplane.carrying ? 1.12 : 1;   // revs up a little while you ride
+    skyEng.o1.frequency.setTargetAtTime(84 * rev, now, 0.4); skyEng.o2.frequency.setTargetAtTime(42.5 * rev, now, 0.4);
+    skyEng.lfo.frequency.setTargetAtTime(27 * rev, now, 0.4);
+  }
+  function skyPlaneEnter(first){
+    const horiz = Math.random() < 0.5, fwd = Math.random() < 0.5 ? 1 : -1;
+    let lane = randInt(2, (horiz ? GRID_H : GRID_W) - 3);
+    for (let i = 0; i < 10 && airplane.lastLane != null && airplane.lastHoriz === horiz && Math.abs(lane - airplane.lastLane) < 4; i++) lane = randInt(2, (horiz ? GRID_H : GRID_W) - 3);
+    airplane.lastLane = lane; airplane.lastHoriz = horiz;
+    const start = first ? (fwd > 0 ? randInt(1, 6) : (horiz ? GRID_W : GRID_H) - randInt(2, 7)) : (fwd > 0 ? -3 : (horiz ? GRID_W : GRID_H) + 2);
+    if (horiz){ airplane.dx = fwd; airplane.dy = 0; airplane.x = start; airplane.y = lane; }
+    else { airplane.dx = 0; airplane.dy = fwd; airplane.x = lane; airplane.y = start; }
+    airplane.gone = false; airplane.moveTimer = 0; airplane.carrying = false;
+    if (!first){ try { beep(180, 0.25, "sawtooth", 0.03); } catch(_){} }
+  }
+  function skyDrawGust(){   // a quick puff of wind streaks around you when a gust shoves you
+    if (!skyGustFx || skyGustFx.t <= 0) return;
+    const k = skyGustFx.t / 40, pp = fxPlayerPx();
+    ctx.save(); ctx.translate(pp.x, pp.y - 6); ctx.rotate(Math.atan2(skyGustFx.dy, skyGustFx.dx));
+    for (let i = 0; i < 5; i++){
+      const yy = (i - 2) * 7, xx = (1 - k) * 34 - 16 + (i % 2) * 6, len = 22;
+      const g = ctx.createLinearGradient(xx - len, 0, xx, 0); g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(1, `rgba(255,255,255,${0.85 * k})`);
+      ctx.strokeStyle = g; ctx.lineWidth = 2.2; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(xx - len, yy + 2); ctx.quadraticCurveTo(xx - len * 0.5, yy - 3, xx, yy); ctx.stroke();
+    }
+    ctx.restore(); skyGustFx.t--;
+  }
+  function skyDrawWisps(){   // cloud vapor peeling off you after you pass through a cloud
+    const pp = fxPlayerPx();
+    const mvx = skyLastPP ? pp.x - skyLastPP.x : 0, mvy = skyLastPP ? pp.y - skyLastPP.y : 0;
+    skyLastPP = { x: pp.x, y: pp.y };
+    if (playerCloudEffect > 0 && Math.random() < 0.55){
+      const k = playerCloudEffect / 180;
+      skyWisps.push({ x: pp.x + (Math.random() - 0.5) * 16, y: pp.y - 4 + (Math.random() - 0.5) * 20,
+        vx: -mvx * 0.35 + (Math.random() - 0.5) * 0.3, vy: -mvy * 0.35 - 0.12 + (Math.random() - 0.5) * 0.2,
+        r: 6 + Math.random() * 6, life: 1, a: 0.45 * k + 0.1 });
+    }
+    ctx.save();
+    skyWisps = skyWisps.filter(w => {
+      w.x += w.vx; w.y += w.vy; w.vx *= 0.97; w.vy *= 0.97; w.r += 0.22; w.life -= 0.016;
+      if (w.life <= 0) return false;
+      const sp = Math.hypot(w.vx, w.vy), ang = Math.atan2(w.vy, w.vx);
+      ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(ang); ctx.scale(1 + Math.min(1.4, sp * 0.6), 0.7);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, w.r);
+      g.addColorStop(0, `rgba(255,255,255,${w.a * w.life})`); g.addColorStop(0.6, `rgba(235,243,255,${w.a * w.life * 0.45})`); g.addColorStop(1, "rgba(235,243,255,0)");
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, w.r, 0, SKY_TAU); ctx.fill(); ctx.restore();
+      return true;
+    });
+    ctx.restore();
+  }
+  function skyRideLift(){   // standing on top of the plane while it carries you
+    if (typeof airplane === "undefined" || !airplane.carrying || fxNoSmooth || talkZooming) return 0;
+    if (currentLevelTheme().name !== "Sky Stick") return 0;
+    return airplane.dy ? 19 : 31;
+  }
+  function drawSkyPlaneLayer(){   // drawn before you, so you stand ON the plane
+    skyDrawWisps(); skyDrawGust();
+    if (!airplane || !airplane.active || airplane.gone) return;
+    const fr = Math.min(1, airplane.moveTimer / SKY_PLANE_STEP);
+    airplane.drawX = airplane.carrying ? airplane.x : (airplane.x - airplane.dx) + airplane.dx * fr;
+    airplane.drawY = airplane.carrying ? airplane.y : (airplane.y - airplane.dy) + airplane.dy * fr;
+    let ax = airplane.drawX * TILE + TILE / 2, ay = airplane.drawY * TILE + TILE / 2;
+    if (airplane.carrying){ const pp = fxPlayerPx(); ax = pp.x; ay = pp.y; }
+    const t = performance.now() / 1000, bob = Math.sin(t * 2.2) * 2;
+    ctx.save();
+    ctx.fillStyle = "rgba(10,25,55,0.25)"; ctx.beginPath();
+    if (airplane.dy) ctx.ellipse(ax + 6, ay + 30, 16, 26, 0, 0, SKY_TAU); else ctx.ellipse(ax + 4, ay + 26, 40, 6, 0, 0, SKY_TAU);
+    ctx.fill();
+    if (airplane.dy) skyPlaneTop(ax, ay + bob, SKY_PLANE_S * 0.95, t, airplane.dy > 0 ? Math.PI : 0);
+    else { ctx.translate(ax, ay + bob); if (airplane.dx < 0) ctx.scale(-1, 1); skyPlaneSide(0, 0, SKY_PLANE_S, t, Math.sin(t * 1.3) * 0.04); }
+    ctx.restore();
+  }
+  // ===================== END SKY STICK GLOW-UP =====================
 
   function initSkyClouds(){
     skyClouds = [];
@@ -3776,19 +3996,9 @@
       skyClouds.push(makeSkyCloud());
     }
     
-    // Init airplane - horizontal or vertical only
-    airplane.x = randInt(0, GRID_W - 1);
-    airplane.y = randInt(0, GRID_H - 1);
-    airplane.active = true;
-    airplane.moveTimer = 0;
-    // Start either horizontal or vertical, not diagonal
-    if(Math.random() > 0.5){
-      airplane.dx = Math.random() > 0.5 ? 1 : -1;
-      airplane.dy = 0;
-    } else {
-      airplane.dx = 0;
-      airplane.dy = Math.random() > 0.5 ? 1 : -1;
-    }
+    // v3.82: planes fly one straight lane across the whole board and off the edge; the next comes on a new lane
+    airplane.active = true; airplane.carrying = false; airplane.dropCooldown = 0;
+    skyPlaneEnter(true);
     
     // Init birds
     skyBirds = [];
@@ -3816,8 +4026,8 @@
     });
     
     // Check if player walked through a cloud
-    const onCloud = skyClouds.some(c => 
-      Math.floor(c.x) === game.playerX && c.y === game.playerY
+    const onCloud = skyClouds.some(c =>   // v3.83: big clouds cover more than their centre tile
+      Math.abs(c.x - game.playerX) <= Math.max(0.5, (c.size || 1) * 0.45) && c.y === game.playerY
     );
     if(onCloud){
       cloudTrails.push({
@@ -3835,35 +4045,19 @@
       return trail.lifetime > 0;
     });
     
-    // Update airplane - only horizontal or vertical movement
-    if(!airplane.carrying){
+    // v3.82: straight across its lane, then off the board; a new plane comes a few seconds later
+    if (airplane.gone){ if (--airplane.respawn <= 0) skyPlaneEnter(false); }
+    else if(!airplane.carrying){
       airplane.moveTimer++;
-      if(airplane.moveTimer >= 90){ // Move every 1.5 seconds (much slower)
+      if (airplane.moveTimer >= SKY_PLANE_STEP){
         airplane.moveTimer = 0;
-        airplane.x = clamp(airplane.x + airplane.dx, 0, GRID_W - 1);
-        airplane.y = clamp(airplane.y + airplane.dy, 0, GRID_H - 1);
-        
-        // Bounce at edges
-        if(airplane.x <= 0 || airplane.x >= GRID_W - 1) airplane.dx *= -1;
-        if(airplane.y <= 0 || airplane.y >= GRID_H - 1) airplane.dy *= -1;
-        
-        // Random direction change - but only horizontal OR vertical, never both
-        if(Math.random() < 0.15){
-          if(Math.random() > 0.5){
-            // Switch to horizontal
-            airplane.dx = Math.random() > 0.5 ? 1 : -1;
-            airplane.dy = 0;
-          } else {
-            // Switch to vertical
-            airplane.dx = 0;
-            airplane.dy = Math.random() > 0.5 ? 1 : -1;
-          }
-        }
+        airplane.x += airplane.dx; airplane.y += airplane.dy;
+        if (airplane.x < -4 || airplane.x > GRID_W + 3 || airplane.y < -4 || airplane.y > GRID_H + 3){ airplane.gone = true; airplane.respawn = randInt(120, 300); }
       }
     }
     
     // Check if player hit airplane (with cooldown after drop-off)
-    if(airplane.x === game.playerX && airplane.y === game.playerY && !airplane.carrying && !airplane.dropCooldown){
+    if(!airplane.gone && airplane.x === game.playerX && airplane.y === game.playerY && !airplane.carrying && !airplane.dropCooldown){
       airplane.carrying = true;
       airplane.tripProgress = 0;
       airplane.tripSteps = 0;
@@ -3910,13 +4104,8 @@
           airplane.stuckCount = 0;
           airplane.dropCooldown = 60; // 1 second cooldown before can pick up again
           
-          // Reverse direction if we hit an edge
-          if(airplane.x <= 0 || airplane.x >= GRID_W - 1) airplane.dx *= -1;
-          if(airplane.y <= 0 || airplane.y >= GRID_H - 1) airplane.dy *= -1;
-          
-          // Move airplane away in its (possibly new) direction
-          airplane.x = clamp(airplane.x + airplane.dx * 3, 0, GRID_W - 1);
-          airplane.y = clamp(airplane.y + airplane.dy * 3, 0, GRID_H - 1);
+          // v3.82: the plane keeps flying the same way (off the board if it's at the edge)
+          airplane.x += airplane.dx * 2; airplane.y += airplane.dy * 2;
           airplane.moveTimer = 0; // Resume normal movement
           
           logEvent("airplane", "✈️ Arrived at destination!");
@@ -4103,89 +4292,72 @@
     if (Math.sin(time * 6) > 0.6){ ctx.fillStyle = "#ff4d4d"; ctx.beginPath(); ctx.arc(-9.5, -19, 1, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#4dff88"; ctx.beginPath(); ctx.arc(-9.5, 19, 1, 0, Math.PI * 2); ctx.fill(); }
     ctx.restore();
   }
+  // v3.85: paint a cloud with soft, natural shading: lumpy outline, flat-ish base, gentle light from above,
+  // blue-gray shade underneath, and soft (not circular) highlights on the tops of the puffs.
+  let skyPreviewClouds = null;   // v3.94: clouds for the Sky Stick preview slide
+  function skyCloudSprite(cloud){
+    if (cloud._spr && cloud._spr.p === cloud.puffs) return cloud._spr;
+    const P = cloud.puffs, SC = TILE * 3, pad = 0.12;
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    P.forEach(q => { x0 = Math.min(x0, q.ox - q.r); x1 = Math.max(x1, q.ox + q.r); y0 = Math.min(y0, q.oy - q.r); y1 = Math.max(y1, q.oy + q.r); });
+    const big = (cloud.size || 1) >= 0.8;
+    // flat bottom: cut the lowest part of the round puffs off, like a real cumulus base
+    let base = -1e9; P.forEach(q => { base = Math.max(base, q.oy + q.r * (big ? 0.55 : 0.8)); });
+    y1 = Math.min(y1, base); x0 -= pad; y0 -= pad; x1 += pad; y1 += pad;
+    const w = x1 - x0, h = y1 - y0, cv = document.createElement("canvas");
+    cv.width = Math.max(2, Math.ceil(w * SC)); cv.height = Math.max(2, Math.ceil(h * SC));
+    const X = cv.getContext("2d"), tx = (v) => (v - x0) * SC, ty = (v) => (v - y0) * SC;
+    const shape = () => {
+      X.beginPath();
+      P.forEach(q => { X.moveTo(tx(q.ox) + q.r * SC, ty(q.oy)); X.arc(tx(q.ox), ty(q.oy), q.r * SC, 0, Math.PI * 2); });
+    };
+    X.save();
+    // the base: nearly flat in the middle, curving gently up at the ends so there are no sharp corners
+    const bY = ty(base), lift = Math.min(cv.height * 0.22, SC * 0.22);
+    X.beginPath(); X.moveTo(0, 0); X.lineTo(cv.width, 0); X.lineTo(cv.width, bY - lift);
+    X.bezierCurveTo(cv.width * 0.8, bY + lift * 0.1, cv.width * 0.2, bY + lift * 0.1, 0, bY - lift); X.closePath(); X.clip();
+    // body: bright on top, fading to a cool blue-gray underneath
+    const g = X.createLinearGradient(0, ty(y0 + pad), 0, ty(base));
+    g.addColorStop(0, "#ffffff"); g.addColorStop(0.45, "#f4f7fc"); g.addColorStop(0.8, "#d9e2f0"); g.addColorStop(1, "#b7c6de");
+    X.fillStyle = g; shape(); X.fill();
+    X.save(); shape(); X.clip();
+    // gentle shade on the lower-right of each puff so they read as round shapes without hard lines
+    P.forEach(q => {
+      const px = tx(q.ox), py = ty(q.oy), r = q.r * SC;
+      const s = X.createRadialGradient(px + r * 0.35, py + r * 0.55, 0, px + r * 0.35, py + r * 0.55, r * 1.1);
+      s.addColorStop(0, "rgba(150,170,205,0.28)"); s.addColorStop(1, "rgba(150,170,205,0)");
+      X.fillStyle = s; X.fillRect(px - r * 1.5, py - r * 1.5, r * 3, r * 3);
+    });
+    // soft sunlit tops
+    P.forEach(q => {
+      const px = tx(q.ox) - q.r * SC * 0.2, py = ty(q.oy) - q.r * SC * 0.35, r = q.r * SC * 0.95;
+      const s = X.createRadialGradient(px, py, 0, px, py, r);
+      s.addColorStop(0, "rgba(255,255,255,0.75)"); s.addColorStop(0.6, "rgba(255,255,255,0.25)"); s.addColorStop(1, "rgba(255,255,255,0)");
+      X.fillStyle = s; X.fillRect(px - r, py - r, r * 2, r * 2);
+    });
+    X.restore(); X.restore();
+    // feather the bottom edge so the base melts into the sky instead of ending in a hard line
+    X.save(); X.globalCompositeOperation = "destination-out";
+    const f = X.createLinearGradient(0, bY - SC * 0.16, 0, bY + 1);
+    f.addColorStop(0, "rgba(0,0,0,0)"); f.addColorStop(1, "rgba(0,0,0,0.85)");
+    X.fillStyle = f; X.fillRect(0, bY - SC * 0.16, cv.width, SC * 0.2); X.restore();
+    cloud._spr = { p: P, cv, x0, y0, w, h };
+    return cloud._spr;
+  }
   function drawSkyClouds(){
     // Draw clouds: soft blue-gray underside, white body, bright top (reads well on the twilight sky)
     skyClouds.forEach(cloud => {
       if (!cloud.puffs){ cloud.size = cloud.size || 1; cloud.puffs = makeCloudPuffs(cloud.size); }
       const cx = cloud.x * TILE + TILE/2;
       const cy = cloud.y * TILE + TILE/2;
-      const unionPath = (dx, dy, rScale) => {
-        ctx.beginPath();
-        cloud.puffs.forEach(pf => {
-          const px = cx + (pf.ox + dx) * TILE, py = cy + (pf.oy + dy) * TILE, r = pf.r * rScale * TILE;
-          ctx.moveTo(px + r, py);
-          ctx.arc(px, py, r, 0, Math.PI * 2);
-        });
-      };
-      ctx.save();
-      // underside shading
-      ctx.fillStyle = "rgba(150, 178, 220, 0.55)";
-      unionPath(0, 0.07, 1.0); ctx.fill();
-      // body
-      ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
-      unionPath(0, 0, 1.0); ctx.fill();
-      // top highlight
-      ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
-      unionPath(-0.02, -0.06, 0.62); ctx.fill();
+      // v3.85: each cloud is painted once into its own little picture (soft shading, no hard circles) and reused
+      const spr = skyCloudSprite(cloud);
+      ctx.save(); ctx.globalAlpha = 0.93;
+      ctx.drawImage(spr.cv, cx + spr.x0 * TILE, cy + spr.y0 * TILE, spr.w * TILE, spr.h * TILE);
       ctx.restore();
     });
     
-    // Draw cloud trails - drag effect
-    cloudTrails.forEach(trail => {
-      const tx = trail.x * TILE + TILE/2;
-      const ty = trail.y * TILE + TILE/2;
-      const alpha = trail.lifetime / 120;
-      
-      ctx.save();
-      ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.5})`;
-      
-      // Multiple small circles creating wispy drag effect
-      ctx.beginPath();
-      ctx.arc(tx - TILE * 0.15, ty, TILE * 0.2 * alpha, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.beginPath();
-      ctx.arc(tx, ty - TILE * 0.05, TILE * 0.18 * alpha, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.beginPath();
-      ctx.arc(tx + TILE * 0.1, ty + TILE * 0.05, TILE * 0.15 * alpha, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.restore();
-    });
-    
-    // Draw airplane - emoji nose points BOTTOM-RIGHT by default
-    const ax = airplane.x * TILE + TILE/2;
-    const ay = airplane.y * TILE + TILE/2;
-    
-    ctx.save();
-    ctx.translate(ax, ay);
-    
-    // Emoji naturally points to BOTTOM-RIGHT (roughly 135 degrees or 3π/4)
-    // We need to rotate from that default to match travel direction
-    // Default angle is about 135° (pointing down-right)
-    const defaultAngle = Math.PI * 0.75; // 135 degrees
-    
-    let targetAngle = 0;
-    if(airplane.dx > 0 && airplane.dy === 0) targetAngle = 0; // Right = 0°
-    else if(airplane.dx < 0 && airplane.dy === 0) targetAngle = Math.PI; // Left = 180°
-    else if(airplane.dy > 0 && airplane.dx === 0) targetAngle = Math.PI / 2; // Down = 90°
-    else if(airplane.dy < 0 && airplane.dx === 0) targetAngle = -Math.PI / 2; // Up = -90°
-    
-    // v3.35: a drawn airliner seen from above (matches the preview slide: white body, red swept wings and tail)
-    ctx.restore();
-    drawSkyPlane(ax, ay, targetAngle);
-    
-    // If carrying player, draw stick figure attached
-    if(airplane.carrying){
-      ctx.font = "18px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.globalAlpha = 1; ctx.fillStyle = "#000";
-      ctx.fillText("🧍", ax, ay + TILE * 0.5);
-    }
-    
+    // v3.82: the old tile "cloud trail" circles are replaced by the drifting wisps (skyDrawWisps)
     // Draw birds - lighter colors for visibility
     skyBirds.forEach(bird => {
       const bx = bird.x * TILE + TILE/2;
@@ -4202,66 +4374,10 @@
       const bob = flap * (swooping ? 1.5 : 2.2);
       const shake = swooping ? (Math.random() - 0.5) * 2.4 : 0;
 
-      ctx.save();
-      ctx.translate(bx + shake, by + bob);
+      // v3.81: seagulls. Swooping = fast flaps, open beak, angry brow; a thief carries your stick in its beak.
       const facingLeft = swooping ? (game.playerX < bird.x) : (bird.dx < 0);
-      if (facingLeft) ctx.scale(-1, 1);
-      ctx.scale(1.3, 1.3);
-      ctx.lineJoin = "round"; ctx.lineCap = "round";
-      ctx.strokeStyle = "rgba(10,20,40,0.85)";
-      ctx.lineWidth = 1.4;
-
-      // far wing (behind body, darker)
-      ctx.fillStyle = birdDark;
-      ctx.beginPath();
-      ctx.moveTo(-1, -2);
-      ctx.quadraticCurveTo(-4, -6 - flap * 7, -9, -4 - flap * 8);
-      ctx.quadraticCurveTo(-5, -1, -1, 0);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-
-      // tail
-      ctx.fillStyle = birdDark;
-      ctx.beginPath();
-      ctx.moveTo(-7, -1); ctx.lineTo(-13, -4); ctx.lineTo(-12, 0); ctx.lineTo(-13, 3); ctx.lineTo(-7, 1);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-
-      // body
-      ctx.fillStyle = birdColor;
-      ctx.beginPath(); ctx.ellipse(0, 0, 8, 5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      // belly
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.beginPath(); ctx.ellipse(1, 2, 5, 2.4, 0, 0, Math.PI * 2); ctx.fill();
-
-      // head
-      ctx.fillStyle = birdColor;
-      ctx.beginPath(); ctx.arc(7, -2.5, 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-
-      // beak (opens when squawking)
-      ctx.fillStyle = "#ff9f1a";
-      const open = swooping ? 1.6 : 0;
-      ctx.beginPath(); ctx.moveTo(10.5, -3.2 - open*0.4); ctx.lineTo(15, -2.2 - open); ctx.lineTo(10.8, -1.6); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(10.5, -1.6); ctx.lineTo(14.5, -1.4 + open); ctx.lineTo(10.6, -0.6); ctx.closePath(); ctx.fill();
-
-      // eye (+ angry brow when swooping)
-      ctx.fillStyle = "#ffffff";
-      ctx.beginPath(); ctx.arc(8, -3.4, 1.6, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = "#000000";
-      ctx.beginPath(); ctx.arc(8.5, -3.4, 0.9, 0, Math.PI * 2); ctx.fill();
-      if (swooping){
-        ctx.strokeStyle = "#000"; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.moveTo(6.2, -6.2); ctx.lineTo(9.8, -5); ctx.stroke();
-      }
-
-      // near wing (on top, flaps more)
-      ctx.strokeStyle = "rgba(10,20,40,0.85)"; ctx.lineWidth = 1.4;
-      ctx.fillStyle = birdColor;
-      ctx.beginPath();
-      ctx.moveTo(-3, -1);
-      ctx.quadraticCurveTo(-5, -9 - flap * 9, -11, -6 - flap * 10);
-      ctx.quadraticCurveTo(-6, 0, -3, 1);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-
-      ctx.restore();
+      const carryCol = (bird.fleeing && bird.stolen && bird.stolen.length) ? bird.stolen[0] : (bird.carryingStick && bird.carryingStick.stick ? bird.carryingStick.stick.color : null);
+      skyGull(bx + shake, by + bob * 0.4, SKY_GULL_S, performance.now() / 1000, { flip: facingLeft, rate: swooping ? 3.4 : 1.5, phase: bIdx * 0.37, open: swooping, angry: swooping, carryCol });
 
       // red "!" warning above a bird that's about to grab
       if (swooping){
@@ -4271,8 +4387,8 @@
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.lineWidth = 4; ctx.strokeStyle = "rgba(0,0,0,0.85)";
         ctx.globalAlpha = pulseW;
-        ctx.strokeText("!", bx, by - 20);
-        ctx.fillStyle = "#ff3b3b"; ctx.fillText("!", bx, by - 20);
+        ctx.strokeText("!", bx, by - 26);
+        ctx.fillStyle = "#ff3b3b"; ctx.fillText("!", bx, by - 26);
         ctx.restore();
       }
       
@@ -4281,6 +4397,7 @@
         ctx.save();
         ctx.lineCap = "round";
         bird.stolen.forEach((col, k) => {
+          if (k === 0) return;   // v3.81: the first one is in its beak
           const ox = (k - (bird.stolen.length - 1) / 2) * 5;
           const sw = Math.sin(Date.now() / 120 + k) * 0.25;
           ctx.save();
@@ -4299,12 +4416,14 @@
   
   function initWindTiles(){
     windTiles = [];
-    const num = randInt(6, 10);
+    const num = 0;   // v3.82: no wind squares; random gusts just shuffle you a step (shown as a puff of streaks)
     for (let i = 0; i < num; i++){
+      const wd = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}][randInt(0, 3)];   // v3.81: each gust tile blows one way
       windTiles.push({
         x: randInt(0, GRID_W - 1),
         y: randInt(0, GRID_H - 1),
-        intensity: Math.random() * Math.PI * 2
+        intensity: Math.random() * Math.PI * 2,
+        dx: wd.dx, dy: wd.dy
       });
     }
   }
@@ -4328,6 +4447,7 @@
         if (newX !== game.holeX || newY !== game.holeY){
           game.playerX = newX;
           game.playerY = newY;
+          skyGustFx = { t: 40, dx: dir.dx, dy: dir.dy };   // v3.82: show the gust
           beep(250, 0.08, "triangle", 0.05);
           logEvent("info", "Wind gust pushed you!");
           setHud("WIND GUST!");
@@ -4365,10 +4485,10 @@
           spawnSparks(game.playerX, game.playerY, 25, true);
           updateUI();
         } else {
-          // Throw player 4-5 squares
+          // Throw player 4-5 squares, the way this tile's streaks are blowing
           const distance = randInt(4, 5);
-          const dirs = [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}];
-          const dir = dirs[randInt(0, 3)];
+          const wt = windTiles.find(w => w.x === game.playerX && w.y === game.playerY);
+          const dir = (wt && wt.dx != null) ? { dx: wt.dx, dy: wt.dy } : [{dx:1,dy:0},{dx:-1,dy:0},{dx:0,dy:1},{dx:0,dy:-1}][randInt(0, 3)];
           let newX = game.playerX;
           let newY = game.playerY;
           for (let i = 0; i < distance; i++){
@@ -4396,36 +4516,25 @@
     }
   }
   
-  function drawWindTiles(){
-    ctx.save();
-    for (let w of windTiles){
-      const x = w.x * TILE + TILE / 2;
-      const y = w.y * TILE + TILE / 2;
-      const spin = w.intensity;
-      const pulse = Math.sin(spin * 2) * 0.3 + 0.7;
-      
-      // Swirling base
-      const grad = ctx.createRadialGradient(x, y, 0, x, y, TILE / 2 + 4);
-      grad.addColorStop(0, 'rgba(200,220,255,' + (0.3 * pulse) + ')');
-      grad.addColorStop(1, 'rgba(100,140,200,0)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(x, y, TILE / 2 + 4, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Swirl lines
-      ctx.strokeStyle = 'rgba(180,200,240,' + (0.5 * pulse) + ')';
-      ctx.lineWidth = 2;
-      for (let i = 0; i < 3; i++){
-        const offset = (spin + i * Math.PI * 0.66) % (Math.PI * 2);
-        const radius = 4 + i * 2;
-        ctx.beginPath();
-        ctx.arc(x, y, radius, offset, offset + Math.PI * 0.8);
-        ctx.stroke();
+  function drawWindTiles(){   // v3.81: white streaks sweep the way the gust will throw you; faster and brighter while you stand on it
+    const t = performance.now() / 1000;
+    for (const w of windTiles){
+      const dx = w.dx == null ? 1 : w.dx, dy = w.dy == null ? 0 : w.dy;
+      const on = w.x === game.playerX && w.y === game.playerY, urg = on ? Math.min(1, windWarningTimer / Math.max(1, WIND_WARNING_TIME)) : 0;
+      ctx.save(); ctx.translate(w.x * TILE + TILE / 2, w.y * TILE + TILE / 2); ctx.rotate(Math.atan2(dy, dx));
+      ctx.fillStyle = `rgba(200,230,255,${0.1 + urg * 0.15})`; ctx.fillRect(-TILE / 2, -TILE / 2, TILE, TILE);
+      const sp = 0.9 + urg * 2.2;
+      for (let i = 0; i < 4; i++){
+        const ph = ((t * sp + i * 0.27 + (w.intensity || 0)) % 1), xx = -TILE * 0.6 + ph * TILE * 1.2, yy = (i - 1.5) * TILE * 0.22 + Math.sin(t * 4 + i) * TILE * 0.04, len = TILE * 0.42;
+        const a = Math.sin(ph * Math.PI) * (0.75 + urg * 0.25);
+        const g = ctx.createLinearGradient(xx - len, 0, xx, 0); g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(1, `rgba(255,255,255,${a})`);
+        ctx.strokeStyle = g; ctx.lineWidth = Math.max(1, TILE * 0.06); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(xx - len, yy + TILE * 0.05); ctx.quadraticCurveTo(xx - len * 0.5, yy - TILE * 0.06, xx, yy); ctx.stroke();
       }
+      ctx.restore();
     }
-    ctx.restore();
   }
+
 
   // ================================================================
   // SNAKES - Snake Stick (chase and drain!)
@@ -11641,6 +11750,8 @@ function updateSpiderWebs(){
       moving: false
     });
     
+    laserWalls[0].col = [60, 240, 130]; laserWalls[1].col = [255, 220, 60];   // v3.86/3.89: each drone keeps its color
+    vicState = { champAt: -1, champGiven: false, third: false, start: 0, booms: [], wreck: null };
     // Create LARGE ROBOTIC tank
     const startPos = {x: randInt(1, GRID_W - 2), y: randInt(1, GRID_H - 2)};
     
@@ -11655,7 +11766,8 @@ function updateSpiderWebs(){
       beamWarning: 0,
       powerUpTimer: 0, // For power-up animation
       rotation: 0,
-      shootRange: 8 // Can shoot from 8 squares away!
+      shootRange: 6, // v3.90: 6 squares (was 8)
+      nextShot: randInt(780, 1080)   // v3.90: a shot every ~13-18 s
     };
   }
   
@@ -11689,6 +11801,13 @@ function updateSpiderWebs(){
           if(wall.cycleTimer >= wall.cycleDuration){
             // Start pulsating warning!
             wall.warningTimer = wall.warningDuration;
+            // v3.89: about 1 shot in 3 sweeps 3 lines sideways while it fires (the warning shows every line it will cross)
+            wall.sweep = 0;
+            if (Math.random() < 0.35){
+              const pos = wall.type === 'vertical' ? Math.round(wall.x) : Math.round(wall.y), max = (wall.type === 'vertical' ? GRID_W : GRID_H) - 2;
+              const dirs = [-1, 1].filter(d => pos + d * 3 >= 1 && pos + d * 3 <= max);
+              if (dirs.length) wall.sweep = dirs[randInt(0, dirs.length - 1)];
+            }
             wall.cycleTimer = 0;
             beep(600, 0.08, "sine", 0.12);
           }
@@ -11705,6 +11824,10 @@ function updateSpiderWebs(){
       } else if(wall.beamActive){
         // Laser is firing
         wall.beamTimer++;
+        if (wall.sweep && wall.beamTimer % 36 === 0 && wall.beamTimer < 120){   // v3.89: sweeping shot slides one line over
+          if (wall.type === 'vertical'){ wall.x = Math.round(wall.x) + wall.sweep; wall.targetX = wall.x; }
+          else { wall.y = Math.round(wall.y) + wall.sweep; wall.targetY = wall.y; }
+        }
         
         // Check collision
         let hit = false;
@@ -11781,40 +11904,42 @@ function updateSpiderWebs(){
       }
     });
     
+    vicExtrasUpdate();   // v3.89: Champion's Stick, third drone, smashing hazards
     // Update LARGE ROBOTIC tank
-    if(victoryTank){
+    if(victoryTank && !victoryTank.dead){
       victoryTank.float = (victoryTank.float + 0.05) % (Math.PI * 2);
       
-      // Tank CHASES player but keeps distance
-      victoryTank.moveTimer++;
-      if(victoryTank.moveTimer > victoryTank.moveInterval){
-        victoryTank.moveTimer = 0;
-        
-        const dx = game.playerX - victoryTank.x;
-        const dy = game.playerY - victoryTank.y;
-        const distance = Math.abs(dx) + Math.abs(dy); // Manhattan distance
-        
-        // Only move if more than 2 squares away - keep distance!
-        if(distance > 2){
-          if(Math.abs(dx) >= Math.abs(dy)){
-            if(dx > 0 && victoryTank.x < GRID_W - 1){
-              victoryTank.x++;
-            } else if(dx < 0 && victoryTank.x > 0){
-              victoryTank.x--;
-            }
-          } else {
-            if(dy > 0 && victoryTank.y < GRID_H - 1){
-              victoryTank.y++;
-            } else if(dy < 0 && victoryTank.y > 0){
-              victoryTank.y--;
-            }
-          }
+      // v3.92: the tank keeps a standoff distance instead of driving up into your face. It likes to sit 4-5
+      // squares away (in cannon range), backs up if you get closer than that, and holds still while it charges
+      // and fires. If you're carrying the Champion's Stick it knows what that means and retreats faster.
+      const tk = victoryTank, hasChamp = game.carry.some(c => c && c.champion);
+      tk.moveTimer++;
+      const farAway = Math.max(Math.abs(game.playerX - tk.x), Math.abs(game.playerY - tk.y)) > 8;   // rolls in quicker from across the board
+      if (tk.moveTimer > (hasChamp ? 100 : farAway ? 65 : tk.moveInterval) && !tk.beamActive){
+        tk.moveTimer = 0;
+        const dx = game.playerX - tk.x, dy = game.playerY - tk.y, dist = Math.max(Math.abs(dx), Math.abs(dy));
+        const want = hasChamp ? 7 : 4, far = hasChamp ? 9 : 5;
+        let sx = 0, sy = 0;
+        const tryStep = (mx, my) => { const nx = tk.x + mx, ny = tk.y + my; if (nx < 1 || ny < 1 || nx > GRID_W - 2 || ny > GRID_H - 2) return false; sx = mx; sy = my; return true; };
+        if (dist < want){   // too close: back away (along the long axis first, then the other, so it can slip out of corners)
+          const ax = dx === 0 ? (Math.random() < 0.5 ? 1 : -1) : -Math.sign(dx), ay = dy === 0 ? (Math.random() < 0.5 ? 1 : -1) : -Math.sign(dy);
+          if (Math.abs(dx) >= Math.abs(dy)){ tryStep(ax, 0) || tryStep(0, ay) || tryStep(0, -ay); }
+          else { tryStep(0, ay) || tryStep(ax, 0) || tryStep(-ax, 0); }
+          tk.backing = true;
+        } else if (dist > far){   // too far: close in
+          if (Math.abs(dx) >= Math.abs(dy)) tryStep(Math.sign(dx), 0) || tryStep(0, Math.sign(dy) || 1);
+          else tryStep(0, Math.sign(dy)) || tryStep(Math.sign(dx) || 1, 0);
+          tk.backing = false;
+        } else if (Math.random() < 0.35){   // in its sweet spot: now and then it shuffles sideways
+          if (Math.abs(dx) >= Math.abs(dy)) tryStep(0, Math.random() < 0.5 ? 1 : -1); else tryStep(Math.random() < 0.5 ? 1 : -1, 0);
+          tk.backing = false;
         }
+        tk.x += sx; tk.y += sy;
       }
-      
+
       const dx = game.playerX - victoryTank.x;
       const dy = game.playerY - victoryTank.y;
-      victoryTank.rotation = Math.atan2(dy, dx);
+      if (!victoryTank.beamActive || victoryTank.beamTimer < 45) victoryTank.rotation = Math.atan2(dy, dx);   // v3.90: aim locks 0.75 s before the shot
       
       // Power-up animation
       if(victoryTank.powerUpTimer > 0){
@@ -11823,11 +11948,13 @@ function updateSpiderWebs(){
       
       // RED Beam mechanic
       if(!victoryTank.beamActive){
-        victoryTank.beamWarning++;
-        if(victoryTank.beamWarning > randInt(600, 900)){ // Much less frequent! (10-15 seconds)
+        if (!inSanctuary()) victoryTank.beamWarning++;   // v3.87: it won't start a shot while you're safe in the hole
+        if(victoryTank.beamWarning > (victoryTank.nextShot || 900)){ // v3.90: ~13-18 s between shots
+          victoryTank.nextShot = randInt(780, 1080);
           victoryTank.beamActive = true;
           victoryTank.beamTimer = 0;
           victoryTank.beamWarning = 0;
+          victoryTank.hitThisShot = false;
           victoryTank.powerUpTimer = 90; // Start power-up animation
           
           // FUN POWER-UP SOUND!
@@ -11866,44 +11993,25 @@ function updateSpiderWebs(){
             }
           }
           
-          if(playerInBeam){
-            // EXTREMELY LOW ODDS - roll 0-49
-            // 0 = TELEPORT (2% chance - 1/50) - Extremely rare!
-            // 1-49 = MISS (98% chance - 49/50) - Almost always miss!
-            // NO KILL - removed completely, too punishing
-            const roll = randInt(0, 49);
-            
-            // Check shield first!
+          if(playerInBeam && inSanctuary()) playerInBeam = false;   // v3.87: the hole is always safe
+          if(playerInBeam && !victoryTank.hitThisShot){
+            // v3.89: the tank's shot is a real threat now. It warns you (red charge + current), locks its aim
+            // half a second before firing, and a hit costs a life. The shield blocks it; the hole is always safe.
+            victoryTank.hitThisShot = true;
             if(activeShield > 0){
               logEvent("info", "Shield deflected tank beam!");
               setHud("🛡️ BEAM DEFLECTED!");
               spawnSparks(game.playerX, game.playerY, 15, false);
-            } else if(roll === 0){
-              // TELEPORT - Beam relocates you (extremely rare!)
-              const newPos = randomEmptyTile();
-              game.playerX = newPos.x;
-              game.playerY = newPos.y;
-              
-              logEvent("info", "Tank beam teleported you!");
-              setHud("⚡ RELOCATED! ⚡");
-              
-              // Teleport sound
-              const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-              const osc = audioCtx.createOscillator();
-              const gain = audioCtx.createGain();
-              osc.connect(gain);
-              gain.connect(audioCtx.destination);
-              osc.type = "sine";
-              osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-              osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.3);
-              gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-              gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-              osc.start();
-              osc.stop(audioCtx.currentTime + 0.3);
-              
-              spawnSparks(game.playerX, game.playerY, 25, false);
+            } else {
+              game.lives--;
+              logEvent("death", "💥 HIT BY THE TANK'S CANNON!");
+              setHud("💥 TANK HIT! 💥");
+              startDoomMusic(3000);
+              beep(160, 0.25, "sawtooth", 0.5); setTimeout(() => beep(90, 0.35, "square", 0.45), 60);
+              game.holeFlash = 2.0;
+              spawnSparks(game.playerX, game.playerY, 40, true);
+              if(game.lives <= 0){ gameOver(); } else { updateUI(); }
             }
-            // else: roll 1-49 = MISS (98% chance) - beam passes harmlessly!
           }
           
           if(victoryTank.beamTimer >= 120){
@@ -11915,377 +12023,556 @@ function updateSpiderWebs(){
     }
   }
   
-  function drawVictoryLasers(){
-    if(currentLevelTheme().name !== "Victory Stick") return;
-    
-    ctx.save();
-    
-    // Draw energy ball emitters
-    laserWalls.forEach(wall => {
-      const ballX = wall.x * TILE + TILE / 2;
-      const ballY = wall.y * TILE + TILE / 2;
-      const pulse = Math.sin(Date.now() * 0.01) * 0.3 + 0.7;
-      
-      // Draw the energy ball
-      if(wall.warningTimer > 0){
-        // HEAVY PULSATING warning before shooting!
-        const warnPulse = Math.sin(wall.warningTimer * 0.3) * 0.6 + 0.6;
-        const ballSize = 10 + warnPulse * 5;
-        
-        // Pulsating outer glow
-        ctx.shadowColor = "#ffeb3b";
-        ctx.shadowBlur = 20 + warnPulse * 20;
-        ctx.fillStyle = `rgba(255, 235, 59, ${0.4 + warnPulse * 0.4})`;
-        ctx.beginPath();
-        ctx.arc(ballX, ballY, ballSize + 5, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Pulsating energy ball
-        ctx.fillStyle = `rgba(255, 235, 59, ${0.8 + warnPulse * 0.2})`;
-        ctx.strokeStyle = `rgba(255, 255, 100, ${warnPulse})`;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(ballX, ballY, ballSize, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-      } else {
-        // Normal idle/moving state - steady green ball
-        ctx.fillStyle = '#27ae60';
-        ctx.strokeStyle = '#52ffa8';
-        ctx.lineWidth = 2;
-        ctx.shadowColor = '#27ae60';
-        ctx.shadowBlur = 8 * pulse;
-        ctx.beginPath();
-        ctx.arc(ballX, ballY, 10 * pulse, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
-        ctx.shadowBlur = 0;
-      }
-      
-      // Draw laser beam when active (shoots FROM the ball position)
-      if(wall.beamActive){
-        const beamPulse = Math.sin(Date.now() * 0.015) * 0.2 + 0.8;
-        
-        ctx.shadowColor = "#27ae60";
-        ctx.shadowBlur = 25;
-        
-        if(wall.type === 'vertical'){
-          // Vertical beam - full height
-          // Outer glow
-          ctx.strokeStyle = `rgba(39, 174, 96, ${beamPulse * 0.9})`;
-          ctx.lineWidth = 12;
-          ctx.beginPath();
-          ctx.moveTo(ballX, 0);
-          ctx.lineTo(ballX, CANVAS_H);
-          ctx.stroke();
-          
-          // Inner core
-          ctx.strokeStyle = `rgba(82, 255, 168, ${beamPulse})`;
-          ctx.lineWidth = 6;
-          ctx.beginPath();
-          ctx.moveTo(ballX, 0);
-          ctx.lineTo(ballX, CANVAS_H);
-          ctx.stroke();
-          
-          ctx.shadowBlur = 0;
-          ctx.strokeStyle = `rgba(200, 255, 220, ${beamPulse})`;
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(ballX, 0);
-          ctx.lineTo(ballX, CANVAS_H);
-          ctx.stroke();
-        } else {
-          // Horizontal beam - full width
-          // Outer glow
-          ctx.strokeStyle = `rgba(39, 174, 96, ${beamPulse * 0.9})`;
-          ctx.lineWidth = 12;
-          ctx.beginPath();
-          ctx.moveTo(0, ballY);
-          ctx.lineTo(CANVAS_W, ballY);
-          ctx.stroke();
-          
-          // Inner core
-          ctx.strokeStyle = `rgba(82, 255, 168, ${beamPulse})`;
-          ctx.lineWidth = 6;
-          ctx.beginPath();
-          ctx.moveTo(0, ballY);
-          ctx.lineTo(CANVAS_W, ballY);
-          ctx.stroke();
-          
-          ctx.shadowBlur = 0;
-          ctx.strokeStyle = `rgba(200, 255, 220, ${beamPulse})`;
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.moveTo(0, ballY);
-          ctx.lineTo(CANVAS_W, ballY);
-          ctx.stroke();
+  // ===================== v3.86 VICTORY STICK GLOW-UP =====================
+  // A championship final: gold-trimmed arena with sweeping spotlights and camera flashes, detailed hover
+  // drones (a faint electric current crackles along the line they're about to fire), a detailed robot tank
+  // whose turret tracks you, and a golden finish-line hole.
+  const VIC_TAU = Math.PI * 2;
+  function vicRng(seed){ let s = (seed >>> 0) || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+  const vicC = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+  const VIC_GREEN = [60, 240, 130], VIC_YEL = [255, 220, 60], VIC_RED = [255, 60, 50];
+
+  // v3.87: a realistic quadcopter: carbon arms, motor pods with spinning prop blur, a matte body,
+  // aviation nav lights, and a gimbal laser pod whose lenses glow as it charges. dir 'h' or 'v' = beam axis.
+  function vicDrone(x, y, s, col, ch, firing, k, dir){
+    const X = ctx; if (firing) ch = 1;
+    X.save(); X.translate(x, y); X.scale(s, s); X.lineJoin = "round"; X.lineCap = "round";
+    const bob = Math.sin(k * 2.3) * 0.7, tilt = Math.sin(k * 1.1) * 0.05;
+    // soft shadow on the floor
+    X.fillStyle = "rgba(0,0,0,0.32)"; X.beginPath(); X.ellipse(2.5, 12 - bob * 0.5, 13, 4.5, 0, 0, VIC_TAU); X.fill();
+    X.translate(0, bob); X.rotate(tilt);
+    // laser glow under the drone (grows while charging)
+    if (ch > 0){ const gr = X.createRadialGradient(0, 0, 0, 0, 0, 10 + ch * 10); gr.addColorStop(0, vicC(col, 0.35 * ch + 0.1)); gr.addColorStop(1, vicC(col, 0));
+      X.fillStyle = gr; X.beginPath(); X.arc(0, 0, 10 + ch * 10, 0, VIC_TAU); X.fill(); }
+    // arms (X frame, carbon fibre)
+    const AR = 12.5, arms = [-Math.PI * 0.75, -Math.PI * 0.25, Math.PI * 0.25, Math.PI * 0.75];
+    arms.forEach(a => {
+      X.save(); X.rotate(a);
+      X.fillStyle = "#1b1e22"; X.beginPath(); X.roundRect(2, -1.25, AR - 1, 2.5, 1.1); X.fill();
+      X.fillStyle = "rgba(255,255,255,0.13)"; X.fillRect(3, -1.0, AR - 3, 0.6);
+      X.restore();
+    });
+    // motors + prop blur
+    arms.forEach((a, i) => {
+      const mx = Math.cos(a) * AR, my = Math.sin(a) * AR, spin = k * 40 * (i % 2 ? 1 : -1);
+      const pb = X.createRadialGradient(mx, my, 1.5, mx, my, 7.5);
+      pb.addColorStop(0, "rgba(200,210,220,0.10)"); pb.addColorStop(0.75, "rgba(200,210,220,0.16)"); pb.addColorStop(1, "rgba(200,210,220,0)");
+      X.fillStyle = pb; X.beginPath(); X.arc(mx, my, 7.5, 0, VIC_TAU); X.fill();
+      X.strokeStyle = "rgba(230,235,240,0.22)"; X.lineWidth = 0.7;                       // faint blade streaks
+      for (let b = 0; b < 2; b++){ const ba = spin + b * Math.PI; X.beginPath(); X.arc(mx, my, 6.3, ba, ba + 0.9); X.stroke(); }
+      X.strokeStyle = "rgba(255,255,255,0.08)"; X.lineWidth = 0.4; X.beginPath(); X.arc(mx, my, 7.2, 0, VIC_TAU); X.stroke();
+      const mg = X.createRadialGradient(mx - 0.7, my - 0.7, 0.2, mx, my, 2.6); mg.addColorStop(0, "#8b939c"); mg.addColorStop(1, "#2a2e33");
+      X.fillStyle = mg; X.beginPath(); X.arc(mx, my, 2.5, 0, VIC_TAU); X.fill();
+      X.fillStyle = "#15171a"; X.beginPath(); X.arc(mx, my, 0.9, 0, VIC_TAU); X.fill();
+    });
+    // nav lights on the arms: red left-front, green right-front, white strobe at the back
+    const navL = (a, c, on) => { const lx = Math.cos(a) * (AR - 3.5), ly = Math.sin(a) * (AR - 3.5);
+      if (on){ const g = X.createRadialGradient(lx, ly, 0, lx, ly, 3); g.addColorStop(0, c.replace("A", "0.9")); g.addColorStop(1, c.replace("A", "0")); X.fillStyle = g; X.beginPath(); X.arc(lx, ly, 3, 0, VIC_TAU); X.fill(); }
+      X.fillStyle = c.replace("A", on ? "1" : "0.35"); X.beginPath(); X.arc(lx, ly, 0.7, 0, VIC_TAU); X.fill(); };
+    navL(-Math.PI * 0.75, "rgba(255,60,60,A)", true); navL(-Math.PI * 0.25, "rgba(70,255,120,A)", true);
+    const strobe = (k * 1.3) % 1 < 0.08;
+    navL(Math.PI * 0.25, "rgba(255,255,255,A)", strobe); navL(Math.PI * 0.75, "rgba(255,255,255,A)", strobe);
+    // body: matte shell with a panel seam, vents and a GPS dome
+    X.save(); X.shadowColor = "rgba(0,0,0,0.5)"; X.shadowBlur = 2;
+    const bg = X.createLinearGradient(0, -6, 0, 6); bg.addColorStop(0, "#5b626b"); bg.addColorStop(0.5, "#3a4047"); bg.addColorStop(1, "#24282d");
+    X.fillStyle = bg; X.beginPath(); X.roundRect(-5, -6.5, 10, 13, 4); X.fill(); X.restore();
+    X.strokeStyle = "rgba(0,0,0,0.5)"; X.lineWidth = 0.4; X.beginPath(); X.roundRect(-5, -6.5, 10, 13, 4); X.stroke();
+    X.strokeStyle = "rgba(255,255,255,0.18)"; X.beginPath(); X.moveTo(-3.6, -5.6); X.lineTo(3.6, -5.6); X.stroke();
+    X.strokeStyle = "rgba(0,0,0,0.35)"; X.beginPath(); X.moveTo(-5, 1.2); X.lineTo(5, 1.2); X.stroke();
+    X.fillStyle = "#1c1f23"; for (let i = 0; i < 3; i++) X.fillRect(-2.6 + i * 1.9, 2.6, 1.1, 2.6);
+    const dg = X.createRadialGradient(-0.4, -3.6, 0.1, 0, -3.2, 1.9); dg.addColorStop(0, "#d9dde2"); dg.addColorStop(1, "#7c848d");
+    X.fillStyle = dg; X.beginPath(); X.arc(0, -3.2, 1.7, 0, VIC_TAU); X.fill();
+    // gimbal laser pod: dark housing with a lens on each end of the beam axis
+    X.save(); if (dir === "v") X.rotate(Math.PI / 2);
+    X.fillStyle = "#16191c"; X.beginPath(); X.roundRect(-7.2, -1.9, 14.4, 3.8, 1.8); X.fill();
+    X.strokeStyle = "rgba(255,255,255,0.12)"; X.lineWidth = 0.4; X.beginPath(); X.moveTo(-6, -1.3); X.lineTo(6, -1.3); X.stroke();
+    [-1, 1].forEach(sd => {
+      const lx = sd * 7.4, lr = 1.6;
+      X.fillStyle = "#0b0d0f"; X.beginPath(); X.arc(lx, 0, lr + 0.5, 0, VIC_TAU); X.fill();
+      const lg = X.createRadialGradient(lx, 0, 0, lx, 0, lr + ch * 4);
+      lg.addColorStop(0, ch > 0.05 ? "rgba(255,255,255,0.95)" : vicC(col, 0.7)); lg.addColorStop(0.35, vicC(col, 0.55 + ch * 0.45)); lg.addColorStop(1, vicC(col, 0));
+      X.fillStyle = lg; X.beginPath(); X.arc(lx, 0, lr + ch * 4, 0, VIC_TAU); X.fill();
+    });
+    if (ch > 0.15 && !firing){   // tiny crackles at the lenses while it powers up
+      const r = vicRng(Math.floor(k * 30)); X.strokeStyle = vicC(col, 0.35 + ch * 0.5); X.lineWidth = 0.45;
+      [-1, 1].forEach(sd => { X.beginPath(); X.moveTo(sd * 7.4, 0); for (let i = 1; i < 4; i++) X.lineTo(sd * (7.4 + i * 1.4), (r() - 0.5) * 3.2); X.stroke(); });
+    }
+    X.restore();
+    X.restore();
+  }
+  // faint electric current from (x0,y0) along angle ang for len px; ch 0..1 brighter and busier
+  function vicCurrent(x0, y0, ang, len, col, ch, k, seed){
+    const X = ctx, r = vicRng(Math.floor(k * 24) + (seed || 7));
+    X.save(); X.translate(x0, y0); X.rotate(ang); X.lineJoin = "round"; X.lineCap = "round";
+    X.strokeStyle = vicC(col, 0.05 + ch * 0.09); X.lineWidth = 9; X.beginPath(); X.moveTo(0, 0); X.lineTo(len, 0); X.stroke();
+    for (let th = 0; th < 2; th++){
+      X.strokeStyle = th ? vicC([255, 255, 255], 0.18 + ch * 0.3) : vicC(col, 0.3 + ch * 0.4); X.lineWidth = th ? 0.6 : 1.1;
+      X.beginPath(); X.moveTo(0, 0); for (let t = 0; t <= len; t += 5) X.lineTo(t, (r() - 0.5) * (3 + ch * 4)); X.stroke();
+    }
+    for (let i = 0; i < Math.max(3, Math.round(len / 90)); i++){
+      const t = ((k * 0.9 + i / Math.max(3, Math.round(len / 90))) % 1) * len, o = (r() - 0.5) * 3, g = X.createRadialGradient(t, o, 0, t, o, 3);
+      g.addColorStop(0, vicC([255, 255, 255], 0.2 + 0.6 * ch)); g.addColorStop(1, vicC(col, 0)); X.fillStyle = g; X.beginPath(); X.arc(t, o, 3, 0, VIC_TAU); X.fill();
+    }
+    for (let i = 0; i < 3; i++){ const t = r() * len, sd = r() < 0.5 ? -1 : 1;
+      X.strokeStyle = vicC(col, 0.25 + ch * 0.3); X.lineWidth = 0.5; X.beginPath(); X.moveTo(t, 0); X.lineTo(t + 3, sd * 3); X.lineTo(t + 5, sd * 6); X.stroke(); }
+    X.restore();
+  }
+  function vicBeam(x0, y0, ang, len, col, k, a){
+    const X = ctx, r = vicRng(Math.floor(k * 30) + 3);
+    X.save(); X.translate(x0, y0); X.rotate(ang); X.lineCap = "round"; X.globalAlpha *= (a == null ? 1 : a);
+    [[16, 0.16], [8, 0.4], [4, 1]].forEach(([w, al]) => { X.strokeStyle = vicC(col, al); X.lineWidth = w; X.beginPath(); X.moveTo(0, 0); X.lineTo(len, 0); X.stroke(); });
+    X.strokeStyle = "#fff"; X.lineWidth = 1.6; X.beginPath(); X.moveTo(0, 0); X.lineTo(len, 0); X.stroke();
+    for (let th = 0; th < 2; th++){ X.strokeStyle = th ? "rgba(255,255,255,0.8)" : vicC(col, 0.9); X.lineWidth = 0.7;
+      X.beginPath(); X.moveTo(0, 0); for (let t = 0; t <= len; t += 4) X.lineTo(t, (r() - 0.5) * 9); X.stroke(); }
+    X.restore();
+  }
+  function vicSparks(x, y, ang, col, k){   // sparks spraying back from where a beam hits the wall
+    const X = ctx, r = vicRng(Math.floor(k * 20) + 11);
+    X.save(); X.lineWidth = 1; X.lineCap = "round";
+    for (let i = 0; i < 8; i++){ const a = ang + Math.PI + (r() - 0.5) * 2.2, l = 3 + r() * 7;
+      X.strokeStyle = i % 2 ? "#fff" : vicC(col, 1); X.beginPath(); X.moveTo(x, y); X.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); X.stroke(); }
+    X.restore();
+  }
+  // detailed top-down robot tank, about 2 tiles long. charge 0..1 while it powers up
+  function vicTank(x, y, s, hullAng, turAng, k, charge, roll){
+    roll = roll == null ? k : roll;
+    const X = ctx;
+    X.save(); X.translate(x, y); X.rotate(hullAng); X.scale(s, s); X.lineJoin = "round"; X.lineCap = "round";
+    const L = 48, Wd = 36;
+    X.fillStyle = "rgba(0,0,0,0.3)"; X.beginPath(); X.roundRect(-L / 2 + 1.5, -Wd / 2 + 2, L + 1, Wd + 1, 7); X.fill();
+    [-1, 1].forEach(sd => {   // tracks
+      const ty = sd * (Wd / 2 - 5.5), th = 11;
+      X.save(); X.translate(0, ty);
+      X.fillStyle = "#15191e"; X.beginPath(); X.roundRect(-L / 2 - 1, -th / 2, L + 2, th, th / 2); X.fill();
+      X.save(); X.beginPath(); X.roundRect(-L / 2 - 1, -th / 2, L + 2, th, th / 2); X.clip();
+      const off = (roll * 14) % 3.4;
+      for (let i = -1; i < 17; i++){ const lx = -L / 2 - 1 + i * 3.4 + off;
+        X.fillStyle = "#3b434d"; X.fillRect(lx, -th / 2, 2.2, th); X.fillStyle = "#58626e"; X.fillRect(lx + 0.3, -th / 2, 0.7, th); X.fillStyle = "#22272d"; X.fillRect(lx, -1, 2.2, 2); }
+      X.restore();
+      [-L / 2 + 4.5, L / 2 - 4.5].forEach((wx, j) => {
+        X.fillStyle = "#4b545f"; X.beginPath(); X.arc(wx, 0, 4, 0, VIC_TAU); X.fill();
+        if (j === 0){ X.fillStyle = "#2a3037"; for (let t = 0; t < 8; t++){ const a = t / 8 * VIC_TAU + roll * 4; X.beginPath(); X.arc(wx + Math.cos(a) * 3.6, Math.sin(a) * 3.6, 0.8, 0, VIC_TAU); X.fill(); } }
+        X.fillStyle = "#8a95a2"; X.beginPath(); X.arc(wx, 0, 1.6, 0, VIC_TAU); X.fill();
+      });
+      const sk = X.createLinearGradient(0, -th / 2, 0, th / 2); sk.addColorStop(0, "#7c8692"); sk.addColorStop(1, "#4a535e");
+      const sy0 = -th / 2 + (sd < 0 ? 0 : th * 0.45);
+      X.fillStyle = sk; X.beginPath(); X.roundRect(-L / 2 + 7, sy0, L - 14, th * 0.55, 1.5); X.fill();
+      X.strokeStyle = "rgba(0,0,0,0.45)"; X.lineWidth = 0.4; X.stroke();
+      for (let i = 0; i < 4; i++){ const px = -L / 2 + 7 + (L - 14) * (i + 0.5) / 4;
+        X.strokeStyle = "rgba(0,0,0,0.35)"; X.beginPath(); X.moveTo(px + (L - 14) / 8, sy0); X.lineTo(px + (L - 14) / 8, sy0 + th * 0.55); X.stroke();
+        X.fillStyle = "#2b3138"; X.beginPath(); X.arc(px, sy0 + th * 0.27, 0.55, 0, VIC_TAU); X.fill(); }
+      X.restore();
+    });
+    const hw = Wd - 20;   // hull
+    const hg = X.createLinearGradient(0, -hw / 2 - 2, 0, hw / 2 + 2); hg.addColorStop(0, "#aab3bd"); hg.addColorStop(0.45, "#78838f"); hg.addColorStop(1, "#47505b");
+    X.fillStyle = hg; X.beginPath();
+    X.moveTo(-L / 2 + 2, -hw / 2 - 1); X.lineTo(L / 2 - 7, -hw / 2 - 1); X.lineTo(L / 2, -hw / 2 + 3); X.lineTo(L / 2, hw / 2 - 3); X.lineTo(L / 2 - 7, hw / 2 + 1); X.lineTo(-L / 2 + 2, hw / 2 + 1); X.lineTo(-L / 2, hw / 2 - 2); X.lineTo(-L / 2, -hw / 2 + 2); X.closePath(); X.fill();
+    X.strokeStyle = "rgba(0,0,0,0.55)"; X.lineWidth = 0.6; X.stroke();
+    const gl = X.createLinearGradient(L / 2 - 9, 0, L / 2, 0); gl.addColorStop(0, "#8d97a3"); gl.addColorStop(1, "#c4ccd5");
+    X.fillStyle = gl; X.beginPath(); X.moveTo(L / 2 - 9, -hw / 2); X.lineTo(L / 2 - 6, -hw / 2); X.lineTo(L / 2 - 0.5, -hw / 2 + 3.2); X.lineTo(L / 2 - 0.5, hw / 2 - 3.2); X.lineTo(L / 2 - 6, hw / 2); X.lineTo(L / 2 - 9, hw / 2); X.closePath(); X.fill();
+    X.strokeStyle = "rgba(0,0,0,0.35)"; X.lineWidth = 0.4; X.stroke();
+    [-1, 1].forEach(sd => { const lx = L / 2 - 2, ly = sd * (hw / 2 - 2.6);   // headlights
+      const lg = X.createRadialGradient(lx + 3, ly, 0, lx + 3, ly, 7); lg.addColorStop(0, "rgba(220,255,230,0.55)"); lg.addColorStop(1, "rgba(220,255,230,0)");
+      X.fillStyle = lg; X.beginPath(); X.arc(lx + 3, ly, 7, 0, VIC_TAU); X.fill();
+      X.fillStyle = "#1d2329"; X.beginPath(); X.roundRect(lx - 1.6, ly - 1.5, 2.8, 3, 0.8); X.fill();
+      X.fillStyle = "#e9fff0"; X.beginPath(); X.roundRect(lx - 1.1, ly - 1, 1.9, 2, 0.6); X.fill(); });
+    X.fillStyle = "#3a424c"; X.beginPath(); X.roundRect(-L / 2 + 2, -hw / 2 + 2.4, 9, hw - 4.8, 1); X.fill();   // engine grille
+    X.strokeStyle = "#5f6a76"; X.lineWidth = 0.6; for (let i = 0; i < 6; i++){ const gy = -hw / 2 + 3.6 + i * ((hw - 7.2) / 5); X.beginPath(); X.moveTo(-L / 2 + 3, gy); X.lineTo(-L / 2 + 10, gy); X.stroke(); }
+    [-1, 1].forEach(sd => { const ex = -L / 2 + 0.5, ey = sd * (hw / 2 - 1.8);   // exhausts + smoke
+      X.fillStyle = "#2a2f35"; X.beginPath(); X.arc(ex, ey, 1.9, 0, VIC_TAU); X.fill();
+      X.fillStyle = "#ff6a3d"; X.beginPath(); X.arc(ex, ey, 0.9, 0, VIC_TAU); X.fill();
+      for (let i = 0; i < 4; i++){ const ph = ((k * 0.8 + i * 0.25) % 1), sx = ex - 2 - ph * 9, sy = ey + Math.sin(k * 3 + i) * 1.2 * ph;
+        X.fillStyle = `rgba(170,180,190,${0.35 * (1 - ph)})`; X.beginPath(); X.arc(sx, sy, 1.2 + ph * 3, 0, VIC_TAU); X.fill(); } });
+    X.strokeStyle = "rgba(0,0,0,0.3)"; X.lineWidth = 0.4;
+    X.beginPath(); X.moveTo(-L / 2 + 12, -hw / 2); X.lineTo(-L / 2 + 12, hw / 2); X.moveTo(L / 2 - 12, -hw / 2); X.lineTo(L / 2 - 12, hw / 2); X.stroke();
+    X.strokeStyle = "rgba(255,255,255,0.22)"; X.beginPath(); X.moveTo(-L / 2 + 2, -hw / 2 + 0.6); X.lineTo(L / 2 - 7, -hw / 2 + 0.6); X.stroke();
+    X.fillStyle = "#2c333b"; for (let i = 0; i < 7; i++){ const rx = -L / 2 + 13 + i * 3.6; X.beginPath(); X.arc(rx, -hw / 2 + 1.2, 0.45, 0, VIC_TAU); X.fill(); X.beginPath(); X.arc(rx, hw / 2 - 1.2, 0.45, 0, VIC_TAU); X.fill(); }
+    X.save(); X.shadowColor = "rgba(60,240,130,0.9)"; X.shadowBlur = 4; X.fillStyle = "#3cf082";
+    X.fillRect(-L / 2 + 12.6, -hw / 2 + 1.6, 0.9, hw - 3.2); X.fillRect(L / 2 - 12.9, -hw / 2 + 1.6, 0.9, hw - 3.2); X.restore();
+    X.fillStyle = "#5a6470"; X.beginPath(); X.roundRect(-L / 2 + 13.5, hw / 2 - 4.2, 6, 2.6, 0.6); X.fill(); X.strokeStyle = "rgba(0,0,0,0.4)"; X.stroke();
+    X.fillStyle = "#333a42"; for (let i = 0; i < 3; i++) X.fillRect(L / 2 - 16 + i * 1.6, -hw / 2 + 1.6, 1.1, 3);
+    X.strokeStyle = "rgba(255,255,255,0.12)"; X.lineWidth = 0.35; X.beginPath(); X.moveTo(4, 4); X.lineTo(7, 5.5); X.moveTo(-6, -5); X.lineTo(-3, -4.2); X.stroke();
+    // turret
+    X.rotate(turAng - hullAng);
+    X.fillStyle = "rgba(0,0,0,0.35)"; X.beginPath(); X.arc(0.6, 0.9, 10.6, 0, VIC_TAU); X.fill();
+    const bg = X.createLinearGradient(0, -2.4, 0, 2.4); bg.addColorStop(0, "#d1d8e0"); bg.addColorStop(0.5, "#8f9aa6"); bg.addColorStop(1, "#4b545f");
+    X.fillStyle = bg; X.fillRect(8, -1.9, 26, 3.8);
+    X.fillStyle = "#6e7884"; X.beginPath(); X.roundRect(17, -2.7, 5, 5.4, 1.2); X.fill(); X.strokeStyle = "rgba(0,0,0,0.4)"; X.lineWidth = 0.4; X.stroke();
+    X.fillStyle = "#3c444e"; X.beginPath(); X.roundRect(33, -3.2, 5, 6.4, 1); X.fill();
+    X.fillStyle = "#1a1e23"; X.fillRect(34.2, -3.2, 0.8, 6.4); X.fillRect(36.2, -3.2, 0.8, 6.4);
+    if (charge > 0){
+      X.save(); X.shadowColor = "rgba(255,60,50,1)"; X.shadowBlur = 5; X.fillStyle = `rgba(255,80,60,${0.5 + 0.5 * charge})`; X.fillRect(9, -0.5, 24 * charge, 1); X.restore();
+      const mz = X.createRadialGradient(39, 0, 0, 39, 0, 10 * charge + 3); mz.addColorStop(0, "rgba(255,255,255,1)"); mz.addColorStop(0.3, "rgba(255,70,50,0.9)"); mz.addColorStop(1, "rgba(255,40,40,0)");
+      X.fillStyle = mz; X.beginPath(); X.arc(39, 0, 10 * charge + 3, 0, VIC_TAU); X.fill();
+    }
+    X.fillStyle = "#59636f"; X.beginPath(); X.roundRect(6, -4, 4.5, 8, 1.5); X.fill(); X.strokeStyle = "rgba(0,0,0,0.45)"; X.lineWidth = 0.5; X.stroke();
+    const tg = X.createRadialGradient(-2, -3, 1, 0, 0, 13); tg.addColorStop(0, "#e1e6ec"); tg.addColorStop(0.55, "#8995a1"); tg.addColorStop(1, "#434c57");
+    X.fillStyle = tg; X.beginPath(); X.moveTo(-10, -8.5); X.lineTo(3, -9.5); X.lineTo(9, -5); X.lineTo(9, 5); X.lineTo(3, 9.5); X.lineTo(-10, 8.5); X.lineTo(-12.5, 4); X.lineTo(-12.5, -4); X.closePath(); X.fill();
+    X.strokeStyle = "rgba(0,0,0,0.55)"; X.lineWidth = 0.6; X.stroke();
+    X.strokeStyle = "rgba(255,255,255,0.25)"; X.lineWidth = 0.45; X.beginPath(); X.moveTo(-9, -6.5); X.lineTo(2.5, -7.3); X.lineTo(6.8, -4); X.stroke();
+    X.strokeStyle = "rgba(0,0,0,0.25)"; X.beginPath(); X.moveTo(-9, 6.5); X.lineTo(2.5, 7.3); X.lineTo(6.8, 4); X.stroke();
+    X.strokeStyle = "#4a535e"; X.lineWidth = 0.8; X.beginPath(); X.moveTo(-12.5, -5); X.lineTo(-15, -5); X.lineTo(-15, 5); X.lineTo(-12.5, 5); X.stroke();
+    X.lineWidth = 0.4; for (let i = -3; i <= 3; i += 2){ X.beginPath(); X.moveTo(-15, i); X.lineTo(-12.5, i); X.stroke(); }
+    X.fillStyle = "#6b7682"; X.beginPath(); X.arc(-5, -3.4, 3, 0, VIC_TAU); X.fill(); X.strokeStyle = "rgba(0,0,0,0.5)"; X.lineWidth = 0.5; X.stroke();
+    X.fillStyle = "#3b434c"; X.beginPath(); X.arc(-5, -3.4, 1, 0, VIC_TAU); X.fill();
+    X.strokeStyle = "rgba(255,255,255,0.3)"; X.beginPath(); X.arc(-5, -3.4, 2.3, -2.6, -1.2); X.stroke();
+    const per = [[-2.2, -6.4], [-7.6, -6.2], [-8.3, -1]];
+    X.fillStyle = "#2a3037"; per.forEach(([a, b]) => X.fillRect(a - 0.8, b - 0.5, 1.6, 1));
+    X.fillStyle = "rgba(120,220,255,0.8)"; per.forEach(([a, b]) => X.fillRect(a - 0.5, b - 0.25, 1, 0.5));
+    X.fillStyle = "#14181c"; X.beginPath(); X.roundRect(-1.5, 2, 7, 3.4, 1.6); X.fill();
+    const ex = -0.3 + ((Math.sin(k * 2.2) + 1) / 2) * 4.6;
+    const eg = X.createRadialGradient(ex, 3.7, 0, ex, 3.7, 3); eg.addColorStop(0, "#fff"); eg.addColorStop(0.35, "#ff3b3b"); eg.addColorStop(1, "rgba(255,40,40,0)");
+    X.fillStyle = eg; X.beginPath(); X.arc(ex, 3.7, 3, 0, VIC_TAU); X.fill();
+    X.strokeStyle = "#9aa4ae"; X.lineWidth = 0.5; X.beginPath(); X.moveTo(-10.5, 6); X.quadraticCurveTo(-17, 9, -22, 8); X.stroke();
+    X.fillStyle = "#2a3037"; X.beginPath(); X.arc(-10.5, 6, 0.9, 0, VIC_TAU); X.fill();
+    const blink = (Math.sin(k * 6) + 1) / 2; X.fillStyle = `rgba(60,240,130,${0.4 + 0.6 * blink})`; X.beginPath(); X.arc(-22, 8, 1 + blink * 0.6, 0, VIC_TAU); X.fill();
+    X.save(); X.shadowColor = "rgba(60,240,130,0.9)"; X.shadowBlur = 3; X.strokeStyle = "#3cf082"; X.lineWidth = 0.5; X.beginPath(); X.arc(1.5, -3.4, 2, 0, VIC_TAU); X.stroke();
+    X.fillStyle = "#3cf082"; X.beginPath(); for (let i = 0; i < 10; i++){ const a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? 0.6 : 1.5; X.lineTo(1.5 + Math.cos(a) * rr, -3.4 + Math.sin(a) * rr); } X.fill(); X.restore();
+    X.restore();
+  }
+  // arena lighting under everything: two slow spotlights sweeping the field
+  function vicArenaBack(){
+    const t = performance.now() / 1000, X = ctx;
+    X.save();
+    [[0.27, 0.3, 0.13, 0], [0.7, 0.62, 0.11, 2.1]].forEach(([fx, fy, a, ph]) => {
+      const x = CANVAS_W * (fx + Math.sin(t * 0.21 + ph) * 0.2), y = CANVAS_H * (fy + Math.cos(t * 0.17 + ph) * 0.16), r = CANVAS_W * 0.2;
+      const g = X.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(255,240,190,${a})`); g.addColorStop(0.6, `rgba(255,230,160,${a * 0.35})`); g.addColorStop(1, "rgba(255,230,160,0)");
+      X.fillStyle = g; X.beginPath(); X.ellipse(x, y, r, r * 0.7, -0.3, 0, VIC_TAU); X.fill();
+    });
+    X.restore();
+  }
+  // gold trim + camera flashes popping around the edges
+  const vicFlashes = [];
+  function vicArenaFront(){
+    const X = ctx, now = performance.now();
+    if (Math.random() < 0.035 && vicFlashes.length < 4){
+      const side = randInt(0, 3), u = Math.random();
+      vicFlashes.push({ x: side === 0 || side === 2 ? u * CANVAS_W : side === 1 ? CANVAS_W - 3 : 3, y: side === 1 || side === 3 ? u * CANVAS_H : side === 0 ? 3 : CANVAS_H - 3,
+                        t0: now, r: 7 + Math.random() * 6 });
+    }
+    X.save();
+    X.shadowColor = "rgba(255,200,60,0.8)"; X.shadowBlur = 10;
+    const bg = X.createLinearGradient(0, 0, CANVAS_W, CANVAS_H); bg.addColorStop(0, "#fff1a8"); bg.addColorStop(0.3, "#d9a520"); bg.addColorStop(0.55, "#fff0a0"); bg.addColorStop(0.8, "#b8860b"); bg.addColorStop(1, "#ffe27a");
+    X.strokeStyle = bg; X.lineWidth = 3; X.strokeRect(1.5, 1.5, CANVAS_W - 3, CANVAS_H - 3);
+    X.shadowBlur = 0; X.strokeStyle = "rgba(39,174,96,0.9)"; X.lineWidth = 1; X.strokeRect(4.5, 4.5, CANVAS_W - 9, CANVAS_H - 9);
+    for (let i = vicFlashes.length - 1; i >= 0; i--){
+      const f = vicFlashes[i], e = (now - f.t0) / 260; if (e >= 1){ vicFlashes.splice(i, 1); continue; }
+      const a = e < 0.2 ? e / 0.2 : 1 - (e - 0.2) / 0.8, r = f.r;
+      const g = X.createRadialGradient(f.x, f.y, 0, f.x, f.y, r); g.addColorStop(0, `rgba(255,255,255,${0.95 * a})`); g.addColorStop(0.3, `rgba(220,240,255,${0.5 * a})`); g.addColorStop(1, "rgba(255,255,255,0)");
+      X.fillStyle = g; X.beginPath(); X.arc(f.x, f.y, r, 0, VIC_TAU); X.fill();
+      X.strokeStyle = `rgba(255,255,255,${0.7 * a})`; X.lineWidth = 0.5; X.beginPath(); X.moveTo(f.x - r * 0.9, f.y); X.lineTo(f.x + r * 0.9, f.y); X.moveTo(f.x, f.y - r * 0.9); X.lineTo(f.x, f.y + r * 0.9); X.stroke();
+    }
+    X.restore();
+  }
+  // golden finish-line ring around the hole
+  function vicGoldHole(cx, cy){
+    const X = ctx, t = performance.now() / 1000;
+    X.save();
+    const g = X.createRadialGradient(cx, cy, 0, cx, cy, 24); g.addColorStop(0, "rgba(255,215,80,0)"); g.addColorStop(0.55, `rgba(255,215,80,${0.2 + 0.08 * Math.sin(t * 2)})`); g.addColorStop(1, "rgba(255,215,80,0)");
+    X.fillStyle = g; X.beginPath(); X.arc(cx, cy, 24, 0, VIC_TAU); X.fill();
+    const rg = X.createLinearGradient(cx - 12, cy - 12, cx + 12, cy + 12); rg.addColorStop(0, "#fff4b0"); rg.addColorStop(0.4, "#e0aa20"); rg.addColorStop(0.7, "#fff0a0"); rg.addColorStop(1, "#a07010");
+    X.shadowColor = "rgba(255,210,60,0.9)"; X.shadowBlur = 8; X.strokeStyle = rg; X.lineWidth = 2.6; X.beginPath(); X.arc(cx, cy, 13, 0, VIC_TAU); X.stroke(); X.shadowBlur = 0;
+    // a glint that travels around the ring
+    const ga = t * 1.4; X.strokeStyle = "rgba(255,252,230,0.9)"; X.lineWidth = 1; X.beginPath(); X.arc(cx, cy, 13, ga, ga + 0.6); X.stroke();
+    // laurel leaves
+    for (let i = 0; i < 16; i++){ const an = i / 16 * VIC_TAU;
+      X.fillStyle = i % 2 ? "rgba(255,225,110,0.85)" : "rgba(220,170,40,0.85)"; X.save(); X.translate(cx + Math.cos(an) * 17.5, cy + Math.sin(an) * 17.5); X.rotate(an + Math.PI / 2 + 0.35);
+      X.beginPath(); X.ellipse(0, 0, 1.1, 2.6, 0, 0, VIC_TAU); X.fill(); X.restore(); }
+    X.restore();
+  }
+
+  // ===================== v3.89 VICTORY STICK: CHAMPION'S STICK, THIRD DRONE, FINALE =====================
+  // The Champion's Stick shows up once, at a random moment. Drop it in the hole for x100, or walk it into a
+  // drone or the tank to blow that hazard up (the stick is used up). When only the last quarter of the sticks
+  // is left, a third drone flies in and they all fire faster. Winning gets a crowd-roar finale before the crown.
+  let vicState = null;
+  const VIC_CHAMP_VALUE = 100, VIC_CYAN = [90, 200, 255];
+  function vicRemainingSticks(){
+    const onBoard = game.sticks.filter(s => !s.special && !(s.keep && s.keep.champion)).length;
+    const carried = game.carry.filter(c => c && !c.champion).length;
+    return onBoard + carried;
+  }
+  function vicBoom(px, py, big){
+    if (!vicState) return;
+    vicState.booms.push({ x: px, y: py, t0: performance.now(), big: !!big });
+    try { fx.shake = Math.max(fx.shake || 0, big ? 1 : 0.7); } catch(_){}
+    try {
+      ensureAudio(); const A = audioCtx, n = Math.floor(A.sampleRate * 0.9), buf = A.createBuffer(1, n, A.sampleRate), d = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.2);
+      const src = A.createBufferSource(), f = A.createBiquadFilter(), g = A.createGain();
+      src.buffer = buf; f.type = "lowpass"; f.frequency.value = big ? 700 : 1100; g.gain.value = big ? 0.5 : 0.35;
+      src.connect(f); f.connect(g); g.connect(A.destination); src.start();
+      beep(70, 0.4, "sine", 0.35);
+    } catch(_){}
+  }
+  // v3.93: right after the explosion, zoom in on your stick for its own victory quip
+  function vicSmashCut(label){
+    setTimeout(() => {
+      try { if (talk.cut || talkOverlayOpen() || levelIntro.active) return;
+        talkStartCut("smash"); if (talk.cut) talk.cut.label = label + "  \u00b7  CHAMPION'S STICK"; } catch(_){}
+    }, 900);
+  }
+  function vicExtrasUpdate(){
+    if (!vicState) return;
+    const V = vicState;
+    if (!V.start) V.start = vicRemainingSticks();
+    // the Champion's Stick appears once, late: after you've fought through about half the sticks
+    // (v3.91), then a random 5-20 s more, so you've felt the tank and drones before you get your shot back
+    if (!V.champGiven && V.champAt < 0 && V.start > 0 && vicRemainingSticks() <= Math.ceil(V.start * 0.5)) V.champAt = randInt(5 * 60, 20 * 60);
+    if (!V.champGiven && V.champAt >= 0 && --V.champAt <= 0){
+      V.champGiven = true;
+      const p = randomEmptyTile();
+      game.sticks.push({ x: p.x, y: p.y, color: "#ffd700", rotation: 0.5, keep: { color: "#ffd700", value: VIC_CHAMP_VALUE, champion: true } });
+      logEvent("bonus", "🏆 The CHAMPION'S STICK has appeared! Bank it for x100, or use it to blow up a drone or the tank!");
+      setHud("🏆 THE CHAMPION'S STICK APPEARED!");
+      try { [784, 988, 1175, 1568].forEach((f, k) => setTimeout(() => beep(f, 0.14, "triangle", 0.06), k * 110)); } catch(_){}
+    }
+    // smash a hazard with it
+    const ci = game.carry.findIndex(c => c && c.champion);
+    if (ci >= 0){
+      const px = game.playerX, py = game.playerY;
+      for (let i = laserWalls.length - 1; i >= 0; i--){
+        const w = laserWalls[i];
+        if (Math.hypot(w.x - px, w.y - py) <= 0.8){
+          laserWalls.splice(i, 1); game.carry.splice(ci, 1); game.score += 25;
+          vicBoom(w.x * TILE + TILE / 2, w.y * TILE + TILE / 2, false);
+          logEvent("bonus", "💥 You smashed a drone with the Champion's Stick! +25"); setHud("💥 DRONE DESTROYED! +25");
+          vicSmashCut("DRONE DESTROYED!");
+          try { fxPop("DRONE DESTROYED! +25", "#ffd54a", 15); } catch(_){}
+          updateUI(); return;
         }
       }
-    });
-    
-    // Draw LARGE ROBOTIC tank (TWICE as large!)
-    if(victoryTank){
-      const tx = victoryTank.x * TILE + TILE / 2;
-      const ty = victoryTank.y * TILE + TILE / 2;
-      const hover = Math.sin(victoryTank.float) * 2;
-      
-      ctx.save();
-      ctx.translate(tx, ty + hover);
-      
-      // Metallic glow
-      const glowPulse = Math.sin(victoryTank.float * 2) * 0.3 + 0.7;
-      ctx.globalAlpha = 0.25 * glowPulse;
-      const outerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 35);
-      outerGlow.addColorStop(0, 'rgba(200,200,220,0.6)');
-      outerGlow.addColorStop(1, 'rgba(200,200,220,0)');
-      ctx.fillStyle = outerGlow;
-      ctx.beginPath();
-      ctx.arc(0, 0, 35, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
-      
-      // Power-up glow effect
-      if(victoryTank.powerUpTimer > 0){
-        const powerPulse = victoryTank.powerUpTimer / 90;
-        ctx.shadowColor = '#ff3232';
-        ctx.shadowBlur = 20 * powerPulse;
-        ctx.globalAlpha = 0.4 * powerPulse;
-        ctx.fillStyle = 'rgba(255, 50, 50, 0.3)';
-        ctx.beginPath();
-        ctx.arc(0, 0, 30 * powerPulse, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0;
+      const tk = victoryTank;
+      if (tk && !tk.dead && Math.max(Math.abs(tk.x - px), Math.abs(tk.y - py)) <= 1){
+        tk.dead = true; tk.deadT0 = performance.now(); tk.beamActive = false;
+        game.carry.splice(ci, 1); game.score += 50;
+        vicBoom((tk.drawX != null ? tk.drawX : tk.x * TILE + TILE / 2), (tk.drawY != null ? tk.drawY : tk.y * TILE + TILE / 2), true);
+        logEvent("bonus", "💥 KABOOM! The Champion's Stick took out the TANK! +50"); setHud("💥 TANK DESTROYED! +50");
+        vicSmashCut("TANK DESTROYED!");
+        try { fxPop("TANK DESTROYED! +50", "#ffd54a", 17); } catch(_){}
+        updateUI(); return;
       }
-      
-      // LARGE ROBOTIC hexagonal body - TWICE as big!
-      
-      // VIBRANT RED AURA around the tank body
-      const redGlowPulse = Math.sin(victoryTank.float * 3) * 0.4 + 0.6;
-      const redGlowAlpha = victoryTank.beamActive ? 0.7 : 0.5; // Much more vibrant!
-      
-      // Outer glow layer
-      ctx.globalAlpha = redGlowAlpha * redGlowPulse * 0.6;
-      ctx.shadowColor = '#ff0000';
-      ctx.shadowBlur = 30;
-      ctx.strokeStyle = `rgba(255, 30, 30, ${redGlowAlpha * 0.8})`;
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      for(let i = 0; i < 6; i++){
-        const angle = (i / 6) * Math.PI * 2;
-        const x = Math.cos(angle) * 24; // Larger glow
-        const y = Math.sin(angle) * 24;
-        if(i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.stroke();
-      
-      // Inner glow layer (brighter)
-      ctx.shadowBlur = 15;
-      ctx.strokeStyle = `rgba(255, 60, 60, ${redGlowAlpha})`;
-      ctx.lineWidth = 4;
-      ctx.beginPath();
-      for(let i = 0; i < 6; i++){
-        const angle = (i / 6) * Math.PI * 2;
-        const x = Math.cos(angle) * 22;
-        const y = Math.sin(angle) * 22;
-        if(i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.stroke();
-      
-      ctx.globalAlpha = 1;
-      ctx.shadowBlur = 0;
-      
-      // Main metallic body
-      ctx.shadowColor = '#c0c0d0';
-      ctx.shadowBlur = 12 * glowPulse;
-      
-      // Metallic silver gradient
-      const metalGrad = ctx.createRadialGradient(-4, -4, 0, 0, 0, 20);
-      metalGrad.addColorStop(0, '#f0f0f8'); // Bright silver
-      metalGrad.addColorStop(0.4, '#d0d0e0'); // Mid silver
-      metalGrad.addColorStop(1, '#909098'); // Dark silver
-      ctx.fillStyle = metalGrad;
-      ctx.strokeStyle = '#e8e8f0';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      for(let i = 0; i < 6; i++){
-        const angle = (i / 6) * Math.PI * 2;
-        const x = Math.cos(angle) * 20; // TWICE as large (was 10)
-        const y = Math.sin(angle) * 20;
-        if(i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      
-      ctx.shadowBlur = 0;
-      
-      // RED FLOWING VEINS - animated energy coursing through the tank!
-      const veinPulse = Math.sin(victoryTank.float * 3) * 0.4 + 0.6;
-      const veinAlpha = 0.3 + veinPulse * 0.4;
-      const veinGlow = victoryTank.beamActive ? veinAlpha * 1.5 : veinAlpha;
-      const flowOffset = (Date.now() * 0.02) % 10; // Flowing animation offset
-      
-      ctx.strokeStyle = `rgba(255, 50, 50, ${veinGlow})`;
-      ctx.lineWidth = 1.5;
-      ctx.shadowColor = '#ff3232';
-      ctx.shadowBlur = 6 + veinPulse * 6;
-      ctx.setLineDash([4, 6]); // Dashed lines
-      ctx.lineDashOffset = -flowOffset; // Animate the dash flow!
-      
-      // Diagonal veins (flowing from edges to center)
-      ctx.beginPath();
-      ctx.moveTo(-14, -8);
-      ctx.lineTo(-4, 0);
-      ctx.lineTo(-14, 8);
-      ctx.stroke();
-      
-      ctx.beginPath();
-      ctx.moveTo(14, -8);
-      ctx.lineTo(4, 0);
-      ctx.lineTo(14, 8);
-      ctx.stroke();
-      
-      // Vertical center vein (flowing downward)
-      ctx.lineDashOffset = -flowOffset * 1.5; // Different speed
-      ctx.beginPath();
-      ctx.moveTo(0, -16);
-      ctx.lineTo(0, -8);
-      ctx.moveTo(0, 8);
-      ctx.lineTo(0, 16);
-      ctx.stroke();
-      
-      // Horizontal veins (flowing inward)
-      ctx.lineDashOffset = -flowOffset * 0.8; // Different speed
-      ctx.beginPath();
-      ctx.moveTo(-10, -4);
-      ctx.lineTo(10, -4);
-      ctx.moveTo(-10, 4);
-      ctx.lineTo(10, 4);
-      ctx.stroke();
-      
-      ctx.setLineDash([]); // Reset dashed lines
-      ctx.shadowBlur = 0;
-      
-      // Robotic panel details
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(-12, 0);
-      ctx.lineTo(12, 0);
-      ctx.moveTo(0, -12);
-      ctx.lineTo(0, 12);
-      ctx.stroke();
-      
-      // Corner rivets
-      for(let i = 0; i < 6; i++){
-        const angle = (i / 6) * Math.PI * 2;
-        const x = Math.cos(angle) * 16;
-        const y = Math.sin(angle) * 16;
-        ctx.fillStyle = '#a0a0b0';
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      
-      // Rotating turret
-      ctx.save();
-      ctx.rotate(victoryTank.rotation);
-      
-      // Large turret base
-      const turretGrad = ctx.createRadialGradient(-3, -3, 0, 0, 0, 12);
-      turretGrad.addColorStop(0, '#e0e0e8');
-      turretGrad.addColorStop(1, '#a0a0b0');
-      ctx.fillStyle = turretGrad;
-      ctx.strokeStyle = '#f0f0f8';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, 12, 0, Math.PI * 2); // Larger turret
-      ctx.fill();
-      ctx.stroke();
-      
-      // Larger cannon barrel
-      const cannonGrad = ctx.createLinearGradient(0, -4, 0, 4);
-      cannonGrad.addColorStop(0, '#d0d0e0');
-      cannonGrad.addColorStop(0.5, '#909098');
-      cannonGrad.addColorStop(1, '#b0b0c0');
-      ctx.fillStyle = cannonGrad;
-      ctx.strokeStyle = '#c0c0d0';
-      ctx.lineWidth = 1;
-      ctx.fillRect(0, -4, 24, 8); // Larger cannon (was 18x6)
-      ctx.strokeRect(0, -4, 24, 8);
-      
-      // Metallic cannon opening (no goofy red nose!)
-      ctx.shadowColor = '#909098';
-      ctx.shadowBlur = 3;
-      const tipGrad = ctx.createRadialGradient(24, 0, 0, 24, 0, 4);
-      tipGrad.addColorStop(0, '#606068'); // Dark metallic center
-      tipGrad.addColorStop(0.6, '#808088'); // Mid tone
-      tipGrad.addColorStop(1, '#a0a0b0'); // Outer edge
-      ctx.fillStyle = tipGrad;
-      ctx.beginPath();
-      ctx.arc(24, 0, 4, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Barrel rim highlight
-      ctx.strokeStyle = '#c0c0d0';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(24, 0, 4, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      
-      ctx.restore();
-      ctx.globalAlpha = 1;
-      
-      // IMPRESSIVE RED BEAM!
-      if(victoryTank.beamActive && victoryTank.beamTimer > 90){
-        const beamAlpha = Math.sin(victoryTank.beamTimer * 0.2) * 0.1 + 0.25;
-        const beamLength = victoryTank.shootRange * TILE;
-        const beamPulse = Math.sin(Date.now() * 0.02) * 0.3 + 0.7;
-        
-        ctx.save();
-        ctx.rotate(victoryTank.rotation);
-        
-        // Outer glow layer
-        ctx.shadowColor = "#ff0000";
-        ctx.shadowBlur = 30;
-        const outerBeamGrad = ctx.createLinearGradient(24, 0, beamLength, 0);
-        outerBeamGrad.addColorStop(0, `rgba(255, 50, 50, ${(beamAlpha + 0.15) * beamPulse})`);
-        outerBeamGrad.addColorStop(1, `rgba(200, 30, 30, ${beamAlpha * beamPulse})`);
-        ctx.fillStyle = outerBeamGrad;
-        ctx.fillRect(24, -6, beamLength, 12);
-        
-        // Middle layer
-        const midBeamGrad = ctx.createLinearGradient(24, 0, beamLength, 0);
-        midBeamGrad.addColorStop(0, `rgba(255, 100, 100, ${(beamAlpha + 0.2) * beamPulse})`);
-        midBeamGrad.addColorStop(1, `rgba(255, 50, 50, ${beamAlpha * beamPulse})`);
-        ctx.fillStyle = midBeamGrad;
-        ctx.fillRect(24, -4, beamLength, 8);
-        
-        // Core beam
-        ctx.shadowBlur = 0;
-        const coreBeamGrad = ctx.createLinearGradient(24, 0, beamLength, 0);
-        coreBeamGrad.addColorStop(0, `rgba(255, 200, 200, ${beamPulse})`);
-        coreBeamGrad.addColorStop(1, `rgba(255, 150, 150, ${beamPulse * 0.7})`);
-        ctx.fillStyle = coreBeamGrad;
-        ctx.fillRect(24, -2, beamLength, 4);
-        
-        ctx.restore();
-        ctx.globalAlpha = 1;
-      }
-      
-      ctx.restore();
     }
-    
-    ctx.shadowBlur = 0;
+    // the final push: a third drone joins and they all fire faster
+    if (!V.third && V.start > 0 && vicRemainingSticks() <= Math.max(3, Math.ceil(V.start * 0.25))){
+      V.third = true;
+      const vert = Math.random() < 0.5;
+      laserWalls.push({ type: vert ? 'vertical' : 'horizontal', x: randInt(2, GRID_W - 3), y: vert ? -1 : randInt(2, GRID_H - 3),
+        targetX: randInt(2, GRID_W - 3), targetY: randInt(2, GRID_H - 3), moveSpeed: 0.035, beamActive: false, beamTimer: 0,
+        beamDuration: 120, cycleTimer: 0, cycleDuration: 180, warningTimer: 0, warningDuration: 60, moving: false, col: VIC_CYAN });
+      if (!vert) laserWalls[laserWalls.length - 1].x = -1;
+      laserWalls.forEach(w => { w.cycleDuration = 180; });
+      logEvent("warn", "⚠️ FINAL PUSH! A third drone joined the fight, and they're all firing faster!");
+      setHud("⚠️ FINAL PUSH! A THIRD DRONE JOINS!");
+      try { beep(440, 0.15, "square", 0.05); setTimeout(() => beep(660, 0.15, "square", 0.05), 150); setTimeout(() => beep(880, 0.25, "square", 0.05), 300); } catch(_){}
+    }
+  }
+  // a gold stick topped with a little trophy cup
+  function vicDrawChampion(cx, cy, s, onBoard){
+    const X = ctx, t = performance.now() / 1000;
+    X.save(); X.translate(cx, cy);
+    if (onBoard){
+      const pulse = 0.75 + 0.25 * Math.sin(t * 3);
+      const gl = X.createRadialGradient(0, 0, 0, 0, 0, 22 * s); gl.addColorStop(0, `rgba(255,215,80,${0.45 * pulse})`); gl.addColorStop(1, "rgba(255,215,80,0)");
+      X.fillStyle = gl; X.beginPath(); X.arc(0, 0, 22 * s, 0, VIC_TAU); X.fill();
+      for (let i = 0; i < 4; i++){ const a = t * 1.3 + i * Math.PI / 2, r = 14 * s, sx = Math.cos(a) * r, sy = Math.sin(a) * r * 0.7, sr = 1.4 * s * (0.6 + 0.4 * Math.sin(t * 6 + i));
+        X.fillStyle = "rgba(255,245,200,0.9)"; X.beginPath(); for (let j = 0; j < 8; j++){ const an = j * Math.PI / 4, rr = j % 2 ? sr * 0.35 : sr * 1.8; X.lineTo(sx + Math.cos(an) * rr, sy + Math.sin(an) * rr); } X.closePath(); X.fill(); }
+    }
+    X.scale(s, s); X.rotate(0.35 + (onBoard ? Math.sin(t * 1.5) * 0.06 : 0));
+    X.lineCap = "round";
+    // the stick
+    X.strokeStyle = "rgba(60,40,0,0.6)"; X.lineWidth = 4.6; X.beginPath(); X.moveTo(0, 11); X.lineTo(0, -3); X.stroke();
+    const sg = X.createLinearGradient(-2, 0, 2, 0); sg.addColorStop(0, "#fff3b0"); sg.addColorStop(0.5, "#e8b21f"); sg.addColorStop(1, "#9c7008");
+    X.strokeStyle = sg; X.lineWidth = 3; X.beginPath(); X.moveTo(0, 11); X.lineTo(0, -3); X.stroke();
+    // trophy cup on top
+    const cg = X.createLinearGradient(-6, 0, 6, 0); cg.addColorStop(0, "#fff6c0"); cg.addColorStop(0.45, "#f1c232"); cg.addColorStop(1, "#a87a0a");
+    X.fillStyle = cg; X.strokeStyle = "#6b4c05"; X.lineWidth = 0.6;
+    X.beginPath(); X.moveTo(-5.5, -13); X.lineTo(5.5, -13); X.quadraticCurveTo(5, -6.5, 0.9, -5.4); X.lineTo(0.9, -4); X.lineTo(-0.9, -4); X.lineTo(-0.9, -5.4); X.quadraticCurveTo(-5, -6.5, -5.5, -13); X.closePath(); X.fill(); X.stroke();
+    X.beginPath(); X.roundRect(-3.2, -4.2, 6.4, 1.8, 0.6); X.fill(); X.stroke();
+    X.strokeStyle = "#d4a017"; X.lineWidth = 1.1;
+    X.beginPath(); X.arc(-5.6, -10.6, 2, Math.PI * 0.5, Math.PI * 1.5); X.stroke(); X.beginPath(); X.arc(5.6, -10.6, 2, -Math.PI * 0.5, Math.PI * 0.5); X.stroke();
+    X.fillStyle = "rgba(255,255,255,0.75)"; X.beginPath(); X.ellipse(-2.6, -10.4, 0.8, 2, 0.2, 0, VIC_TAU); X.fill();
+    // a glint sweeping across
+    const gx = ((t * 0.6) % 1.6 - 0.3) * 14 - 6;
+    if (gx > -6 && gx < 6){ X.strokeStyle = "rgba(255,255,255,0.7)"; X.lineWidth = 0.8; X.beginPath(); X.moveTo(gx, -12.6); X.lineTo(gx - 1.5, -6.5); X.stroke(); }
+    X.restore();
+  }
+  function vicDrawChampionCarry(){
+    const item = game.carry && game.carry.find(c => c && c.champion); if (!item) return;
+    const p = fxPlayerPx(), t = performance.now() / 1000, fy = p.y - 42 + Math.sin(t * 2.2) * 4;
+    const gl = ctx.createRadialGradient(p.x, fy, 0, p.x, fy, 22); gl.addColorStop(0, "rgba(255,215,0,0.45)"); gl.addColorStop(1, "rgba(255,215,0,0)");
+    ctx.save(); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, fy, 22, 0, VIC_TAU); ctx.fill(); ctx.restore();
+    vicDrawChampion(p.x, fy, 1.15, false);
+    ctx.save(); ctx.fillStyle = "#ffd700"; ctx.strokeStyle = "#3d2f1f"; ctx.lineWidth = 2.2; ctx.font = "bold 10px ui-monospace, monospace"; ctx.textAlign = "center";
+    ctx.strokeText("x" + item.value, p.x + 18, fy - 10); ctx.fillText("x" + item.value, p.x + 18, fy - 10); ctx.restore();
+  }
+  function vicDrawBooms(){
+    if (!vicState) return;
+    const now = performance.now(), X = ctx;
+    for (let i = vicState.booms.length - 1; i >= 0; i--){
+      const b = vicState.booms[i], e = (now - b.t0) / 1000, D = b.big ? 1.6 : 1.1;
+      if (e >= D){ vicState.booms.splice(i, 1); continue; }
+      const k = e / D, R = (b.big ? 46 : 30) * Math.min(1, e / 0.25);
+      X.save();
+      if (e < 0.75){   // fireball
+        const fa = 1 - e / 0.75, fg = X.createRadialGradient(b.x, b.y, 0, b.x, b.y, R);
+        fg.addColorStop(0, `rgba(255,255,235,${fa})`); fg.addColorStop(0.3, `rgba(255,210,90,${fa})`); fg.addColorStop(0.65, `rgba(255,110,30,${fa * 0.8})`); fg.addColorStop(1, "rgba(200,40,10,0)");
+        X.fillStyle = fg; X.beginPath(); X.arc(b.x, b.y, R, 0, VIC_TAU); X.fill();
+      }
+      X.strokeStyle = `rgba(255,240,200,${0.6 * (1 - k)})`; X.lineWidth = 2; X.beginPath(); X.arc(b.x, b.y, R * 0.6 + k * (b.big ? 70 : 45), 0, VIC_TAU); X.stroke();   // shock ring
+      const r = vicRng(Math.floor(b.t0));
+      for (let j = 0; j < (b.big ? 14 : 9); j++){   // debris
+        const a = r() * VIC_TAU, sp = (b.big ? 60 : 40) * (0.5 + r()), dx = Math.cos(a) * sp * k, dy = Math.sin(a) * sp * k + 30 * k * k;
+        X.fillStyle = j % 3 ? `rgba(90,98,108,${1 - k})` : `rgba(255,170,60,${1 - k})`; X.fillRect(b.x + dx - 1.2, b.y + dy - 1.2, 2.4, 2.4);
+      }
+      for (let j = 0; j < 5; j++){   // smoke
+        const sk = Math.max(0, (e - 0.2) / (D - 0.2)), sx = b.x + (r() - 0.5) * 20, sy = b.y - sk * 30 - j * 4, sr = 6 + sk * 14;
+        X.fillStyle = `rgba(70,75,82,${0.35 * (1 - sk)})`; X.beginPath(); X.arc(sx, sy, sr, 0, VIC_TAU); X.fill();
+      }
+      X.restore();
+    }
+  }
+  // the finale: board flashes white, a storm of camera flashes, and the crowd roars, then the crown ceremony
+  let vicFin = null;
+  function vicFinale(then){
+    if (currentLevelTheme().name !== "Victory Stick"){ then(); return; }
+    vicFin = { t0: performance.now() };
+    try {
+      ensureAudio(); const A = audioCtx, n = Math.floor(A.sampleRate * 2.4), buf = A.createBuffer(2, n, A.sampleRate);
+      for (let ch = 0; ch < 2; ch++){ const d = buf.getChannelData(ch); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1; }
+      const src = A.createBufferSource(), bp = A.createBiquadFilter(), lp = A.createBiquadFilter(), g = A.createGain(), now = A.currentTime;
+      src.buffer = buf; bp.type = "bandpass"; bp.frequency.value = 900; bp.Q.value = 0.6; lp.type = "lowpass"; lp.frequency.value = 2600;
+      g.gain.setValueAtTime(0, now); g.gain.linearRampToValueAtTime(0.22, now + 0.35); g.gain.setValueAtTime(0.22, now + 1.0); g.gain.linearRampToValueAtTime(0, now + 2.3);
+      src.connect(bp); bp.connect(lp); lp.connect(g); g.connect(A.destination); src.start();
+      [0.1, 0.45, 0.8].forEach((d, i) => setTimeout(() => beep(1200 + i * 250, 0.18, "sine", 0.03), d * 1000));   // a few whistles in the crowd
+    } catch(_){}
+    setTimeout(() => { vicFin = null; then(); }, 1700);
+  }
+  function vicDrawFinale(){
+    if (!vicFin) return;
+    const e = (performance.now() - vicFin.t0) / 1000;
+    for (let i = 0; i < 3; i++) if (vicFlashes.length < 26){
+      vicFlashes.push({ x: Math.random() * CANVAS_W, y: Math.random() < 0.5 ? Math.random() * CANVAS_H * 0.25 : CANVAS_H - Math.random() * CANVAS_H * 0.2,
+                        t0: performance.now(), r: 9 + Math.random() * 10 });
+    }
+    if (e < 0.4){ ctx.save(); ctx.fillStyle = `rgba(255,255,255,${0.55 * (1 - e / 0.4)})`; ctx.fillRect(0, 0, CANVAS_W, CANVAS_H); ctx.restore(); }
+  }
+
+  function drawVictoryLasers(){
+    if(currentLevelTheme().name !== "Victory Stick") return;
+    const k = performance.now() / 1000;
+    ctx.save();
+    // drones: faint current while charging, beam while firing, then the drone itself on top
+    laserWalls.forEach((wall, wi) => {
+      const bx = wall.x * TILE + TILE / 2, by = wall.y * TILE + TILE / 2, vert = wall.type === "vertical";
+      const col = wall.col || (wi === 0 ? VIC_GREEN : VIC_YEL), dir = vert ? "v" : "h";
+      const ch = wall.warningTimer > 0 ? 1 - wall.warningTimer / (wall.warningDuration || 60) : 0;
+      if (wall.warningTimer > 0){
+        if (vert) vicCurrent(Math.round(wall.x) * TILE + TILE / 2, 0, Math.PI / 2, CANVAS_H, col, ch, k, wi * 13 + 5);
+        else      vicCurrent(0, Math.round(wall.y) * TILE + TILE / 2, 0, CANVAS_W, col, ch, k, wi * 13 + 5);
+        if (wall.sweep){   // v3.89: a sweeping shot also lights the lines it will slide across, fainter further out
+          for (let j = 1; j <= 3; j++){ const c2 = ch * (0.75 - j * 0.15);
+            if (vert) vicCurrent((Math.round(wall.x) + wall.sweep * j) * TILE + TILE / 2, 0, Math.PI / 2, CANVAS_H, col, c2, k, wi * 13 + 5 + j * 7);
+            else      vicCurrent(0, (Math.round(wall.y) + wall.sweep * j) * TILE + TILE / 2, 0, CANVAS_W, col, c2, k, wi * 13 + 5 + j * 7); }
+        }
+      }
+      if (wall.beamActive){
+        const left = (wall.beamDuration || 120) - wall.beamTimer, a = Math.min(1, wall.beamTimer / 6, left / 15);
+        const lx = Math.round(wall.x) * TILE + TILE / 2, ly = Math.round(wall.y) * TILE + TILE / 2;
+        if (vert){ vicBeam(lx, 0, Math.PI / 2, CANVAS_H, col, k, a); vicSparks(lx, 2, -Math.PI / 2, col, k); vicSparks(lx, CANVAS_H - 2, Math.PI / 2, col, k + 0.5); }
+        else     { vicBeam(0, ly, 0, CANVAS_W, col, k, a); vicSparks(2, ly, Math.PI, col, k); vicSparks(CANVAS_W - 2, ly, 0, col, k + 0.5); }
+      }
+      vicDrone(bx, by, 1.15, col, ch, wall.beamActive, k + wi * 1.7, dir);
+    });
+    // the robot tank: glides between squares, hull turns the way it drives, turret tracks you
+    const tk = victoryTank;
+    if (tk && tk.dead){   // v3.90: blown apart: turret, treads and armor plates fly off and land around a burning hull
+      const e = (performance.now() - tk.deadT0) / 1000;
+      if (tk.drawX == null){ tk.drawX = tk.x * TILE + TILE / 2; tk.drawY = tk.y * TILE + TILE / 2; }
+      if (!tk.parts){
+        const r = vicRng(Math.floor(tk.deadT0) + 3), P = [];
+        const add = (kind, dist, extra) => { const a = r() * VIC_TAU; P.push(Object.assign({ kind, a, dist: dist * (0.7 + r() * 0.6), spin: (r() - 0.5) * 9, rot0: r() * VIC_TAU, h: 18 + r() * 22, fly: 0.55 + r() * 0.35 }, extra || {})); };
+        add("turret", 40); add("track", 26); add("track", 30); add("barrel", 46);
+        for (let i = 0; i < 6; i++) add("plate", 16 + r() * 34, { w: 3 + r() * 4, l: 4 + r() * 6 });
+        for (let i = 0; i < 3; i++) add("wheel", 18 + r() * 26);
+        tk.parts = P;
+      }
+      if (e > 6){ victoryTank = null; }
+      else {
+        const fade = Math.min(1, (6 - e) / 1.5), cx = tk.drawX, cy = tk.drawY;
+        ctx.save(); ctx.globalAlpha = fade;
+        // scorched crater
+        ctx.save(); ctx.globalCompositeOperation = "multiply";
+        const sc = ctx.createRadialGradient(cx, cy, 4, cx, cy, 40); sc.addColorStop(0, "rgb(35,30,26)"); sc.addColorStop(0.55, "rgb(105,96,88)"); sc.addColorStop(1, "rgb(255,255,255)");
+        ctx.fillStyle = sc; ctx.beginPath(); ctx.ellipse(cx, cy, 40, 32, 0, 0, VIC_TAU); ctx.fill(); ctx.restore();
+        // what's left of the hull: a charred, broken chassis
+        ctx.save(); ctx.translate(cx, cy); ctx.rotate(tk.hull || 0);
+        ctx.fillStyle = "#24221f"; ctx.beginPath();
+        ctx.moveTo(-20, -8); ctx.lineTo(-6, -10); ctx.lineTo(-2, -6); ctx.lineTo(7, -9); ctx.lineTo(19, -6); ctx.lineTo(21, 2); ctx.lineTo(15, 9); ctx.lineTo(3, 7); ctx.lineTo(-4, 10); ctx.lineTo(-18, 8); ctx.lineTo(-22, 1); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "rgba(90,84,78,0.8)"; ctx.lineWidth = 0.7; ctx.stroke();
+        ctx.fillStyle = "#14120f"; ctx.beginPath(); ctx.ellipse(0, 0, 7, 6, 0, 0, VIC_TAU); ctx.fill();   // the open turret ring
+        for (let j = 0; j < 5; j++){ const ex = -14 + j * 7, ey = (j % 2 ? 4 : -3), em = 0.5 + 0.5 * Math.sin(k * 7 + j * 2);   // glowing embers
+          ctx.fillStyle = `rgba(255,${110 + j * 20},40,${(0.35 + 0.5 * em) * Math.max(0, 1 - e / 4)})`; ctx.beginPath(); ctx.arc(ex, ey, 1.3, 0, VIC_TAU); ctx.fill(); }
+        ctx.restore();
+        // flying pieces: they arc out, tumble, and land
+        tk.parts.forEach(pt => {
+          const fk = Math.min(1, e / pt.fly), ease = 1 - Math.pow(1 - fk, 2), dx = Math.cos(pt.a) * pt.dist * ease, dy = Math.sin(pt.a) * pt.dist * ease;
+          const lift = Math.sin(fk * Math.PI) * pt.h, rot = pt.rot0 + pt.spin * fk * pt.fly, px = cx + dx, py = cy + dy - lift;
+          if (fk < 1){ ctx.fillStyle = "rgba(0,0,0,0.25)"; ctx.beginPath(); ctx.ellipse(cx + dx, cy + dy + 2, 4, 1.6, 0, 0, VIC_TAU); ctx.fill(); }
+          ctx.save(); ctx.translate(px, py); ctx.rotate(rot);
+          if (pt.kind === "turret"){
+            ctx.fillStyle = "#3a3633"; ctx.beginPath(); ctx.moveTo(-8, -7); ctx.lineTo(3, -8); ctx.lineTo(8, -4); ctx.lineTo(7, 5); ctx.lineTo(2, 8); ctx.lineTo(-8, 7); ctx.lineTo(-10, 0); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = "rgba(120,110,100,0.7)"; ctx.lineWidth = 0.6; ctx.stroke();
+            ctx.fillStyle = "#1c1a18"; ctx.beginPath(); ctx.arc(-3, -2, 2.4, 0, VIC_TAU); ctx.fill();
+            ctx.fillStyle = "#4a4643"; ctx.fillRect(7, -1.4, 6, 2.8);   // stub of the snapped barrel
+          } else if (pt.kind === "barrel"){
+            ctx.fillStyle = "#4a4643"; ctx.fillRect(-9, -1.4, 13, 2.8); ctx.save(); ctx.translate(4, 0); ctx.rotate(0.4); ctx.fillRect(0, -1.4, 8, 2.8); ctx.fillStyle = "#2a2725"; ctx.fillRect(6, -2.2, 3, 4.4); ctx.restore();
+          } else if (pt.kind === "track"){
+            ctx.fillStyle = "#1a1c1f"; ctx.beginPath(); ctx.roundRect(-10, -3, 20, 6, 2.5); ctx.fill();
+            ctx.fillStyle = "#3b3f44"; for (let j = 0; j < 6; j++) ctx.fillRect(-9 + j * 3.4, -3, 1.6, 6);
+          } else if (pt.kind === "wheel"){
+            ctx.fillStyle = "#3e4247"; ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, VIC_TAU); ctx.fill(); ctx.fillStyle = "#6b7178"; ctx.beginPath(); ctx.arc(0, 0, 1.2, 0, VIC_TAU); ctx.fill();
+          } else {
+            ctx.fillStyle = "#55524e"; ctx.beginPath(); ctx.moveTo(-pt.l / 2, -pt.w / 2); ctx.lineTo(pt.l / 2, -pt.w / 2 + 1); ctx.lineTo(pt.l / 2 - 1, pt.w / 2); ctx.lineTo(-pt.l / 2, pt.w / 2 - 0.5); ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = "rgba(160,150,140,0.5)"; ctx.lineWidth = 0.4; ctx.stroke();
+          }
+          if (fk < 1 && e < 0.9){ ctx.fillStyle = "rgba(255,150,50,0.6)"; ctx.beginPath(); ctx.arc(0, 0, 2, 0, VIC_TAU); ctx.fill(); }   // still burning hot in the air
+          ctx.restore();
+        });
+        // fire on the hull, then a smoke column
+        if (e < 3.5){ for (let j = 0; j < 4; j++){ const fl = 0.6 + 0.4 * Math.sin(k * 18 + j * 2), fx2 = cx - 8 + j * 5, fy2 = cy - 2 - fl * 6;
+          const fg = ctx.createRadialGradient(fx2, fy2, 0, fx2, fy2, 7); fg.addColorStop(0, `rgba(255,230,140,${0.8 * fl * (1 - e / 3.5)})`); fg.addColorStop(0.5, `rgba(255,120,30,${0.6 * fl * (1 - e / 3.5)})`); fg.addColorStop(1, "rgba(200,40,10,0)");
+          ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(fx2, fy2, 7, 0, VIC_TAU); ctx.fill(); } }
+        for (let j = 0; j < 8; j++){ const ph = ((k * 0.45 + j / 8) % 1), sx = cx + Math.sin(k * 0.8 + j * 2) * 7 + ph * 10, sy = cy - 4 - ph * 60;
+          ctx.fillStyle = `rgba(55,56,60,${0.5 * (1 - ph)})`; ctx.beginPath(); ctx.arc(sx, sy, 5 + ph * 13, 0, VIC_TAU); ctx.fill(); }
+        ctx.restore();
+      }
+    } else if (tk){
+      const tx = tk.x * TILE + TILE / 2, ty = tk.y * TILE + TILE / 2;
+      if (tk.drawX == null){ tk.drawX = tx; tk.drawY = ty; tk.hull = 0; tk.tur = tk.rotation || 0; }
+      // v3.93: drives like a tank: it pivots on its treads to line up with the way it's going (nose first, or
+      // backwards if that's the shorter turn, which is how it reverses away from you), and only then rolls.
+      const mx = tx - tk.drawX, my = ty - tk.drawY;
+      if (Math.abs(mx) + Math.abs(my) > 0.5){
+        const fwd = Math.atan2(my, mx), norm = (v) => Math.atan2(Math.sin(v), Math.cos(v));
+        const dF = norm(fwd - tk.hull), dB = norm(fwd + Math.PI - tk.hull), d = Math.abs(dF) <= Math.abs(dB) ? dF : dB;
+        tk.hull += Math.sign(d) * Math.min(Math.abs(d), 0.09);   // pivot speed
+        tk.roll = (tk.roll || 0) + (Math.abs(dF) <= Math.abs(dB) ? 0.03 : -0.03);
+        if (Math.abs(d) < 0.12){ tk.drawX += mx * 0.12; tk.drawY += my * 0.12; }   // aligned: roll forward / back
+      } else { tk.drawX = tx; tk.drawY = ty; }
+      let dt = (tk.rotation || 0) - tk.tur; dt = Math.atan2(Math.sin(dt), Math.cos(dt)); tk.tur += dt * (tk.beamActive && tk.beamTimer > 90 ? 0.5 : 0.12);
+      const charging = tk.beamActive && tk.beamTimer <= 90, firing = tk.beamActive && tk.beamTimer > 90;
+      const charge = charging ? tk.beamTimer / 90 : firing ? 1 : 0;
+      const range = (tk.shootRange || 8) * TILE, mzx = tk.drawX + Math.cos(tk.tur) * 39, mzy = tk.drawY + Math.sin(tk.tur) * 39;
+      if (charging) vicCurrent(mzx, mzy, tk.tur, range - 39, VIC_RED, charge, k, 29);
+      if (firing){ const a = Math.min(1, (tk.beamTimer - 90) / 4, (120 - tk.beamTimer) / 8); vicBeam(mzx, mzy, tk.tur, range - 39, VIC_RED, k, Math.max(0, a)); }
+      vicTank(tk.drawX, tk.drawY, 1, tk.hull, tk.tur, k, charge, tk.roll || 0);
+    }
+    vicDrawBooms();
+    vicDrawChampionCarry();
     ctx.restore();
+    vicArenaFront();
+    vicDrawFinale();
   }
 
   // ================================================================
@@ -13006,7 +13293,8 @@ function updateSpiderWebs(){
           glow: Math.random() * Math.PI * 2,
           glowSpeed: 0.03 + Math.random() * 0.04,
           drift: Math.random() * Math.PI * 2,
-          driftSpeed: 0.01 + Math.random() * 0.01
+          driftSpeed: 0.01 + Math.random() * 0.01,
+          gold: Math.random() < 0.4   // v3.86: gold and green glimmers
         });
       }
     }
@@ -14178,13 +14466,14 @@ function updateSpiderWebs(){
         if(p.type === 'firefly'){
           // Green firefly for Victory Stick
           const glow = Math.sin(p.glow) * 0.5 + 0.5;
-          ctx.globalAlpha = 0.4 + glow * 0.4;
-          ctx.fillStyle = '#27ae60'; // Green
-          ctx.shadowColor = '#52ffa8';
-          ctx.shadowBlur = 8 * glow;
+          ctx.globalAlpha = 0.35 + glow * 0.5;
+          ctx.fillStyle = p.gold ? '#ffd86a' : '#52f09a';   // v3.86: little four-point glimmers
+          ctx.shadowColor = p.gold ? '#ffcf40' : '#52ffa8';
+          ctx.shadowBlur = 6 * glow;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fill();
+          const gr = p.size * (0.8 + glow * 0.6);
+          for (let j = 0; j < 8; j++){ const an = j * Math.PI / 4, rr = j % 2 ? gr * 0.35 : gr * 1.7; ctx.lineTo(p.x + Math.cos(an) * rr, p.y + Math.sin(an) * rr); }
+          ctx.closePath(); ctx.fill();
           ctx.shadowBlur = 0;
         } else {
           // Purple star for other levels
@@ -15872,7 +16161,7 @@ function sfxMonsterVictoryStreak(){
     "Sea Stick":     "Sharks are circling — don't get caught out.",
     "Snake Stick":   "Rattlers bite and scatter your sticks. Use the glowing edge tunnels to escape!",
     "Spider Stick":  "Webs trap you and the momma spider raids your sticks.",
-    "Victory Stick": "The final field — dodge the lasers and finish it."
+    "Victory Stick": "The final field! Drones crackle before they fire and the tank's cannon hits hard, but the hole is always safe. Find the Champion's Stick: bank it for x100 or smash a drone or the tank with it!"
   };
 
   // READY SCREEN (2026-10-19): the level intro now WAITS for the player and the whole game
@@ -15901,7 +16190,8 @@ function sfxMonsterVictoryStreak(){
     if (typeof entrance !== "undefined" && entrance.active){ entranceEnd(); return true; }   // v2.81: skip the entrance
     if (!levelIntro.active || levelIntro.dismissed) return false;
     // v3.12: first key while your stick is talking jumps to the level tip; the next one starts
-    if (levelIntro.tip && levelIntro.lineMs && introStage().el < levelIntro.lineMs){
+    // (v3.83: both show together now, so one press starts the level)
+    if (false){
       if (levelIntro.phase === 'fadein'){ levelIntro.phase = 'hold'; levelIntro.timer = 0; }
       levelIntro.holdStart = performance.now() - levelIntro.lineMs;
       try { beep(660, 0.06, "triangle", 0.06); } catch(e) {}
@@ -15967,8 +16257,8 @@ function sfxMonsterVictoryStreak(){
   function introStage(){   // v3.12: how far along the card is: {lineA, tipA, el}
     const el = levelIntro.phase === 'fadein' ? 0 : performance.now() - (levelIntro.holdStart || performance.now());
     const L = levelIntro.lineMs || 0;
-    return { el, lineA: !L ? 0 : el < L ? 1 : Math.max(0, 1 - (el - L) / 300),
-             tipA: !L ? 1 : Math.max(0, Math.min(1, (el - L) / 350)) };
+    // v3.83: the stick's line and the level tip show together and stay until you press a key / tap
+    return { el, lineA: !L ? 0 : 1, tipA: Math.max(0, Math.min(1, el / 350)) };
   }
   
   function updateLevelIntro(){
@@ -15991,7 +16281,7 @@ function sfxMonsterVictoryStreak(){
       // Normally wait for the player. If a tutorial box is open, fall back to the old timed hold.
       // v2.79: a level you've already seen continues by itself after ~2s (any key still skips);
       // the first time you reach a level it waits for you so you can read the tip.
-      levelIntro.autoGo = !levelIntro.longHold && !tutOpen;
+      levelIntro.autoGo = false;   // v3.83: always wait for you (you were missing the line when jumping between levels)
       if (!levelIntro.holdStart) levelIntro.holdStart = performance.now();
       if (levelIntro.autoGo && introStage().el >= (levelIntro.lineMs || 0) + levelIntro.tipMs) levelIntro.dismissed = true;
       const canLeave = levelIntro.dismissed;   // v2.43: never times out behind the tutorial any more
@@ -16039,8 +16329,8 @@ function sfxMonsterVictoryStreak(){
     ctx.fillStyle = `rgba(0, 0, 0, ${(isNightLevel ? 0.35 : 0.4) * levelIntro.opacity})`;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
     
-    // For Victory Stick, draw green sparks shooting around
-    if(isVictoryLevel){
+    // For Victory Stick, draw green sparks shooting around (v3.87: removed, just the 360 spin now)
+    if(false && isVictoryLevel){
       const sparkCount = 20;
       for(let i = 0; i < sparkCount; i++){
         const angle = (time * 2 + i * 0.5) % (Math.PI * 2);
@@ -16126,10 +16416,14 @@ function sfxMonsterVictoryStreak(){
         elapsed = INTRO_FADEIN_TIME + baseHold + levelIntro.timer;
       }
 
-      const delay = INTRO_VICTORY_PAUSE_TIME;
-      const rotateTime = Math.max(1, totalTime - delay);
-      const rotProgress = Math.max(0, Math.min(1, (elapsed - delay) / rotateTime));
-      const rotation = rotProgress * Math.PI * 2; // Full 360 rotation after delay
+      // v3.90: one smooth spin right away (starts at ~0.5 s, takes ~1.4 s), so it's done before you'd press a key.
+      // If you start early, it finishes quickly instead of cutting off.
+      let rotProgress;
+      if (levelIntro.phase === 'fadeout') rotProgress = Math.min(1, (levelIntro._vrot || 0) + 1 / 30);
+      else rotProgress = Math.max(0, Math.min(1, (elapsed - 30) / 84));
+      levelIntro._vrot = rotProgress;
+      const eased = rotProgress < 0.5 ? 2 * rotProgress * rotProgress : 1 - 2 * (1 - rotProgress) * (1 - rotProgress);
+      const rotation = eased * Math.PI * 2;
 
       ctx.translate(cx, cy);
       ctx.rotate(rotation);
@@ -17430,50 +17724,28 @@ function sfxMonsterVictoryStreak(){
         const g2 = X.createLinearGradient(0, 0, 0, H); g2.addColorStop(0, '#3d7bc4'); g2.addColorStop(1, '#173a66'); X.fillStyle = g2; X.fillRect(0, 0, W, H);
         X.strokeStyle = 'rgba(255,255,255,0.05)'; X.lineWidth = 1; X.beginPath(); for (let i = 0; i <= W; i += 40){ X.moveTo(i, 0); X.lineTo(i, H); X.moveTo(0, i); X.lineTo(W, i); } X.stroke();
         const p = t % SLIDE;
-        // soft clouds, kept above and below the player
-        seed = 700; for (let i = 0; i < 6; i++){ const cy = i % 2 ? R(60, 130) : R(470, 505), sp = R(12, 26), cx = ((R(0, 800) + t * sp) % 860) - 110, sc = R(0.8, 1.2);
-          X.save(); X.translate(cx, cy); X.scale(sc, sc); X.fillStyle = 'rgba(255,255,255,0.85)'; X.shadowColor = 'rgba(255,255,255,0.6)'; X.shadowBlur = 18;
-          X.beginPath(); X.arc(0, 0, 26, 0, TAU); X.arc(30, -14, 32, 0, TAU); X.arc(64, -4, 26, 0, TAU); X.arc(32, 8, 26, 0, TAU); X.fill(); X.restore(); }
-        // wind gust from the left: streaks, and the player leans into it
-        const gust = Math.max(0, Math.sin(p * 1.3)), px = 230 + gust * 60;
-        figure(px, 210, 28, '#ffffff', { tilt:-8 - gust * 10, lArm:[-115, -70 + gust * 15], rArm:[25 + gust * 20, 50 + gust * 20], lLeg:[122, 108], rLeg:[72 + gust * 8, 86] });
-        // a bird swoops across and carries off a stick
-        const bq = (p / SLIDE), bx = 700 - bq * 820, by = 230 + Math.sin(bq * 7) * 25, flap = Math.sin(t * 12);
-        X.save(); X.translate(bx, by);
-        X.fillStyle = '#1c2541'; X.beginPath(); X.ellipse(0, 0, 18, 9, 0, 0, TAU); X.fill();
-        X.fillStyle = '#f2f2f2'; X.beginPath(); X.ellipse(2, 3, 11, 5, 0, 0, TAU); X.fill();
-        X.fillStyle = '#1c2541'; X.beginPath(); X.arc(-15, -4, 7, 0, TAU); X.fill();
-        X.fillStyle = '#ffb000'; X.beginPath(); X.moveTo(-21, -5); X.lineTo(-30, -2); X.lineTo(-21, -1); X.fill();
-        X.fillStyle = '#fff'; X.beginPath(); X.arc(-16, -6, 1.8, 0, TAU); X.fill();
-        X.fillStyle = '#1c2541'; X.beginPath(); X.moveTo(-4, -4); X.quadraticCurveTo(6, -30 * flap, 22, -26 * flap); X.quadraticCurveTo(12, -6, 8, -2); X.fill();
-        X.beginPath(); X.moveTo(14, -2); X.lineTo(26, -8); X.lineTo(26, 4); X.fill();
-        X.restore();
-        stick(bx + 2, by + 16, 28, 0.25, '#ff9f43', 3);
-        // a small plane passes low across the sky
-        const plx = ((t * 120) % 1000) - 200, ply = 120 + Math.sin(t * 1.5) * 8;
-        X.save(); X.translate(plx, ply); X.rotate(Math.sin(t * 1.5) * 0.04);
-        X.shadowColor = '#ffd54a'; X.shadowBlur = 14;
-        // v3.34: a proper side-view airliner: wings sweep back from mid-body, engine under the wing, small swept tail
-        X.shadowBlur = 0;
-        X.fillStyle = '#c9303d'; X.beginPath(); X.moveTo(8, -4); X.lineTo(-14, -4); X.lineTo(-30, -20); X.lineTo(-22, -20); X.closePath(); X.fill();          // far wing (behind the body)
-        X.fillStyle = '#c9303d'; X.beginPath(); X.moveTo(-46, -5); X.lineTo(-58, -5); X.lineTo(-64, -13); X.lineTo(-58, -13); X.closePath(); X.fill();       // far tail wing
-        X.shadowColor = '#ffd54a'; X.shadowBlur = 12;
-        X.fillStyle = '#f5f7fb'; X.beginPath(); X.moveTo(-58, -7); X.quadraticCurveTo(-64, -4, -62, 3); X.quadraticCurveTo(-50, 9, -30, 9);
-        X.lineTo(52, 9); X.quadraticCurveTo(72, 8, 74, 1); X.quadraticCurveTo(70, -8, 52, -8); X.lineTo(-40, -8); X.closePath(); X.fill();                 // body, tail rising at the back
-        X.shadowBlur = 0;
-        X.fillStyle = 'rgba(160,175,200,0.45)'; X.beginPath(); X.moveTo(-50, 5); X.quadraticCurveTo(-30, 9.5, 52, 9); X.quadraticCurveTo(66, 8.5, 72, 4); X.lineTo(-48, 4); X.closePath(); X.fill();   // belly shading
-        X.fillStyle = '#e63946'; X.beginPath(); X.moveTo(-40, -8); X.lineTo(-56, -8); X.lineTo(-66, -34); X.lineTo(-56, -34); X.closePath(); X.fill();        // tail fin, swept back
-        X.fillStyle = '#e63946'; X.fillRect(-36, -1, 84, 2.4);                                                                                         // cheat line
-        X.fillStyle = '#3aa7ff'; for (let i = 0; i < 9; i++){ X.beginPath(); X.ellipse(-30 + i * 9, -3.2, 2.2, 2.6, 0, 0, TAU); X.fill(); }            // windows
-        X.fillStyle = '#1e3a5f'; X.beginPath(); X.moveTo(58, -6.5); X.quadraticCurveTo(68, -6, 70, -1); X.lineTo(60, -1.5); X.closePath(); X.fill();   // cockpit
-        X.fillStyle = '#e63946'; X.beginPath(); X.moveTo(14, 2); X.lineTo(-10, 2); X.lineTo(-34, 26); X.lineTo(-22, 26); X.closePath(); X.fill();        // near wing
-        X.fillStyle = '#b02a35'; X.beginPath(); X.moveTo(-22, 26); X.lineTo(-34, 26); X.lineTo(-33, 23); X.lineTo(-21, 23); X.closePath(); X.fill();
-        X.fillStyle = '#d8dde6'; X.beginPath(); X.ellipse(-2, 13, 10, 4.2, 0, 0, TAU); X.fill();                                                        // engine
-        X.fillStyle = '#4b5563'; X.beginPath(); X.ellipse(8, 13, 2, 3.6, 0, 0, TAU); X.fill();
-        X.fillStyle = '#e63946'; X.beginPath(); X.moveTo(-46, 2); X.lineTo(-58, 2); X.lineTo(-68, 12); X.lineTo(-60, 12); X.closePath(); X.fill();         // near tail wing
-        X.restore();
+        // v3.94: the real level art: soft cumulus clouds, a gust, a seagull thief and the red-and-white prop plane
+        const mc = ctx; ctx = X;
+        try {
+          if (!skyPreviewClouds){ skyPreviewClouds = [[0.7, 70, 110, 14], [1.2, 420, 90, 9], [2.8, 260, 470, 6], [1.0, 560, 500, 11], [0.65, 120, 520, 16]].map(c => ({ size: c[0], puffs: makeCloudPuffs(c[0]), x0: c[1], y: c[2], sp: c[3] })); }
+          skyPreviewClouds.forEach(c => { const spr = skyCloudSprite(c), S = 2.4, cx = ((c.x0 + t * c.sp) % 860) - 110;
+            X.save(); X.globalAlpha = 0.93; X.drawImage(spr.cv, cx + spr.x0 * TILE * S, c.y + spr.y0 * TILE * S, spr.w * TILE * S, spr.h * TILE * S); X.restore(); });
+          // wind gust from the left: soft streaks, and the player leans into it
+          const gust = Math.max(0, Math.sin(p * 1.3)), px = 230 + gust * 60;
+          if (gust > 0.05){ X.save(); X.lineCap = 'round';
+            for (let i = 0; i < 6; i++){ const ly = 170 + i * 16, ph = (t * 2.2 + i * 0.37) % 1, lx = px - 150 + ph * 120, len = 40 + (i % 3) * 18;
+              X.strokeStyle = `rgba(255,255,255,${0.45 * gust * Math.sin(ph * Math.PI)})`; X.lineWidth = 2.2; X.beginPath(); X.moveTo(lx, ly); X.quadraticCurveTo(lx + len / 2, ly - 4, lx + len, ly); X.stroke(); }
+            X.restore(); }
+          figure(px, 210, 28, '#ffffff', { tilt:-8 - gust * 10, lArm:[-115, -70 + gust * 15], rArm:[25 + gust * 20, 50 + gust * 20], lLeg:[122, 108], rLeg:[72 + gust * 8, 86] });
+          // a seagull swoops across, right to left, with a stolen stick in its beak
+          const bq = (p / SLIDE), bx = 720 - bq * 860, by = 432 + Math.sin(bq * 6) * 14;   // below the player, so it never flies through it
+          skyGull(bx, by, 3.0, t, { flip: true, carryCol: '#ff9f43', rate: 1.5 });
+          // the plane cruises across up top
+          const plx = ((t * 110) % 1000) - 200, ply = 150 + Math.sin(t * 1.5) * 6;
+          skyPlaneSide(plx, ply, 2.6, t, Math.sin(t * 1.5) * 0.03);
+        } catch(_){} finally { ctx = mc; }
         text('SKY STICK', 320, 560, 40, '#3aa7ff', { spacing:4 });
-        text('gusts, sneaky birds and a plane ride', 320, 602, 20, '#e6f4ff', { weight:700, alpha:0.9 });
+        text('gusts, sneaky seagulls and a plane ride', 320, 602, 20, '#e6f4ff', { weight:700, alpha:0.9 });
         frame('#3aa7ff');
       },
       // Fire Stick: flame tiles flicker and a horned demon hunts you
@@ -17839,19 +18111,41 @@ function sfxMonsterVictoryStreak(){
       function(t){
         bg('#0a1f0a', '#020802', 'rgba(39,174,96,0.10)', 40, t);
         const p = t % SLIDE;
-        if (p < 4.2){
-          [[0.9, 0], [-0.7, 2]].forEach(l => { const a = Math.sin(t * l[0] + l[1]) * 0.9 + (l[0] > 0 ? 0.6 : 2.5), ox = l[0] > 0 ? 0 : 640;
-            X.save(); X.globalAlpha = 0.85; neon(() => { X.moveTo(ox, 60); X.lineTo(ox + Math.cos(a) * 900, 60 + Math.sin(a) * 900); }, '#ff1f3a', 3); X.restore(); });
-        }
         hole(470, 420, 70, '#27ae60', p > 4.2 ? Math.max(0, 1 - (p - 4.2) * 2) : 0.2);
+        // v3.86: the hover drones and the robot tank
+        { const mc = ctx; ctx = X;
+          try {
+            if (p < 4.2){
+              // drone A (green): charges a column, then fires straight down the right side
+              const aCh = p > 0.6 && p < 1.6 ? (p - 0.6) : 0, aFire = p >= 1.6 && p < 2.6;
+              if (aCh > 0){ ctx.save(); ctx.translate(600, 0); ctx.scale(2.4, 2.4); vicCurrent(0, 0, Math.PI / 2, 270, VIC_GREEN, aCh, t, 5); ctx.restore(); }
+              if (aFire){ ctx.save(); ctx.translate(600, 0); ctx.scale(2.4, 2.4); vicBeam(0, 0, Math.PI / 2, 270, VIC_GREEN, t, Math.min(1, (2.6 - p) * 4)); ctx.restore(); }
+              ctx.save(); ctx.translate(600, 300); ctx.scale(2.4, 2.4); vicDrone(0, 0, 1, VIC_GREEN, aCh, aFire, t, 'v'); ctx.restore();
+              // drone B (gold): charges a row just over the stick's head, then fires
+              const bCh = p > 2.0 && p < 3.0 ? (p - 2.0) : 0, bFire = p >= 3.0 && p < 4.0;
+              if (bCh > 0){ ctx.save(); ctx.translate(0, 100); ctx.scale(2.4, 2.4); vicCurrent(0, 0, 0, 270, VIC_YEL, bCh, t, 9); ctx.restore(); }
+              if (bFire){ ctx.save(); ctx.translate(0, 100); ctx.scale(2.4, 2.4); vicBeam(0, 0, 0, 270, VIC_YEL, t, Math.min(1, (4.0 - p) * 4)); ctx.restore(); }
+              ctx.save(); ctx.translate(60, 100); ctx.scale(2.4, 2.4); vicDrone(0, 0, 1, VIC_YEL, bCh, bFire, t + 1.7, 'h'); ctx.restore();
+            }
+            // the tank rolls in along the bottom, turret tracking the stick
+            const walkX = 120 + Math.min(1, p / 4) * 330, tkx = 140 + Math.min(1, p / 5) * 60, tky = 455;
+            ctx.save(); ctx.translate(tkx, tky); ctx.scale(1.9, 1.9);
+            vicTank(0, 0, 1, 0, Math.atan2(200 - tky, walkX - tkx), t, p > 2.5 && p < 4.2 ? (p - 2.5) / 1.7 : 0, p * 1.2);
+            ctx.restore();
+          } catch(_){} finally { ctx = mc; } }
         const walk = Math.min(1, p / 4), px = 120 + walk * 330, st = walk < 1 ? Math.sin(p * 12) : 0;
         // carry the stick in the right hand; at the hole, reach out and let it drop in, then celebrate
         const reach = p >= 4.0 && p < 4.25, done = p >= 4.25;
         const vf = figure(px, 200 + Math.abs(Math.sin(p * 3)) * -12, 26, '#ffffff', { lLeg:[110 + st * 22, 100], rLeg:[70 - st * 22, 80],
           lArm: done ? [-150, -120] : [-140 + st * 20, -170], rArm: done ? [-30, -60] : reach ? [25, 35] : [30 + st * 8, 75] });
         const vh = vf.hands[1];
-        if (p < 4.0) stick(vh.x + 3, vh.y + 4, 32, 1.35, '#ffd54a', 3);
-        else if (reach){ const k = (p - 4.0) / 0.25; stick(vh.x + 8 * k, vh.y + 10 + k * k * (420 - vh.y), 32, 1.35 + k * 2, '#ffd54a', 3); }
+        // v3.94: it's carrying the Champion's Stick (x100) to the hole
+        { const mc = ctx; ctx = X;
+          try {
+            if (p < 4.0){ vicDrawChampion(vh.x + 4, vh.y - 12, 2.4, false);
+              text('x100', vh.x + 44, vh.y - 46, 20, '#ffd700', { alpha: 0.95 }); }
+            else if (reach){ const k = (p - 4.0) / 0.25; vicDrawChampion(vh.x + 8 * k, vh.y - 12 + k * k * (420 - vh.y), 2.4 * (1 - k * 0.5), false); }
+          } catch(_){} finally { ctx = mc; } }
         if (p >= 4.2){
           const q = p - 4.2;
           [[160, 150, '#ffd54a', 0], [470, 120, '#ff6bd6', 0.4], [320, 90, '#4dd0ff', 0.8], [560, 230, '#7cff6b', 1.2]].forEach(f => { const r = Math.max(0, q - f[3]) * 110;
@@ -17860,7 +18154,7 @@ function sfxMonsterVictoryStreak(){
           text('YOU WIN!', 320, 120, 64, '#4dff88', { spacing:6, alpha:Math.min(1, q * 2) });
         }
         text('VICTORY STICK', 320, 560, 40, '#27ae60', { spacing:4 });
-        text('dodge the lasers and finish it', 320, 602, 20, '#c8ffd9', { weight:700, alpha:0.9 });
+        text('drones, a tank, and the crown', 320, 602, 20, '#c8ffd9', { weight:700, alpha:0.9 });
         frame('#27ae60');
       },
       // 7. Fifteen worlds: all 15 level themes in level order, hopping in a wave from Level 1 to 15
@@ -18640,13 +18934,13 @@ Clear all sticks to advance — watch out for obstacles.`;
     stopMonsterDoom();
     setHud("🏆 VICTORY! 🏆");
     logEvent("win","Victory Stick cleared. COMPLETE VICTORY!");
-    // v3.59: the crowning ceremony first, then the victory screen
-    vcerStart(() => {
+    // v3.59: the crowning ceremony first, then the victory screen (v3.89: after a big crowd-roar finale)
+    vicFinale(() => vcerStart(() => {
       burstFx(ui.winFx, "✨", 50); // More particles!
       ui.winText.textContent = `🏆 ULTIMATE VICTORY! 🏆\n${player.name}\nFinal Score: ${game.score}\n\n✨ ALL 15 LEVELS CONQUERED! ✨\n\nYou've mastered every stick.\nThe hole is satisfied.\nThe monster retreats... for now.\n\n🎮 LEGEND STATUS ACHIEVED! 🎮`;
       ui.winOverlay.style.display = "flex";
       if (!vcerAudio) { sfxWin(); startCelebrationMusic(12000); }   // music off: the classic jingle instead
-    });
+    }));
   }
 
   
@@ -20016,7 +20310,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     // 3) PICK UP a stick (including cursed/special)
     if (stickIdx >= 0){
       const _sk = game.sticks[stickIdx].keep;   // v3.44: the unicorn's rainbow stick doesn't play by the rules: you can grab it even with a full load
-      if (game.carry.length >= carryCap() && !(_sk && (_sk.horn || _sk.cassette))){
+      if (game.carry.length >= carryCap() && !(_sk && (_sk.horn || _sk.cassette || _sk.champion))){
         sfxError();
         const cap = carryCap();
         setHud(`MAX STICKS (${cap})`);
@@ -20053,6 +20347,9 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       if (s.keep){   // v3.13: a dropped special stick comes back with its value
         game.carry.push(Object.assign({}, s.keep));
         if (s.keep.feather) logEvent("bonus", `🦅 Got the golden bundle back (x${s.keep.value})!`);
+        if (s.keep.champion){ logEvent("bonus", "🏆 You've got the CHAMPION'S STICK (x100)! Drop it in the hole for 100 points, or walk it into a drone or the tank to blow it up!");
+          setHud("🏆 CHAMPION'S STICK x100! HOLE = 100 PTS · DRONE/TANK = 💥");
+          try { [523, 659, 784, 1047, 1319, 1568].forEach((f, k) => setTimeout(() => beep(f, 0.12, "triangle", 0.06), k * 80)); } catch(e){} }
         if (s.keep.cassette){ logEvent("bonus", `📼 Golden cassette! It's a Throwback Stick (x${s.keep.value}). The shadow monsters can't stand the music. Rewind it to the hole!`); setHud(`📼 THROWBACK STICK x${s.keep.value}!`);
           try { [523, 659, 784, 1047, 1319].forEach((f, k) => setTimeout(() => beep(f, 0.09, "square", 0.04), k * 70)); } catch(e){} }
         if (s.keep.horn){ logEvent("bonus", `🌈 You got the unicorn's rainbow stick (x${s.keep.value})! Rainbows chase away storm clouds, so the grumpy cloud can't rain on you until you deposit it.`); setHud(`🌈 RAINBOW STICK x${s.keep.value}!`); }
@@ -20720,6 +21017,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     }
 
     ctx.globalAlpha = 1;
+    if (isVic){ try { vicArenaBack(); } catch(_){} }   // v3.86: spotlights
   }
 
   function drawHole(theme){
@@ -21150,6 +21448,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       if (s.keep.feather){ drawGoldBundle(ctx, cx, cy, 22, (s.rotation || 0.6) + Math.sin(time * 1.5) * 0.05, 10 + Math.sin(time * 3) * 4); }
       else if (s.keep.horn){ spDrawHornStick(cx, cy); }   // v3.39: the unicorn's golden horn stick
       else if (s.keep.cassette){ g80DrawCassette(cx, cy, 0.78); }   // v3.51: the golden cassette
+      else if (s.keep.champion){ vicDrawChampion(cx, cy, 1, true); }  // v3.89: the Champion's Stick
       else if (s.keep.alien || s.keep.star){ nsDrawSpecialStick(s, cx, cy); }   // v3.61: Night Stick alien / star sticks
       else {
         ctx.save(); ctx.translate(cx, cy); ctx.rotate(s.rotation !== undefined ? s.rotation : Math.PI * 0.25);
@@ -21323,6 +21622,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   const TALK_LINES = {
     classic: {
       beat:   ["Monster down! I'll stick with it.", "Nobody messes with my sticks!", "And stay down!", "Another one bites the stick!"],
+      smash:  ["Champion's Stick: one. Bad guys: zero.", "Now THAT'S sticking with it!"],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["I'll stick with it.", "Another day, another stick.", "Sticks won't pick themselves up!", "Ready, steady, stick!", "Let's do this. Team me!"],
       win:    ["One level down, a bunch to go!", "Stuck the landing!", "That's how you stick it!", "All in a day's work.", "Easy peasy, stick squeezy!"],
       hurt:   ["Ow! Still sticking with it!", "Just a scratch!", "That stung!", "I'm okay!"],
@@ -21332,6 +21632,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     angel: {
       beat:   ["Be at peace, monster.", "Light always wins.", "Forgiven... and defeated.", "Heaven had my back!"],
+      smash:  ["Smitten by the Champion's Stick!", "Heaven's own trophy did that."],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["Bless this level.", "Heaven sent, ready to go.", "Let there be sticks!", "Have faith, friend."],
       win:    ["A blessing in disguise!", "Hallelujah!", "Heaven smiles on us.", "Divine work, if I say so."],
       hurt:   ["I forgive you.", "Oh, heavens!", "Ouch... still blessed."],
@@ -21341,6 +21642,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     alien: {
       beat:   ["Earth monster: neutralized.", "We have bigger ones on Zorb.", "Probe successful!", "Take that, Earthling!"],
+      smash:  ["Earth trophy: surprisingly explosive.", "Even on Zorb, that's impressive!"],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["Greetings, Earth sticks.", "Take me to your hole.", "Earth level... fascinating.", "Beam me in."],
       win:    ["Mission report: crushed it.", "Earthlings, be amazed!", "Phoning home: we won!", "On Zorb this is easy."],
       hurt:   ["Earth hurts!", "Bleep! Ow!", "Is that a welcome?"],
@@ -21350,6 +21652,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     robot: {
       beat:   ["THREAT ELIMINATED.", "MONSTER HAS STOPPED WORKING.", "WIN RATE: 100%.", "BEEP BOOP. YOU LOSE."],
+      smash:  ["THREAT DELETED. TROPHY EFFECTIVE.", "CHAMPION PROTOCOL: SUCCESSFUL."],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["SYSTEMS ONLINE.", "STICK PROTOCOL ENGAGED.", "LOADING... DONE.", "BEEP. LET'S GO."],
       win:    ["MISSION COMPLETE.", "EFFICIENCY: 100%.", "VICTORY PROTOCOL RUNNING.", "ERROR: TOO GOOD."],
       hurt:   ["DAMAGE: MINOR.", "PRIDE: DENTED.", "RECALCULATING..."],
@@ -21359,6 +21662,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     rex: {   // v2.87: Rex only barks; a small translation underneath says what he means
       beat:   ["GRRR-WOOF!|(translation: and STAY away.)", "*victory zoomies*|(translation: I won! I won! I won!)", "Bark!|(translation: bad monster. BAD.)", "WOOF!|(translation: I got the red dot. finally.)"],
+      smash:  ["AROOO! WOOF!|(translation: best game of fetch EVER.)", "GRRR... WOOF!|(translation: I buried it. In scrap.)"],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["WOOF! WOOF WOOF!|(translation: a WHOLE field of sticks?!)", "Arf!|(translation: I was born for this.)", "*sniff sniff* WOOF!|(translation: sticks. I smell sticks.)", "Woof woof!|(translation: is it fetch time? it's fetch time.)"],
       win:    ["AROOOOO!|(translation: best. level. ever.)", "Woof!|(translation: who's a good boy? me. I am.)", "*happy tail wag*|(translation: treat now, please.)", "ARF ARF!|(translation: again! again!)"],
       hurt:   ["Yelp!|(translation: that was rude.)", "*whimper*|(translation: I need a belly rub.)", "Grrr...|(translation: I'm telling.)"],
@@ -21368,6 +21672,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     rick: {
       beat:   ["Was that supposed to be hard?", "Too easy.", "Next.", "Rick never loses."],
+      smash:  ["Was there ever any doubt?", "Champions don't dodge. They smash."],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["Watch and learn.", "Too easy already.", "Rick's in the house.", "Try to keep up."],
       win:    ["Too easy.", "Was that it?", "Rick never misses.", "Hold your applause."],
       hurt:   ["Didn't hurt.", "Lucky shot.", "Meant to do that."],
@@ -21377,6 +21682,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     sally: {
       beat:   ["Careful planning pays off.", "Phew. Stayed calm, won.", "Smart over scary.", "Well, that was risky."],
+      smash:  ["Phew! Everyone's safe now.", "Sorry, robot. You had it coming."],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["Let's think this through.", "Slow and steady.", "Okay, plan first.", "Eyes open, everyone."],
       win:    ["That went to plan.", "See? Careful pays.", "Nicely done, team.", "Smart moves win."],
       hurt:   ["Careful next time.", "Lesson learned.", "That was risky."],
@@ -21386,6 +21692,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     sick: {
       beat:   ["I beat it... *cough* barely.", "ACHOO! You lose!", "Need a nap after that.", "Too sick to lose!"],
+      smash:  ["*achoo* ...oh, did I do that?", "Feeling better already!"],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["*cough* Ready...", "I should be in bed.", "Ugh... let's go.", "ACHOO! Okay, go."],
       win:    ["Did we win? *sniff*", "Feeling better already!", "ACHOO! Victory!", "Time for a nap."],
       hurt:   ["ACHOO!", "*cough cough*", "Ugh, so dizzy."],
@@ -21395,6 +21702,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     super: {
       beat:   ["Evil never wins!", "All in a hero's day!", "Up, up, and victory!", "Citizens, you're safe!"],
+      smash:  ["Justice, served gold-plated!", "Just another day saving the arena."],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["Up, up, and stick!", "Have no fear!", "A hero is here!", "Cape on. Let's go!"],
       win:    ["Another day saved!", "The day is saved!", "Faster than a falling stick!", "Heroes never quit!"],
       hurt:   ["Merely a flesh wound!", "Heroes don't cry!", "My cape!"],
@@ -21404,6 +21712,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     dip: {
       beat:   ["Wait, I won? I WON!", "I meant to do that!", "Did I hit it? I hit it!", "Monster go bye-bye!"],
+      smash:  ["Wait, the trophy EXPLODES?!", "I meant to do that. Probably."],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["Wait, which way is up?", "I'm ready! For what?", "Is this the bathroom?", "Hi! I'm Dip!"],
       win:    ["We won? I won!", "I meant to do that!", "Duh-winning!", "Did I do the thing?"],
       hurt:   ["Ow! Why'd I do that?", "Who put that there?", "Duh..."],
@@ -21413,6 +21722,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     mystic: {
       beat:   ["I foresaw your defeat.", "My eyes saw this coming.", "The prophecy is fulfilled.", "Magic revealed the way."],
+      smash:  ["I foresaw your doom, metal one.", "The stars said: smash."],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["I predicted this.", "Magic will reveal the way.", "The stars told me you'd come.", "I have foreseen this level."],
       win:    ["As I foresaw.", "My eyes see all.", "The prophecy is fulfilled.", "I knew it all along."],
       hurt:   ["I didn't see that one coming.", "A minor vision error.", "The spirits lied!"],
@@ -21422,6 +21732,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     rock: {
       beat:   ["Rock beats monster. Every time.", "Encore? Nah, you're done.", "Monster just got booed off stage.", "That's what I call a breakdown."],
+      smash:  ["Now that's a smash hit!", "Thank you, thank you very much!"],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["Oh, this ole song and dance.", "This looks like a new tune.", "One, two, three, four!", "Let's rock this joint.", "Hit it!"],
       win:    ["Thank you, goodnight!", "That's a hit record!", "Another chart-topper.", "Rock and roll, baby!"],
       hurt:   ["Ouch! Sour note!", "Broke a string!", "Who threw that?!"],
@@ -21431,6 +21742,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     jogger: {
       beat:   ["Outran AND outfought you!", "Feel the burn, monster!", "Personal best!", "Jogging is fun!"],
+      smash:  ["Personal best: one pile of scrap!", "Didn't even break stride!"],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["Jogging is fun!", "Let's go for a run!", "Stretch... and GO!", "Warm-up done!"],
       win:    ["Personal best!", "Jogging is fun!", "Finish line!", "Runner's high!"],
       hurt:   ["Pulled a hammy!", "Side stitch!", "Tripped on my laces!"],
@@ -21440,6 +21752,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     },
     law: {
       beat:   ["You're under arrest.", "Case closed.", "Crime doesn't pay, monster.", "Book 'em!"],
+      smash:  ["Case closed. Permanently.", "You have the right to remain scrap."],   // v3.93: after blowing something up with the Champion's Stick
       start:  ["Nobody move.", "Sticks, you're under arrest.", "Stick 'em up!", "This level's on lockdown."],
       win:    ["Case closed.", "Justice is served.", "Book 'em.", "Crime doesn't pay."],
       hurt:   ["That's assault!", "You're going down!", "That's a criminal offense!"],
@@ -21512,7 +21825,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     "law": "Birds, drop those sticks!",
     "jogger": "Running on clouds!",
     "mystic": "I sensed a breeze coming.",
-    "rock": "Finally, a stage dive with a parachute."
+    "rock": "Finally, a stage dive with a parachute."   // (Angel and Super fly in on their own, no parachute: v3.83)
    },
    "Fire Stick": {
     "classic": "Things are heating up!",
@@ -21964,9 +22277,20 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
   function entranceKindFor(themeName){ return themeName === "Sky Stick" ? "sky" : null; }   // v2.82: Sea starts on an island now
   function entranceArm(themeName){ entrance.kind = entranceKindFor(themeName); entrance.pending = !!entrance.kind; entrance.active = false; }
   function entranceStart(){ if (!entrance.pending) return; entrance.pending = false; entrance.active = true; entrance.t0 = performance.now(); entranceSound(0); entrance.snd = 0; }
-  function entranceEnd(){ entrance.active = false; entrance.pending = false; entrance.kind = null; }
+  function entranceAngel(){ return entrance.kind === "sky" && game.playerSkin === "angel"; }
+  function entranceMystic(){ return entrance.kind === "sky" && game.playerSkin === "mystic"; }   // v3.88
+  function entranceEnd(){
+    const line = !entrance.active ? null : entranceAngel() ? "Heaven gave me wings for a reason."
+               : entranceMystic() ? "Parachutes are for people without magic." : null;
+    entrance.active = false; entrance.pending = false; entrance.kind = null;
+    if (line){   // v3.84: Angel (and v3.88: Mystic) arrive and say their piece
+      talk.bubble = { text: line, t0: performance.now(), dur: 3200 };
+      try { talkSound(); } catch(_){}
+      talk.lastAt = performance.now();
+    }
+  }
   function entranceHidesPlayer(){ return (entrance.pending || entrance.active) && !entranceDrawing; }
-  function entranceDur(){ return entrance.kind === "sea" ? 3.0 : 3.9; }
+  function entranceDur(){ return entrance.kind === "sea" ? 3.0 : entranceAngel() ? 6.0 : entranceMystic() ? 3.8 : 3.9; }   // v3.84: Angel glides in slower
   function entranceSound(step){
     try {
       if (entrance.kind === "sky"){
@@ -21991,16 +22315,61 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     if (t >= D){ entranceEnd(); return; }
     fx.vx = game.playerX; fx.vy = game.playerY;   // no gliding during the entrance: the stick's real square
     const p = { x: game.playerX * TILE + TILE / 2, y: game.playerY * TILE + TILE / 2 }, ease = (k) => 1 - Math.pow(1 - k, 3);
-    if (entrance.kind === "sky"){
-      const FALL = 3.2;   // a slow, floaty descent
-      const k = Math.min(1, t / FALL), e = ease(k);
+    if (entrance.kind === "sky" && entranceMystic()){
+      // v3.88 MYSTIC: no parachute. Gold sparkles swirl in on her square first, then she slowly fades in out of
+      // the mist, and the sparkles drift away.
+      const GATHER = 1.5, FADE = 1.6, fadeK = Math.max(0, Math.min(1, (t - GATHER + 0.3) / FADE)), fe = fadeK * fadeK * (3 - 2 * fadeK);
+      const mt = performance.now() / 1000;
+      ctx.save();
+      // soft gold mist pooling on the square
+      const mistA = Math.min(1, t / 0.8) * (t > D - 0.8 ? (D - t) / 0.8 : 1);
+      for (let i = 0; i < 4; i++){
+        const a = mt * 0.7 + i * 1.6, mx = p.x + Math.cos(a) * 9, my = p.y + 10 + Math.sin(a) * 3 - i * 2;
+        const mg = ctx.createRadialGradient(mx, my, 0.5, mx, my, 13);
+        mg.addColorStop(0, `rgba(255,211,107,${0.22 * mistA})`); mg.addColorStop(1, "rgba(255,211,107,0)");
+        ctx.fillStyle = mg; ctx.beginPath(); ctx.arc(mx, my, 13, 0, Math.PI * 2); ctx.fill();
+      }
+      // sparkles: spiral in toward her, twinkle while she appears, then drift up and away
+      for (let i = 0; i < 22; i++){
+        const ph = i / 22, ang = ph * Math.PI * 2 * 3 + mt * 1.6;
+        let r, yo, a;
+        const inK = Math.max(0, Math.min(1, (t - ph * 0.5) / GATHER));
+        if (t < GATHER + 0.6){ r = 6 + (1 - inK) * 46; yo = -(1 - inK) * 10; a = Math.min(1, inK * 3); }
+        else { const outK = Math.min(1, (t - GATHER - 0.6) / (D - GATHER - 0.6)); r = 6 + outK * 14 + (i % 3) * 2; yo = -outK * 26 - (i % 4) * 2; a = 1 - outK; }
+        const sx = p.x + Math.cos(ang) * r, sy = p.y + Math.sin(ang) * r * 0.55 + yo, tw = 0.6 + 0.4 * Math.sin(mt * 9 + i), sr = (1.1 + (i % 3) * 0.5) * tw;
+        ctx.fillStyle = i % 4 === 0 ? `rgba(255,255,240,${a * 0.9})` : `rgba(255,211,107,${a * 0.9})`;
+        ctx.beginPath(); for (let j = 0; j < 8; j++){ const an = j * Math.PI / 4, rr = j % 2 ? sr * 0.35 : sr * 1.8; ctx.lineTo(sx + Math.cos(an) * rr, sy + Math.sin(an) * rr); } ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+      if (t > GATHER - 0.4 && entrance.snd < 1){ entrance.snd = 1; try { beep(1320, 0.18, "sine", 0.03); setTimeout(() => beep(1760, 0.22, "sine", 0.025), 120); setTimeout(() => beep(2093, 0.3, "sine", 0.02), 260); } catch(_){} }
+      if (fe > 0){ ctx.save(); ctx.globalAlpha = fe; entrancePlayerAt(0, (1 - fe) * -3); ctx.restore(); }
+    } else if (entrance.kind === "sky"){
+      const FALL = entranceAngel() ? 5.4 : 3.2;   // a slow, floaty descent (Angel takes her time)
+      const k = Math.min(1, t / FALL), e = entranceAngel() ? k * k * (3 - 2 * k) : ease(k);   // Angel: an even, gentle glide all the way down
       const startY = -(p.y + 70), dy = startY * (1 - e), sway = Math.sin(t * 2.4) * 8 * (1 - e);
       const land = t > FALL ? Math.sin(Math.min(1, (t - FALL) / 0.25) * Math.PI) * -2 : 0;   // tiny bounce
       if (t > FALL && entrance.snd < 1){ entrance.snd = 1; entranceSound(1); }
       // parachute: canopy above, lines down to the shoulders; after landing it crumples and drifts off
       const cK = t <= FALL ? 0 : Math.min(1, (t - FALL) / (D - FALL));
       const cx = p.x + sway + cK * 18, cy = p.y + dy - 46 + cK * 30, cw = 26 * (1 - cK * 0.4), ch = 14 * (1 - cK * 0.75);
-      ctx.save(); ctx.globalAlpha = 1 - cK; ctx.lineCap = "round";
+      const flyer = game.playerSkin === "angel" || game.playerSkin === "super";   // v3.83: they have their own way down
+      if (flyer && t <= FALL){
+        ctx.save(); ctx.lineCap = "round";
+        if (game.playerSkin === "angel"){   // a trail of soft golden sparkles drifting up behind her
+          for (let i = 0; i < 10; i++){
+            const ph = (t * 0.9 + i * 0.1) % 1, sx = p.x + sway + Math.sin(i * 2.3 + t * 2) * 12, sy = p.y + dy - 10 - ph * 46;
+            const a = (1 - ph) * 0.8 * (1 - e * 0.6), r = 1.2 + (1 - ph) * 1.4;
+            ctx.fillStyle = `rgba(255,230,150,${a})`; ctx.beginPath();
+            for (let j = 0; j < 8; j++){ const an = j * Math.PI / 4, rr = j % 2 ? r * 0.4 : r; ctx.lineTo(sx + Math.cos(an) * rr, sy + Math.sin(an) * rr); }
+            ctx.closePath(); ctx.fill();
+          }
+        } else {   // Super: speed streaks above him as he swoops down
+          for (let i = 0; i < 4; i++){ const xx = p.x + sway + (i - 1.5) * 6, a = 0.55 * (1 - e);
+            ctx.strokeStyle = `rgba(255,255,255,${a})`; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(xx, p.y + dy - 24 - i * 3); ctx.lineTo(xx, p.y + dy - 44 - i * 3); ctx.stroke(); }
+        }
+        ctx.restore();
+      }
+      ctx.save(); ctx.globalAlpha = flyer ? 0 : 1 - cK; ctx.lineCap = "round";
       ctx.strokeStyle = "rgba(230,235,245,0.8)"; ctx.lineWidth = 0.8;
       ctx.beginPath(); ctx.moveTo(cx - cw, cy); ctx.lineTo(p.x + sway - 3, p.y + dy - 6); ctx.moveTo(cx + cw, cy); ctx.lineTo(p.x + sway + 3, p.y + dy - 6);
       ctx.moveTo(cx - cw * 0.35, cy + 1); ctx.lineTo(p.x + sway - 1, p.y + dy - 6); ctx.moveTo(cx + cw * 0.35, cy + 1); ctx.lineTo(p.x + sway + 1, p.y + dy - 6); ctx.stroke();
@@ -22087,7 +22456,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
     const fpos = fxPlayerPos();
     const _rr = snRideRear();   // v3.72: when the horse rears, you move and lean with its back
     const cx = fpos.x*TILE + TILE/2 + _rr.dx;
-    const cy = fpos.y*TILE + TILE/2 + fpos.hop - snRideLift() + _rr.dy;   // v3.65: on the horse while riding
+    const cy = fpos.y*TILE + TILE/2 + fpos.hop - snRideLift() - skyRideLift() + _rr.dy;   // v3.65: on the horse while riding
 
     ctx.save();
     ctx.translate(cx, cy);
@@ -22142,31 +22511,11 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
       ctx.globalAlpha = 1;
     }
     
-    // Cloud effect on player
+    // Cloud effect on player (v3.82: a soft mist clinging to you; the wisps drift off behind)
     if (playerCloudEffect > 0){
-      const cloudAlpha = (playerCloudEffect / 180) * 0.7;
-      
-      ctx.globalAlpha = cloudAlpha;
-      ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-      
-      // Multiple wispy cloud puffs around player
-      ctx.beginPath();
-      ctx.arc(-8, -3, 6, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.beginPath();
-      ctx.arc(8, -3, 6, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.beginPath();
-      ctx.arc(0, -8, 7, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.beginPath();
-      ctx.arc(0, 5, 5, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.globalAlpha = 1;
+      const k = playerCloudEffect / 180, mg = ctx.createRadialGradient(0, -2, 2, 0, -2, 16);
+      mg.addColorStop(0, `rgba(255,255,255,${0.32 * k})`); mg.addColorStop(1, "rgba(235,243,255,0)");
+      ctx.fillStyle = mg; ctx.beginPath(); ctx.ellipse(0, -2, 15, 17, 0, 0, Math.PI * 2); ctx.fill();
     }
 
     const theme = currentLevelTheme();
@@ -22323,7 +22672,7 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
 
     const drawCarryDots = () => {
       if (fxNoSmooth || (typeof talkZooming !== "undefined" && talkZooming)) return;   // no carry dots in the picker or the zoom-in
-      if (snRideLift() > 0) return;   // v3.75: not while riding (they'd land on the horse)
+      if (snRideLift() > 0 || skyRideLift() > 0) return;   // v3.75: not while riding (they'd land on the horse / plane)
       const cap = carryCap();
       const carried = game.carry.length;
       const slots = Math.min(6, cap);
@@ -24441,7 +24790,7 @@ ctx.restore();
     }
     
     // Update wind tiles for Sky Stick theme
-    if (currentLevelTheme().name === "Sky Stick" && windTiles.length > 0){
+    if (currentLevelTheme().name === "Sky Stick"){   // v3.82: no longer depends on wind tiles existing
       updateWindTiles();
       updateSkyClouds();
     }
@@ -24556,6 +24905,7 @@ ctx.restore();
     }
     } // End of !isGameEnded check
 
+    try { skyEngineTick(!isGameEnded); } catch(_){}   // v3.87: propeller drone when a plane is about
     // draw (continue drawing even when game is ended)
 
     // HiDPI transform: keep drawing in CANVAS_W/H units, scaled to backing pixels.
@@ -24621,6 +24971,7 @@ ctx.restore();
     if (theme.name === "Snake Stick"){
       drawWildHorse();
     }
+    if (theme.name === "Sky Stick") drawSkyPlaneLayer();   // v3.81: same for the plane (you stand on top of it)
     drawPlayer();
     if (theme.name === "Sparkle Stick") spDrawFront();   // v3.39: Starlight Unicorn and the grumpy rain cloud
 
