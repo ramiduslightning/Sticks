@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v3.94</span></div>
+          <div>STICKS <span class="badge">v3.96</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -17940,7 +17940,10 @@ function sfxMonsterVictoryStreak(){
         seed = 77; const sticks = []; for (let i = 0; i < 11; i++) sticks.push({ x: R(60, 580), y: R(80, 470), a: R(0, Math.PI), c: COLORS[i % COLORS.length] });
         // the skater glides right; beam points ahead
         const px = 90 + (p / SLIDE) * 300, py = 330, ang = -0.15 + Math.sin(p * 1.6) * 0.35;
-        const hx = px + 26, hy = py + 14, reach = 330, spread = 0.38;
+        // v3.95: the flashlight is held in the forward hand, and the arm points where the beam goes
+        const angD = ang * 180 / Math.PI, gArm = [angD * 0.7 + 8, angD];
+        const gHand = handAt(px, py, 20, { rArm: gArm, lArm: [-150, -120] }, 'r');
+        const hx = gHand.x + Math.cos(ang) * 18, hy = gHand.y + Math.sin(ang) * 18, reach = 330, spread = 0.38;
         const inBeam = (s) => { const dx = s.x - hx, dy = s.y - hy, d = Math.hypot(dx, dy); let da = Math.atan2(dy, dx) - ang; da = Math.atan2(Math.sin(da), Math.cos(da)); return (d < reach && Math.abs(da) < spread) || Math.hypot(s.x - px, s.y - (py + 40)) < 80; };
         // boombox beat -> strobe
         const bp = p % 1.15, beat = Math.max(0, 1 - bp / 0.4), strobe = Math.max(0, 1 - bp / 0.22);
@@ -17977,13 +17980,16 @@ function sfxMonsterVictoryStreak(){
             X.restore(); });
           // the skater, on roller skates
           const st = Math.sin(p * 7);
-          const f = figure(px, py, 20, '#ffffff', { lArm:[-150 + st * 10, -120], rArm:[-20, -15], lLeg:[115 + st * 14, 100], rLeg:[65 - st * 14, 80] });
-          f.feet.forEach((ft, i) => { const col = i ? '#ff3fa4' : '#2ee6d6'; X.save(); X.translate(ft.x + 2, ft.y + 4); X.scale(1.6, 1.6);
+          const f = figure(px, py, 20, '#ffffff', { lArm:[-150 + st * 10, -120], rArm:gArm, lLeg:[115 + st * 14, 100], rLeg:[65 - st * 14, 80] });
+          f.feet.forEach((ft, i) => { const col = i ? '#ff3fa4' : '#2ee6d6'; X.save(); X.translate(ft.x + 3, ft.y + 6); X.scale(2.2, 2.2);   // v3.96: bigger skates
             X.fillStyle = '#fff'; X.beginPath(); X.moveTo(-4, -7); X.lineTo(1, -7); X.lineTo(2, -2); X.lineTo(6, -1); X.lineTo(6, 2); X.lineTo(-4, 2); X.closePath(); X.fill();
             X.fillStyle = col; X.fillRect(-4, -5.5, 5, 1.2); X.fillStyle = '#ff3fa4'; X.fillRect(5.5, 0.5, 1.6, 1.6);
             [-2.5, 3.5].forEach(wx => { X.fillStyle = col; X.shadowColor = col; X.shadowBlur = 6; X.beginPath(); X.arc(wx, 4, 2.2, 0, TAU); X.fill(); X.shadowBlur = 0; }); X.restore(); });
           // flashlight in the forward hand
-          X.save(); X.translate(hx - 6, hy); X.rotate(ang); X.fillStyle = '#2a2d36'; X.fillRect(-14, -4, 18, 8); X.fillStyle = '#c9a8ff'; X.beginPath(); X.ellipse(5, 0, 2.5, 5, 0, 0, TAU); X.fill(); X.restore();
+          X.save(); X.translate(gHand.x, gHand.y); X.rotate(ang); X.scale(1.6, 1.6);
+          X.fillStyle = '#2a2d36'; X.beginPath(); X.roundRect(-5, -3.5, 13, 7, 2); X.fill();          // grip, in the hand
+          X.fillStyle = '#3b3f4b'; X.beginPath(); X.moveTo(7, -3.5); X.lineTo(11, -5.5); X.lineTo(11, 5.5); X.lineTo(7, 3.5); X.closePath(); X.fill();   // head
+          X.fillStyle = '#c9a8ff'; X.shadowColor = '#b48bff'; X.shadowBlur = 10; X.beginPath(); X.ellipse(11, 0, 2, 5.2, 0, 0, TAU); X.fill(); X.restore();
           if (got){ X.save(); X.translate(px, py - 64); X.scale(2.4, 2.4); g80DrawGoldStick(0, 0, 30); X.restore();
             if (p < 5.4) text('THROWBACK STICK x50', px, py - 128, 18, '#ffd23f', { weight:900 }); }
         } catch(_){} finally { ctx = mc; }
