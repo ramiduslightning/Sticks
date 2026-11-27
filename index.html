@@ -1003,7 +1003,7 @@
 
       <div class="headerBlock">
         <div class="title">
-          <div>STICKS <span class="badge">v3.78</span></div>
+          <div>STICKS <span class="badge">v3.80</span></div>
           <div class="titleBtns">
             <button id="btnSkipLevel" class="btn-mini" aria-label="Skip to Level" title="Skip to Level" style="background:linear-gradient(180deg,#3aa7ff,#2d8ccc); color:#fff;">Level</button>
             <button class="btn-info btn-mini" id="btnInfo" title="How to Play">Info</button>
@@ -1071,9 +1071,9 @@
         <div class="howtoHead">🎁 GOOD THINGS TO FIND</div>
         <ul class="howtoList">
           <li><span class="badge">Bonus Sticks</span> Sticks with a soft yellow glow. Picking one <b>doubles</b> your remaining actions. When your actions run out you get a <b>Bonus Roll</b> (two dice, 2&ndash;12) and deposits are worth <b>2&times;</b>. Roll 12 to bonus again.</li>
-          <li><span class="badge">Secret Life Tile</span> One hidden square per level. Drop a stick on it for <b>+1 life</b> (or +10 points if you already have 5). It pulses when you stand on it carrying sticks.</li>
+          <li><span class="badge">Secret Life Tile</span> One hidden square per level. Drop a stick on it for <b>+1 life</b> (or a mystery 10–50 points if you already have 5). It pulses when you stand on it carrying sticks.</li>
           <li><span class="badge">Power Sticks</span> Rare. <b>Speed:</b> next 10 moves are free. <b>Shield:</b> 30 seconds safe from hazards. <b>Vision:</b> shows the Secret Life Tile for 30 seconds.</li>
-          <li><span class="badge">Mystery Tree</span> Pops up now and then. Stand on it and press Pick/Drop: carrying sticks, feed it one for <b>+1 life</b> (+10 points at 5 lives); empty-handed, get a <b>full load</b> of sticks. Then it vanishes.</li>
+          <li><span class="badge">Mystery Tree</span> Pops up now and then. Stand on it and press Pick/Drop: carrying sticks, feed it one for <b>+1 life</b> (a mystery 10–50 points at 5 lives); empty-handed, get a <b>full load</b> of sticks. Then it vanishes.</li>
         </ul>
 
         <div class="howtoHead">⚠️ DANGERS</div>
@@ -14395,7 +14395,8 @@ function updateSpiderWebs(){
   let levelDropCount = 0;
   let levelWasPlayed = false; // Track if level was actually played (not skipped)
   const LIFE_TILE_MAX_POINTS = 10;
-  const TREE_FEED_MAX_POINTS = 10;
+  const TREE_FEED_MAX_POINTS = 10;   // (v3.80: now the minimum; see maxLifeBonusRoll)
+  function maxLifeBonusRoll(){ return 5 * randInt(2, 10); }   // v3.80: 10, 15, 20 ... 50 when your lives are already full
 
   /* ---- Music ---- */
   const MUSIC_STEP_MS = 245;
@@ -19987,9 +19988,15 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
         logEvent("bonus","Tree grants +1 life.");
         sfxExtraLife();
       } else {
-        game.score += TREE_MAXLIFE_POINTS;
-        setHud(`+${TREE_MAXLIFE_POINTS} pts`);
-        logEvent("bonus",`Tree grants +${TREE_MAXLIFE_POINTS} points (max lives).`);
+        // v3.79 bug fix: this used TREE_MAXLIFE_POINTS, which didn't exist, so at full lives the game crashed
+        // quietly here (the stick was lost, no points, and the tree stayed). The constant is TREE_FEED_MAX_POINTS.
+        // v3.80: it's a MYSTERY tree: a random 10-50 points (steps of 5) when your lives are already full
+        const treePts = maxLifeBonusRoll();
+        game.score += treePts;
+        const jackpot = treePts >= 40;
+        setHud(jackpot ? `🌳 JACKPOT! +${treePts} pts` : `🌳 +${treePts} pts (max lives)`);
+        logEvent("bonus", jackpot ? `🌳 Mystery Tree JACKPOT! +${treePts} points (max lives).` : `🌳 The Mystery Tree grants +${treePts} points (max lives).`);
+        try { sfxLifeTileMaxBonus(); if (jackpot) startCelebrationMusic(5000); } catch(_){}
         commitScoreToLeaderboard();
       }
 
@@ -20101,10 +20108,12 @@ if (moveCost === 2 && activeSpeedBoost === 0 && game.actions < 2){
           sfxExtraLife();
           startCelebrationMusic(6500);
         } else {
-          game.score += LIFE_TILE_MAX_POINTS;
-          logEvent("bonus",`Life tile found (max lives). x${LIFE_TILE_MAX_POINTS} bonus points!`);
-          setHud(`LIFE TILE (×${LIFE_TILE_MAX_POINTS})`);
+          const tilePts = maxLifeBonusRoll();   // v3.80: random 10-50, same as the Mystery Tree
+          game.score += tilePts;
+          logEvent("bonus", tilePts >= 40 ? `Life tile JACKPOT (max lives)! +${tilePts} bonus points!` : `Life tile found (max lives). +${tilePts} bonus points!`);
+          setHud(tilePts >= 40 ? `LIFE TILE JACKPOT! +${tilePts}` : `LIFE TILE +${tilePts}`);
           sfxLifeTileMaxBonus();
+          if (tilePts >= 40) { try { startCelebrationMusic(5000); } catch(_){} }
           commitScoreToLeaderboard();
         }
 
